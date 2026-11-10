@@ -1,0 +1,52 @@
+{
+  "id": "/",
+  "name": "كابتن مشوار",
+  "short_name": "كابتن مشوار",
+  "description": "تطبيق كابتن مشوار المستقل للسائق — نسخة تجريبية",
+  "lang": "ar",
+  "dir": "rtl",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f8fafb",
+  "theme_color": "#083344",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "prefer_related_applications": false,
+  "orientation": "portrait-primary",
+  "categories": [
+    "travel",
+    "navigation"
+  ],
+  "display_override": [
+    "standalone"
+  ],
+  "shortcuts": [
+    {
+      "name": "تسجيل الدخول",
+      "url": "/#login"
+    },
+    {
+      "name": "التسجيل ككابتن",
+      "url": "/#register"
+    }
+  ]
+}

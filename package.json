@@ -1,0 +1,12 @@
+{
+  "name": "mishwar-pilot",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "test": "node scripts/run.mjs build && node scripts/run.mjs test",
+    "build": "node scripts/run.mjs build"
+  }
+}
