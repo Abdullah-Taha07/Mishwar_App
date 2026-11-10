@@ -1,0 +1,9 @@
+{
+  "name": "mishwar-rider",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "dev": "node scripts/dev.mjs"
+  }
+}

@@ -1,0 +1,5 @@
+dist/
+.preview-data/
+node_modules/
+.env*
+!.env.example

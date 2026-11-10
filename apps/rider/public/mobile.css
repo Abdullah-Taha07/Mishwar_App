@@ -1,0 +1,105 @@
+/* Compact mobile layout: fixed screen, lighter text, no booking/drawer scroll. */
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+body{font-weight:400}
+h1,h2,h3,strong,b{font-weight:600}
+.brand{font-weight:700}.nav,.rail .nav{font-weight:500}
+.location-edit{flex:1;min-width:0;text-align:right;border:0;background:none;color:var(--ink);padding:7px 0;cursor:pointer}
+.location-edit strong,.destination-button strong{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
+.location-hint{display:block;font-size:10px;color:#1695a9;margin-top:5px}
+.location-card .loc-row>svg{flex-shrink:0}
+.loc-row .destination-button{min-width:0}
+.picker-intro{font-size:13px;line-height:1.8;color:var(--muted)}
+.pickup-options{display:grid;gap:10px;margin-top:18px}
+.pickup-options>button{border:1px solid var(--line);border-radius:13px;padding:15px;background:var(--pale);color:var(--ink);display:flex;align-items:center;gap:14px;text-align:right}
+.pickup-options strong{display:block;font-size:14px}.pickup-options small{display:block;font-size:11px;color:var(--muted);margin-top:6px}
+.geo-search-field{display:flex;gap:8px}.geo-search-field .field{flex:1;min-width:0}.geo-search-field .outline-action{flex:0}
+.map-search-option{display:flex;align-items:center;gap:8px;width:100%;padding:14px 4px;border:0;background:none;color:#12899c;text-align:right;font-size:13px}
+.geo-credit{font-size:10px;color:var(--muted);text-align:center}
+#live-map{position:absolute;inset:0;z-index:0;background:#e7efee;direction:ltr;font-family:inherit}
+.map .city-map{display:none}
+.map-wrap{isolation:isolate}
+.map-top,.map-status,.map-tools{z-index:450}
+.map-tools{bottom:30px}
+.map-status{pointer-events:none}
+.map-badge{font-size:11px}.map-tools button{width:34px;height:34px}
+.leaflet-control-attribution{font-family:Arial,sans-serif;font-size:9px!important;direction:ltr}
+.live-pin{display:grid;place-items:center;background:#fff;border:2px solid #06b6d4;border-radius:50%;box-shadow:0 2px 12px #08334440}
+.live-pin span{width:10px;height:10px;border-radius:50%;background:#06b6d4}
+.live-pin.destination{border-color:#083344;border-radius:6px}.live-pin.destination span{background:#083344;border-radius:2px}
+.live-pin.candidate{border-color:#ed9d35}.live-pin.candidate span{background:#ed9d35}
+#map-load-error{position:absolute;bottom:18px;right:10px;left:54px;z-index:450;background:#fff3df;color:#70552a;padding:9px;border-radius:9px;font-size:11px;line-height:1.6}
+#map-pick-bar{position:absolute;bottom:25px;right:14px;left:14px;z-index:500;border:1px solid var(--line);background:#fff;border-radius:18px;padding:14px;box-shadow:0 5px 24px #08334425;color:#083344}
+.pick-heading{display:flex;align-items:center;justify-content:space-between;font-size:15px}
+#pick-coordinate{font-size:12px;margin:10px 0;line-height:1.6}
+.pick-actions{display:flex;gap:8px}.pick-actions .primary{margin:0;padding:12px;flex:1;font-size:13px}.pick-actions .outline-action{flex:1;font-size:12px;padding:10px}
+.map-picking .map-tools{top:125px;bottom:auto}
+.map-picking .map-wrap{position:fixed;inset:0;z-index:30;height:100dvh;max-height:none;border-radius:0}
+.map-picking .map-top{top:max(16px,env(safe-area-inset-top))}
+.map-picking .map-status{top:67px}
+.map-picking .ride-layout .map-wrap{height:100dvh!important}
+[data-theme=dark] #map-pick-bar{background:#132e3b;color:#d9f0f5}
+@media(max-width:700px){
+ .topbar{height:58px;padding:8px 15px}
+ .topbar h1{font-size:18px;font-weight:600;margin-top:3px}.wave{font-size:20px}
+ .eyebrow{font-size:9px}.greeting-block{gap:9px}
+ .menu-toggle{width:33px;height:33px}.avatar{width:30px;height:30px;font-size:15px}
+ .app{padding-bottom:calc(56px + env(safe-area-inset-bottom))}
+ .map-wrap{height:clamp(140px,33dvh,310px)}
+ .booking{padding:19px 16px 5px;container-type:size;container-name:booking}
+ #panel{gap:0}.panel-content{overflow:hidden;padding:0;flex:1;display:flex;flex-direction:column}
+ .panel-title{margin:0 0 9px;flex-shrink:0}.panel-title h2{font-size:17px;font-weight:600;line-height:1.4}
+ .tag{font-size:9px;padding:4px 7px}.sub{display:none}
+ .location-card{flex-shrink:0;border-radius:15px;padding:2px 12px}
+ .loc-row{min-height:48px;gap:9px}.loc-row small{font-size:10px;margin-bottom:4px}
+ .loc-row strong{font-size:13px;font-weight:500}.destination-button span{font-size:13px}.location-hint{font-size:9px;margin-top:3px}
+ .loc-marker{width:11px;height:11px;border-width:3px}.location-card svg{width:18px;height:18px}
+ .saved{margin-top:10px;gap:9px;flex-shrink:0}.saved button{padding:9px 10px;border-radius:11px;gap:8px}
+ .saved strong{font-size:12px;font-weight:500}.saved small{font-size:9px;margin-top:3px}.saved svg{width:18px}
+ .section-label{font-size:12px;margin:14px 0 5px;flex-shrink:0}.section-label span{font-size:9px}
+ .recent{gap:1px;flex-shrink:0}.recent button{padding:7px 0;gap:9px}.recent .round{width:28px;height:28px}.recent strong{font-size:12px;font-weight:500}.recent small{font-size:9px;margin-top:3px}
+ #panel>.primary{margin-top:7px;padding:12px;min-height:44px;font-size:14px;font-weight:600;border-radius:12px;box-shadow:none}
+ .demo-note{font-size:8px;margin-top:4px}.mobile-nav{height:calc(56px + env(safe-area-inset-bottom));padding:7px 10px calc(5px + env(safe-area-inset-bottom))}
+ .mobile-nav button{font-size:9px;gap:4px;font-weight:500}.mobile-nav svg{width:20px;height:20px}
+ #toast{font-size:12px;padding:11px 15px;bottom:75px}
+ .vehicle{padding:10px;border-radius:12px;margin-bottom:7px;gap:9px;min-height:57px;flex-shrink:0}
+ .vehicle.selected{padding:9px}.vehicle .car-art{width:62px;height:35px}.vehicle strong{font-size:13px;font-weight:500}.vehicle small{font-size:9px;margin-top:4px}.vehicle .price{font-size:16px;font-weight:600}
+ .ride-layout:has(#panel[data-stage=select]) .map-wrap,.ride-layout:has(#panel[data-stage=arriving]) .map-wrap,.ride-layout:has(#panel[data-stage=riding]) .map-wrap{height:clamp(90px,17dvh,160px)}
+ #panel[data-stage=select] .loc-row{min-height:42px}
+ #panel[data-stage=select] .location-hint{display:none}
+ #panel[data-stage=select] .location-edit{padding:4px 0}
+ #panel[data-stage=select] .destination-button{padding:5px 0}
+ .payment{padding:10px 12px;margin-top:6px;font-size:11px;flex-shrink:0}.fare-note{font-size:9px;line-height:1.5;margin:7px 0 0;flex-shrink:0}
+ .discount-note{margin:5px 0;padding:6px;font-size:9px}
+ .driver-card{margin-top:10px;padding:12px;flex-shrink:0}.driver-head{gap:9px}.driver-photo{width:37px;height:37px}.driver-head strong{font-size:13px}.driver-head small{font-size:9px}
+ .plate{margin-top:10px;padding:9px;font-size:10px}.contact{margin-top:9px;gap:7px}.contact button{padding:8px;font-size:11px}
+ .eta{padding:10px 12px;border-radius:12px;flex-shrink:0}.eta b{font-size:23px}.eta span{font-size:11px}
+ .secondary{font-size:11px;margin-top:5px;padding:8px}
+ #panel[data-stage=arriving] .secondary{padding:6px 8px}
+ .matching{padding:8px 0}.matching h2{font-size:19px}.matching .sub{display:block;margin:0 0 10px}.matching .spinner{width:45px;height:45px;margin:15px auto}
+ .success{padding:0}.success .tick{width:43px;height:43px;margin:0 auto 8px;font-size:24px}.success h2{font-size:19px;margin:8px 0}.success h3{font-size:13px;margin:10px 0 5px}.success .receipt{margin-top:10px;padding:12px;font-size:12px}.success .receipt b{font-size:19px}.success .primary{padding:12px;font-size:14px;margin-top:10px}.stars button{font-size:27px}.success .sub{display:none}
+ #drawer{overflow:hidden;width:min(340px,90vw)}
+ #drawer-content{height:100%;min-height:0;padding:16px 18px max(12px,env(safe-area-inset-bottom));overflow:hidden}
+ .drawer-top{flex-shrink:0;padding-top:env(safe-area-inset-top)}.drawer-brand{font-size:18px}
+ .drawer-profile{padding:16px 0;flex-shrink:0}.profile-circle{width:48px;height:48px;font-size:23px;margin-bottom:8px;border-width:3px}
+ .drawer-profile h2{font-size:17px;margin-bottom:6px}.user-rating{font-size:14px}.user-rating small{font-size:9px}
+ .drawer-links{flex:1;min-height:0;grid-template-rows:repeat(7,minmax(0,1fr))}
+ .drawer-links button{padding:8px 0;gap:12px;min-height:0}.drawer-links strong{font-size:13px;font-weight:500}.drawer-links small{font-size:9px;margin-top:4px}.drawer-links svg{width:20px;height:20px}.chevron{font-size:20px}
+ .drawer-footer{padding-top:12px;flex-shrink:0}.driver-link{padding:11px 13px;font-size:13px;border-radius:11px}.driver-link strong{font-weight:500}.drawer-version{margin:12px 0 6px;font-size:10px}.drawer-footer p{font-size:8px}
+ #modal{padding:20px 17px}.modal-head{margin-bottom:15px}.modal-head h2{font-size:18px}
+ .map-top{top:10px;right:12px;left:12px}.map-badge{font-size:10px;padding:8px 10px}.map-status{top:50px;right:12px;font-size:9px;padding:6px 9px}.map-tools{left:12px;bottom:24px;gap:5px}.map-tools button{width:30px;height:30px}
+ .leaflet-bottom{bottom:23px}.map-picking .leaflet-bottom{bottom:0}
+}
+@container booking (max-height:430px){#panel[data-stage=home] .recent button:nth-child(n+2){display:none}}
+@container booking (max-height:355px){#panel[data-stage=home] .recent,#panel[data-stage=home] .section-label{display:none}}
+@container booking (max-height:300px){#panel[data-stage=select] .fare-note{display:none}#panel[data-stage=arriving] .contact,#panel[data-stage=riding] .contact{display:none}}
+@media(max-width:700px) and (max-height:660px){
+ .topbar{height:52px}.map-wrap{height:130px}.booking{padding-top:17px}
+ .drawer-profile{display:grid;grid-template-columns:43px 1fr;column-gap:10px;padding:10px 0}.drawer-profile .profile-circle{grid-row:1/3;width:39px;height:39px;margin:0;font-size:20px}.drawer-profile h2{font-size:15px;align-self:end}.user-rating{font-size:12px}
+ .drawer-links small{display:none}.drawer-footer p{display:none}.drawer-links button{padding:6px 0}
+ .panel-title{margin-bottom:7px}.section-label{margin-top:9px}.vehicle{min-height:51px;padding:7px 9px}.vehicle.selected{padding:6px 8px}.payment{padding:8px 10px}
+ .ride-layout:has(#panel[data-stage=select]) .map-wrap,.ride-layout:has(#panel[data-stage=arriving]) .map-wrap,.ride-layout:has(#panel[data-stage=riding]) .map-wrap{height:90px}
+ #panel[data-stage=select] .loc-row{min-height:38px}
+ #panel[data-stage=select] .vehicle{min-height:48px}
+ #panel[data-stage=select] .vehicle .car-art{height:30px}
+}
+@media(max-width:700px) and (max-height:520px){.map-wrap{height:90px}.topbar{height:44px}.eyebrow{display:none}.map-status{display:none}#panel[data-stage=home] .saved{display:none}}

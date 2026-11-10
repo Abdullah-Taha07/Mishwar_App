@@ -1,0 +1,1 @@
+CREATE TRIGGER withdrawal_minimum_balance BEFORE INSERT ON withdrawal_requests WHEN COALESCE((SELECT balance_halalas FROM wallet_accounts WHERE account_id='captain:' || NEW.captain_id),0)<5000 BEGIN SELECT RAISE(ABORT,'WITHDRAWAL_MINIMUM_BALANCE'); END;
