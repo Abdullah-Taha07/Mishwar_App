@@ -1,0 +1,14 @@
+name = "mishwar-api"
+main = "dist/server/index.js"
+compatibility_date = "2026-11-11"
+workers_dev = true
+
+[[d1_databases]]
+binding = "DB"
+database_name = "mishwar-db"
+database_id = "510eb1ef-8814-4313-95e8-b1386ef40f8e"
+migrations_dir = "drizzle"
+
+[[r2_buckets]]
+binding = "BUCKET"
+bucket_name = "mishwar-storage"
