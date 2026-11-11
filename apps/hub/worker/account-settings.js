@@ -2,7 +2,7 @@ import{publicSession,passwordDigest}from'./free-auth.js';
 import{tokenHash,smsReady}from'./rider-auth.js';
 import{phoneNumber}from'../public/validation.js';
 import{logEvent}from'./operations.js';
-const settingsNow=()=>new Date().toISOString(),settingsJson=(d,s=200)=>new Response(JSON.stringify(d),{status:s,headers:{'Content-Type':'application/json','Cache-Control':'no-store'}});
+const settingsNow=()=>new Date().toISOString(),settingsJson=(d,s=200)=>new Response(JSON.stringify(d),{status:s,headers:{'Content-Type':'application/json','Cache-Control':'no-store','Access-Control-Allow-Origin':ALLOWED_ORIGIN,'Access-Control-Allow-Credentials':'true'}});
 const settingsRandom=()=>[...crypto.getRandomValues(new Uint8Array(32))].map(n=>n.toString(16).padStart(2,'0')).join('');
 async function settingsManualCode(row){return String(parseInt((await tokenHash('change:'+row.id+':'+row.session_hash+':'+row.stage)).slice(0,10),16)%1000000).padStart(6,'0')}
 async function settingsSms(env,path,body){const r=await fetch('https://verify.twilio.com/v2/Services/'+encodeURIComponent(env.TWILIO_VERIFY_SERVICE_SID)+'/'+path,{method:'POST',headers:{Authorization:'Basic '+btoa(env.TWILIO_ACCOUNT_SID+':'+env.TWILIO_AUTH_TOKEN),'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams(body),signal:AbortSignal.timeout(15000)});const d=await r.json();if(!r.ok)throw Error('تعذر إرسال أو فحص رمز الجوال. حاول لاحقًا');return d}

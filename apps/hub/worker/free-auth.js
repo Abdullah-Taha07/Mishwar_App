@@ -3,8 +3,6 @@ import{accountRecovery}from'./recovery.js';
 import{tokenHash}from'./rider-auth.js';import{phoneNumber}from'../public/validation.js';import{logEvent}from'./operations.js';
 
 // ✅ التعديل الأول: تعريف دومين Vercel المسموح له
-const ALLOWED_ORIGIN = 'https://mishwar-captain.vercel.app';
-
 // ✅ التعديل الثاني: إضافة رؤوس CORS لدالة الرد عشان المتصفح يقبلها
 const fj=(d,s=200,headers={})=>new Response(JSON.stringify(d),{status:s,headers:{
     'Content-Type':'application/json',
