@@ -12,3 +12,5 @@ migrations_dir = "drizzle"
 [[r2_buckets]]
 binding = "BUCKET"
 bucket_name = "mishwar-storage"
+[vars]
+CAPTAIN_ADMIN_EMAIL = "Abduuallah3@gmail.com"
