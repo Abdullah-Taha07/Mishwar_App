@@ -1,3 +1,4 @@
+const __MISHWAR_ASSETS__ = typeof self.__MISHWAR_ASSETS__ !== 'undefined' ? self.__MISHWAR_ASSETS__ : [];
 const BUILD='__MISHWAR_VERSION__';const CACHE='mishwar-shell-'+BUILD;const SHELL=__MISHWAR_ASSETS__;
 self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(cache=>Promise.allSettled(SHELL.map(async path=>{const response=await fetch(path,{credentials:'include',cache:'reload'});if(!response.ok||response.redirected)return;const type=response.headers.get('content-type')||'';if(path.endsWith('.js')&&!type.includes('javascript')||path.endsWith('.css')&&!type.includes('text/css'))return;await cache.put(path,response)})))));
 self.addEventListener('activate',event=>event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>/^(mishwar-shell-|captain-mishwar-|mishwar-captain-|rider-demo-)/.test(k)&&k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
