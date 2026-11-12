@@ -1,16 +1,10 @@
-﻿{
-    "version":  2,
-    "buildCommand":  "npm run build",
-    "outputDirectory":  "public",
-    "functions":  {
-                      "api/**/*.js":  {
-                                          "maxDuration":  60
-                                      }
-                  },
-    "rewrites":  [
-                     {
-                         "destination":  "/api/admin/[...path]",
-                         "source":  "/api/admin/:path*"
-                     }
-                 ]
+{
+  "version": 2,
+  "buildCommand": "npm run build",
+  "outputDirectory": "public",
+  "functions": {
+    "api/**/*.js": {
+      "maxDuration": 60
+    }
+  }
 }
