@@ -57,6 +57,20 @@
       });
       const data = await r.json();
       if (!r.ok || !data.authenticated) throw new Error(data.error || "تعذر تسجيل الدخول.");
+      // A successful password response is not proof that the browser's
+      // subsequent requests will be authenticated. Verify the issued cookie.
+      const verification = await fetch("/api/admin-auth/session", { credentials: "same-origin", cache: "no-store" });
+      const session = await verification.json();
+      if (!verification.ok || !session.authenticated) {
+        const reasons = {
+          cookie_missing: "لم تُحفظ جلسة الدخول في المتصفح.",
+          cookie_malformed: "بيانات جلسة الدخول غير مكتملة.",
+          signature_invalid: "تعذر التحقق من توقيع الجلسة. راجع توحيد ADMIN_SESSION_SECRET في نشر Vercel.",
+          payload_invalid: "بيانات جلسة الدخول غير صالحة.",
+          expired: "انتهت صلاحية جلسة الدخول."
+        };
+        throw new Error(reasons[session.reason] || "لم يتم تأكيد جلسة الإدارة. أعد المحاولة أو راجع إعدادات النشر.");
+      }
       gate.remove();
       release(true);
       addLogout();
