@@ -2,12 +2,14 @@ import{accountSettings}from'./account-settings.js';
 import{accountRecovery}from'./recovery.js';
 import{tokenHash}from'./rider-auth.js';import{phoneNumber}from'../public/validation.js';import{logEvent}from'./operations.js';
 
+const FREE_AUTH_ALLOWED_ORIGIN = 'https://mishwar-captain.vercel.app';
+
 // ✅ التعديل الأول: تعريف دومين Vercel المسموح له
 // ✅ التعديل الثاني: إضافة رؤوس CORS لدالة الرد عشان المتصفح يقبلها
 const fj=(d,s=200,headers={})=>new Response(JSON.stringify(d),{status:s,headers:{
     'Content-Type':'application/json',
     'Cache-Control':'no-store',
-    'Access-Control-Allow-Origin': ALLOWED_ORIGIN,
+    'Access-Control-Allow-Origin': FREE_AUTH_ALLOWED_ORIGIN,
     'Access-Control-Allow-Credentials': 'true',
     ...headers
 }});
@@ -25,7 +27,7 @@ export async function freeAuth(env,role,b){try{if(b.action?.startsWith('change-'
 export async function captainAuth(request,env){const url=new URL(request.url);let b={action:url.pathname.split('/').pop()};if(request.method==='POST'){
     // ✅ التعديل الثالث: تعديل شرط فحص الـ Origin ليقبل دومين Vercel
     const origin = request.headers.get('origin');
-    if(origin && origin !== url.origin && origin !== ALLOWED_ORIGIN) {
+    if(origin && origin !== url.origin && origin !== FREE_AUTH_ALLOWED_ORIGIN) {
         return fj({error:'غير مسموح'},403);
     }
     
