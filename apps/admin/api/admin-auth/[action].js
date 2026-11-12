@@ -22,16 +22,19 @@ function safeEqual(a, b) {
   const y = Buffer.from(String(b));
   return x.length === y.length && timingSafeEqual(x, y);
 }
-function readCookie(req) {
+function inspectCookie(req) {
   const raw = String(req.headers.cookie || "");
   const match = raw.match(new RegExp("(?:^|;\\s*)" + COOKIE + "=([^;]+)"));
-  if (!match) return false;
-  const [payload, signature] = match[1].split(".");
-  if (!payload || !signature || !safeEqual(sign(payload), signature)) return false;
+  if (!match) return { authenticated: false, reason: "cookie_missing" };
+  const [payload, signature, extra] = match[1].split(".");
+  if (!payload || !signature || extra) return { authenticated: false, reason: "cookie_malformed" };
+  if (!safeEqual(sign(payload), signature)) return { authenticated: false, reason: "signature_invalid" };
   try {
     const session = JSON.parse(Buffer.from(payload, "base64url").toString("utf8"));
-    return session.role === "admin" && Number.isFinite(session.exp) && session.exp > Date.now();
-  } catch { return false; }
+    if (session.role !== "admin" || !Number.isFinite(session.exp)) return { authenticated: false, reason: "payload_invalid" };
+    if (session.exp <= Date.now()) return { authenticated: false, reason: "expired" };
+    return { authenticated: true };
+  } catch { return { authenticated: false, reason: "payload_invalid" }; }
 }
 function sameOrigin(req) {
   const origin = req.headers.origin;
@@ -42,7 +45,7 @@ export default async function handler(req, res) {
   if (!secretReady()) return json(res, 503, { error: "إعداد دخول الإدارة غير مكتمل على Vercel." });
   const action = String(req.query?.action || "");
   if (req.method === "GET" && action === "session") {
-    return json(res, 200, { authenticated: readCookie(req) });
+    return json(res, 200, inspectCookie(req));
   }
   if (req.method !== "POST" || !sameOrigin(req)) {
     return json(res, 403, { error: "طلب غير مسموح." });
