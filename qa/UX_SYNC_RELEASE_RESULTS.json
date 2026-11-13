@@ -1,0 +1,20 @@
+{
+  "date": "2026-11-13",
+  "syntax_files_checked": 110,
+  "syntax_failures": [],
+  "source_tests": {
+    "hub": 73,
+    "rider": 8,
+    "admin": 5,
+    "pass": 86,
+    "fail": 0
+  },
+  "static_contract_checks": {
+    "pass": 19,
+    "fail": 0
+  },
+  "production_deployment_tested": false,
+  "live_device_GPS_tested": false,
+  "build_with_esbuild_tested_in_this_offline_container": false,
+  "note": "esbuild npm package unavailable in offline container; production npm ci and build required"
+}

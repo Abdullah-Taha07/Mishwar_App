@@ -1,0 +1,68 @@
+/* Mishwar responsive dashboard enhancement: no body-level horizontal scrolling. */
+html,body{width:100%;max-width:100%;overflow-x:clip}
+.driver-shell,.driver-shell > *,#driver-panel,.panel-title,.summary,.driver-route,.driver-route>div,.wallet-line,.action-pair{min-width:0;max-width:100%}
+.driver-shell{font-size:clamp(12px, 1.25vw, 14px)}
+.driver-shell h1,.driver-shell .panel-title h1{font-size:clamp(16px,2vw,19px)!important}
+.driver-shell h2,.driver-shell h3{font-size:clamp(14px,1.8vw,18px)!important}
+.driver-shell .hint{font-size:11px!important}
+.driver-shell p,.driver-shell .arrival-note,.driver-shell .summary span{overflow-wrap:anywhere;word-break:normal}
+.driver-shell .driver-route strong{white-space:normal;overflow-wrap:anywhere;font-size:13px!important}
+.driver-shell .summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,160px),1fr));gap:10px;padding:0!important}
+.driver-shell .summary>div{min-width:0}
+.driver-shell .summary strong{font-size:clamp(18px,4vw,27px)!important;overflow-wrap:anywhere}
+.driver-shell .action-pair{flex-wrap:wrap}
+.driver-shell .action-pair > *{min-width:min(100%,150px);flex:1 1 150px}
+.driver-shell .fare{gap:8px;flex-wrap:wrap}
+.driver-shell .fare strong{font-size:clamp(16px,3vw,20px)}
+.driver-shell .driver-form input,.driver-shell .driver-form select,.driver-shell textarea{max-width:100%;min-width:0}
+.driver-shell #online{font-size:clamp(11px,2.4vw,13px);min-height:38px;min-width:94px;transition:background-color .2s,border-color .2s}
+.driver-shell #online[aria-busy=true]{opacity:.75;cursor:progress}
+.driver-shell header{min-width:0;gap:8px}
+.driver-shell header>a{font-size:clamp(17px,3vw,24px);white-space:nowrap}
+.driver-shell .local-pill{white-space:nowrap;flex-shrink:0}
+.captain-account-accordion{border:1px solid #dbe9ed;background:#fbfefe;border-radius:14px;overflow:hidden;margin:12px 0}
+.captain-account-accordion > summary{cursor:pointer;list-style:none;display:flex;align-items:center;gap:8px;min-height:54px;padding:13px 15px;font-size:13px;font-weight:600;user-select:none}
+.captain-account-accordion > summary::-webkit-details-marker{display:none}
+.captain-account-accordion .account-accordion-hint{font-size:11px;color:#718d96;font-weight:400;margin-inline-start:auto}
+.captain-account-accordion .account-accordion-arrow{font-size:20px;transition:transform .15s}
+.captain-account-accordion[open] .account-accordion-arrow{transform:rotate(180deg)}
+.captain-account-accordion .arrival-note{margin:0!important;border-radius:0!important;background:white}
+.driver-grab{display:none}
+@media(max-width:799px){
+  html,body{height:100%;overscroll-behavior-x:none}
+  .driver-shell{position:relative;height:var(--vh,100dvh);min-height:0;overflow:hidden;padding-inline:0}
+  .driver-shell header{height:clamp(50px,9dvh,62px);padding:8px clamp(8px,3vw,17px);z-index:5}
+  .driver-shell .local-pill{font-size:9px;padding:5px;max-width:86px;overflow:hidden;text-overflow:ellipsis}
+  .driver-shell .driver-nav{position:relative;z-index:20;margin-top:auto;min-height:calc(57px + env(safe-area-inset-bottom));height:calc(57px + env(safe-area-inset-bottom));gap:0}
+  .driver-shell .driver-nav button{min-width:0;flex:1 1 0;width:auto;padding:9px 1px;font-size:clamp(10px,2.4vw,12px)!important;white-space:normal;line-height:1.4}
+  body[data-driver-tab="requests"] .driver-map,body[data-driver-tab="trip"] .driver-map{display:block!important;flex:1 1 auto;height:auto!important;max-height:none!important;min-height:0!important;position:relative}
+  body[data-driver-tab="requests"] #driver-panel,body[data-driver-tab="trip"] #driver-panel{position:absolute!important;inset:auto 0 calc(57px + env(safe-area-inset-bottom)) 0!important;width:100%;height:var(--driver-sheet-height,56%)!important;max-height:calc(100% - 110px)!important;min-height:30%!important;padding:10px clamp(12px,4vw,20px) 20px!important;overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;background:white;border-radius:20px 20px 0 0!important;box-shadow:0 -10px 28px #08334424;z-index:10;touch-action:pan-y;scrollbar-width:thin}
+  body[data-driver-tab="requests"] .driver-shell,body[data-driver-tab="trip"] .driver-shell{display:flex!important}
+  body[data-driver-tab="trip"].driver-fullpage .driver-nav{display:flex!important}
+  body[data-driver-tab="trip"].driver-fullpage .driver-map{display:block!important}
+  .driver-grab{display:flex;align-items:center;justify-content:center;width:100%;height:24px;padding:0;border:0;background:transparent;margin:0 0 8px;touch-action:none;cursor:ns-resize;position:relative}
+  .driver-grab > span{width:46px;height:5px;border-radius:5px;background:#bbd5dc}
+  .driver-grab:focus-visible{outline:2px solid #159cb2}
+  body[data-driver-tab="requests"] .driver-panel,body[data-driver-tab="trip"] #driver-panel>.panel-title{position:static!important}
+  body.driver-fullpage:not([data-driver-tab="trip"]) #driver-panel{width:100%;padding:16px 13px 28px!important;overflow-y:auto}
+  .driver-shell .wallet-line,.driver-shell .receipt-grid{max-width:100%;overflow-wrap:anywhere}
+  .driver-shell .receipt-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  .driver-shell .history-trip>summary{flex-wrap:wrap;gap:8px}
+  .driver-shell .history-trip>summary>*{min-width:0;overflow-wrap:anywhere}
+  .driver-shell .driver-route{gap:7px;padding:10px}
+  .driver-shell #driver-toast{max-width:calc(100vw - 20px)}
+}
+@media(max-width:380px){
+  .driver-shell .local-pill{display:none}
+  .driver-shell .driver-nav button{font-size:10px!important}
+  .driver-shell .driver-route strong{font-size:12px!important}
+  .captain-account-accordion > summary{padding:11px}
+  .driver-shell .receipt-grid{grid-template-columns:1fr}
+}
+@media(min-width:800px){
+  .driver-shell{max-width:1600px;grid-template-columns:minmax(320px,420px) minmax(0,1fr)}
+  #driver-panel{overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin}
+  .driver-map{min-width:0}
+  body[data-driver-tab="requests"] .driver-nav{display:flex}
+}
+@media(prefers-reduced-motion:reduce){.driver-shell *{scroll-behavior:auto!important;transition:none!important}}
