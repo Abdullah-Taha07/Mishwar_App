@@ -83,7 +83,7 @@
         html += '<p dir="ltr">' + esc(d.profile.phone) + '</p>';
         if (sms) {
             html += '<button type="button" class="primary" id="captain-send-otp">إرسال رمز SMS</button>';
-            html += '<form id="captain-otp-form" class="form-grid"><div class="field wide"><label>رمز التحقق</label><input name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" required dir="ltr"></div><button class="primary wide">تأكيد الرمز</button></form>';
+            html += '<form id="captain-otp-form" class="form-grid"><div class="field wide"><label>رمز التحقق</label><input name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="4" pattern="[0-9]{4}" required dir="ltr"></div><button class="primary wide">تأكيد الرمز</button></form>';
             html += '<p id="captain-otp-status" role="status"></p>';
         } else {
             html += '<p>خدمة الرسائل غير مهيأة حاليًا. تواصل مع الإدارة للتحقق اليدوي.</p>';
