@@ -23,7 +23,7 @@ export async function publicPhoneOtp(env, role, body, session) {
   }
   if(body.action==='phone-otp-check'){
     const code=String(body.code||'').replace(/[٠-٩]/g,c=>String(c.charCodeAt(0)-1632)).replace(/[۰-۹]/g,c=>String(c.charCodeAt(0)-1776));
-    if(!/^\d{6}$/.test(code))return reply({error:'اكتب رمزًا من ٦ أرقام'},400);
+    if(!/^\d{4,6}$/.test(code))return reply({error:'اكتب رمزًا من ٤ إلى ٦ أرقام'},400);
     const challenge=await env.DB.prepare('SELECT * FROM public_phone_otp WHERE role=? AND actor=? AND phone=? AND session_hash=? AND consumed_at IS NULL AND expires_at>? ORDER BY created_at DESC LIMIT 1').bind(role,actor,phone,sessionHash,now()).first();
     if(!challenge)return reply({error:'لا يوجد رمز صالح. اطلب رمزًا جديدًا'},400);
     const inc=await env.DB.prepare('UPDATE public_phone_otp SET attempts=attempts+1 WHERE id=? AND attempts<3 AND consumed_at IS NULL').bind(challenge.id).run();
