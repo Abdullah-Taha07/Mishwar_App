@@ -19,7 +19,16 @@
             options.headers = { 'Content-Type': 'application/json' };
             options.body = JSON.stringify(body);
         }
-        const r = await fetch('/api/auth/' + action, options);
+        let r;
+        try {
+            const requestOptions = { ...options, cache: 'no-store' };
+            if (typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function') requestOptions.signal = AbortSignal.timeout(12000);
+            r = await fetch('/api/auth/' + action, requestOptions);
+        } catch (error) {
+            throw Error(error?.name === 'TimeoutError' || error?.name === 'AbortError'
+                ? 'استغرق الاتصال بالخادم وقتًا طويلًا. تحقق من الشبكة ثم أعد المحاولة.'
+                : 'تعذر الاتصال بالخادم. تحقق من الإنترنت ثم أعد المحاولة.');
+        }
         let d;
         try { d = await r.json(); }
         catch { throw Error('الخادم أعاد استجابة غير صالحة. تحقق من تحديث Vercel واتصال Cloudflare.'); }
@@ -95,7 +104,7 @@
         if(captainVerificationTimer)clearInterval(captainVerificationTimer);
         captainVerificationTimer=setInterval(async()=>{
             if(document.hidden||!document.querySelector('#captain-otp-form'))return;
-            try{const status=await api('session');if(status.authenticated&&status.phoneVerified){clearInterval(captainVerificationTimer);captainVerificationTimer=null;location.reload();}}
+            try{const status=await api('session');if(status.authenticated&&status.phoneVerified){clearInterval(captainVerificationTimer);captainVerificationTimer=null;window.dispatchEvent(new Event('mishwar-captain-verified'));}}
             catch(error){console.warn('Verification synchronization delayed',error?.message||error)}
         },6000);
     }
@@ -125,7 +134,7 @@
                     if (!button.isConnected) return;
                     const notice = document.querySelector('#captain-otp-status');
                     if (notice) notice.textContent = result.alreadyVerified ? 'رقمك موثّق بالفعل.' : 'تم طلب إرسال الرمز. افحص رسائلك.';
-                    if (result.alreadyVerified) { location.reload(); return; }
+                    if (result.alreadyVerified) { window.dispatchEvent(new Event('mishwar-captain-verified')); return; }
                     cooldownOtp(button,result.retryAfter||60);
                 } catch(err) {
                     const notice = document.querySelector('#captain-otp-status');
@@ -139,7 +148,7 @@
                 const btn = form.querySelector('button');
                 const code = form.elements.namedItem('code').value;
                 btn.disabled = true;
-                try { await api('phone-otp-check',{code}); location.reload(); }
+                try { await api('phone-otp-check',{code}); window.dispatchEvent(new Event('mishwar-captain-verified')); }
                 catch(err) {
                     const notice = document.querySelector('#captain-otp-status');
                     if (notice) notice.textContent = err.message;
