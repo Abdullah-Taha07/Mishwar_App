@@ -8,5 +8,8 @@
   "scripts": {
     "test": "node scripts/run.mjs build && node scripts/run.mjs test",
     "build": "node scripts/run.mjs build"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2"
   }
 }
