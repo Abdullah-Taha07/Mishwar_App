@@ -20,7 +20,9 @@
             options.body = JSON.stringify(body);
         }
         const r = await fetch('/api/auth/' + action, options);
-        const d = await r.json();
+        let d;
+        try { d = await r.json(); }
+        catch { throw Error('الخادم أعاد استجابة غير صالحة. تحقق من تحديث Vercel واتصال Cloudflare.'); }
         if (!r.ok) throw Error(d.error || 'تعذر تسجيل الدخول');
         return d;
     }
@@ -76,6 +78,27 @@
         };
     }
 
+    function cooldownOtp(button, seconds=60) {
+        let left=Math.max(1,Math.min(300,Number(seconds)||60));
+        const original=button.textContent;
+        button.disabled=true;
+        const tick=()=>{
+            if(!button.isConnected){clearInterval(timer);return}
+            button.textContent='إعادة الإرسال بعد '+left+' ثانية';
+            if(left--<=0){clearInterval(timer);button.disabled=false;button.textContent=original}
+        };
+        const timer=setInterval(tick,1000);tick();
+    }
+
+    let captainVerificationTimer=null;
+    function pollCaptainVerification(){
+        if(captainVerificationTimer)clearInterval(captainVerificationTimer);
+        captainVerificationTimer=setInterval(async()=>{
+            if(document.hidden||!document.querySelector('#captain-otp-form'))return;
+            try{const status=await api('session');if(status.authenticated&&status.phoneVerified){clearInterval(captainVerificationTimer);captainVerificationTimer=null;location.reload();}}
+            catch(error){console.warn('Verification synchronization delayed',error?.message||error)}
+        },6000);
+    }
     function pending(d) {
         const sms = d.smsConfigured === true;
         let html = '<button type="button" class="text-link" id="captain-pending-back">→ رجوع</button>';
@@ -92,8 +115,9 @@
         root().innerHTML = html;
         document.querySelector('#captain-pending-back').onclick = () => window.showCaptainWelcome();
         if(sms){
+            pollCaptainVerification();
             const status = document.querySelector('#captain-otp-status');
-            document.querySelector('#captain-send-otp').onclick = async e => {e.currentTarget.disabled=true;try{await api('phone-otp-start',{});status.textContent='تم طلب إرسال الرمز. افحص رسائلك.'}catch(err){status.textContent=err.message}finally{e.currentTarget.disabled=false}};
+            document.querySelector('#captain-send-otp').onclick = async e => {e.currentTarget.disabled=true;try{const result=await api('phone-otp-start',{});status.textContent='تم طلب إرسال الرمز. افحص رسائلك.';cooldownOtp(e.currentTarget,result.retryAfter||60)}catch(err){status.textContent=err.message;if(e.currentTarget.isConnected)e.currentTarget.disabled=false}};
             document.querySelector('#captain-otp-form').onsubmit = async e => {e.preventDefault();const btn=e.target.querySelector('button');btn.disabled=true;try{await api('phone-otp-check',{code:e.target.code.value});location.reload()}catch(err){status.textContent=err.message;btn.disabled=false}};
         }
         document.querySelector('#refresh-account').onclick = () => location.reload();

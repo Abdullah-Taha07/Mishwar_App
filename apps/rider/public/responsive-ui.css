@@ -1,0 +1,16 @@
+html,body{max-width:100%;overflow-x:clip}
+.app,.app>*,#panel,.modal,.rider-auth-card,.rider-account-card,.account-form,.sheet,.route-card,.trip-card{min-width:0;max-width:100%;box-sizing:border-box}
+.rider-auth-card,.rider-account-card{overflow-wrap:anywhere}
+.account-form input,.account-form select,.account-form textarea{max-width:100%;min-width:0}
+.rider-auth-card h2,.rider-account-card h2{font-size:clamp(17px,4vw,23px)}
+.rider-auth-card h3,.rider-account-card h3{font-size:clamp(15px,3.5vw,19px)}
+.rider-account-card .account-details dd,.rider-account-card .account-details dt{overflow-wrap:anywhere;min-width:0}
+@media(max-width:700px){.app{max-width:100vw}.rail{max-width:100vw}.rider-auth-card,.rider-account-card{width:100%;max-width:100%;padding-inline:clamp(10px,3vw,18px)}.account-form input{font-size:16px}.rider-account-card .account-details{max-width:100%;overflow-x:hidden}}
+@media(max-width:380px){.rider-auth-card,.rider-account-card{font-size:12px}.account-form button{max-width:100%}}
+
+.rider-account-disclosure{border:1px solid #d9e7eb;border-radius:14px;padding:0;margin:12px 0;max-width:100%;overflow:hidden;background:#fff}
+.rider-account-disclosure summary{display:flex;justify-content:space-between;gap:8px;align-items:center;padding:14px 15px;cursor:pointer;list-style:none;font-weight:600;font-size:13px}
+.rider-account-disclosure summary::-webkit-details-marker{display:none}
+.rider-account-disclosure summary span{font-size:19px;transition:transform .2s}
+.rider-account-disclosure[open] summary span{transform:rotate(180deg)}
+.rider-account-disclosure > form,.rider-account-disclosure > dl{padding:12px;margin:0}

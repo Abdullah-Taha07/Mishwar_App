@@ -165,14 +165,15 @@ export default{
             if(url.pathname.startsWith('/api/auth/'))return await captainAuth(request,env);
             
             const token=(request.headers.get('cookie')||'').match(/(?:^|;\s*)__Host-mishwar_captain=([a-f0-9]{64})(?:;|$)/)?.[1];
-            if(token){
-                const authenticated=await publicSession(env,token,'captain');
-                if(authenticated?.phoneVerified){
-                    const headers=new Headers(request.headers);
-                    headers.set('oai-authenticated-user-id',authenticated.actor);
-                    headers.delete('oai-authenticated-user-email');
-                    request=new Request(request,{headers})
-                }
+            // Never trust user-identity headers supplied to the public workers.dev endpoint.
+            // Captain operations are authenticated exclusively with our signed-in HTTP-only session.
+            if(['/api/driver','/api/application','/api/login','/api/captain-presence'].includes(url.pathname)){
+                const authenticated=token?await publicSession(env,token,'captain'):null;
+                const headers=new Headers(request.headers);
+                headers.delete('oai-authenticated-user-id');
+                headers.delete('oai-authenticated-user-email');
+                if(authenticated?.phoneVerified)headers.set('oai-authenticated-user-id',authenticated.actor);
+                request=new Request(request,{headers});
             }
             
             if(url.pathname==='/internal/route-estimate')return await routeEstimate(request,env);

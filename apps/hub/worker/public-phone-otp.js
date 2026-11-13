@@ -8,11 +8,12 @@ export async function publicPhoneOtp(env, role, body, session) {
   const actor=session.actor, phone=session.phone, sessionHash=session.token_hash;
   if (body.action === 'phone-otp-start') {
     if (session.phone_verified_at) return reply({ok:true,alreadyVerified:true});
+    // Cooldown is checked before the hourly counter: a premature retry must not consume a send quota.
+    const old=await env.DB.prepare('SELECT created_at FROM public_phone_otp WHERE role=? AND actor=? AND consumed_at IS NULL ORDER BY created_at DESC LIMIT 1').bind(role,actor).first();
+    if(old && Date.now()-Date.parse(old.created_at)<60000)return reply({error:'انتظر دقيقة قبل طلب رمز جديد',retryAfter:Math.ceil((60000-(Date.now()-Date.parse(old.created_at)))/1000)},429);
     const bucket=`otp:${await tokenHash(phone)}:${Math.floor(Date.now()/3600000)}`;
     const limit=await env.DB.prepare('INSERT INTO access_rate_limits(bucket,n) VALUES(?,1) ON CONFLICT(bucket) DO UPDATE SET n=n+1 RETURNING n').bind(bucket).first();
     if(limit.n>3)return reply({error:'تجاوزت الحد المسموح لإرسال الرموز. حاول بعد ساعة'},429);
-    const old=await env.DB.prepare('SELECT created_at FROM public_phone_otp WHERE role=? AND actor=? AND consumed_at IS NULL ORDER BY created_at DESC LIMIT 1').bind(role,actor).first();
-    if(old && Date.now()-Date.parse(old.created_at)<60000)return reply({error:'انتظر دقيقة قبل طلب رمز جديد'},429);
     await sendAuthenticaOtp(env,phone);
     const id=crypto.randomUUID(),at=now();
     await env.DB.batch([
