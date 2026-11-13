@@ -1,0 +1,837 @@
+﻿=== MISHWAR ACCOUNT SCHEMA REVIEW ===
+
+===== public_accounts =====
+
+ ظؤàي╕ wrangler 4.161.0
+ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤
+Resource location: remote 
+
+≡اî Executing on remote database mishwar-db (510eb1ef-8814-4313-95e8-b1386ef40f8e):
+≡اî To execute on your local development database, remove the --remote flag from your wrangler command.
+≡اأث Executed 1 command in 0.19ms
+[
+  {
+    "results": [
+      {
+        "sql": "CREATE TABLE public_accounts(role TEXT NOT NULL,phone TEXT NOT NULL,actor TEXT NOT NULL UNIQUE,name TEXT NOT NULL,email TEXT NOT NULL DEFAULT '',salt TEXT NOT NULL,password_hash TEXT NOT NULL,phone_verified_at TEXT,verification_method TEXT,created_at TEXT NOT NULL,PRIMARY KEY(role,phone))"
+      }
+    ],
+    "success": true,
+    "meta": {
+      "served_by": "v3-prod",
+      "served_by_region": "EEUR",
+      "served_by_colo": "MXP",
+      "served_by_primary": true,
+      "timings": {
+        "sql_duration_ms": 0.1869
+      },
+      "duration": 0.1869,
+      "changes": 0,
+      "last_row_id": 0,
+      "changed_db": false,
+      "size_after": 557056,
+      "rows_read": 142,
+      "rows_written": 0,
+      "total_attempts": 1
+    }
+  }
+]
+
+
+===== public_sessions =====
+
+ ظؤàي╕ wrangler 4.161.0
+ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤
+Resource location: remote 
+
+≡اî Executing on remote database mishwar-db (510eb1ef-8814-4313-95e8-b1386ef40f8e):
+≡اî To execute on your local development database, remove the --remote flag from your wrangler command.
+≡اأث Executed 1 command in 0.19ms
+[
+  {
+    "results": [
+      {
+        "sql": "CREATE TABLE public_sessions(token_hash TEXT PRIMARY KEY NOT NULL,actor TEXT NOT NULL,role TEXT NOT NULL,expires_at TEXT NOT NULL)"
+      }
+    ],
+    "success": true,
+    "meta": {
+      "served_by": "v3-prod",
+      "served_by_region": "EEUR",
+      "served_by_colo": "MXP",
+      "served_by_primary": true,
+      "timings": {
+        "sql_duration_ms": 0.1927
+      },
+      "duration": 0.1927,
+      "changes": 0,
+      "last_row_id": 0,
+      "changed_db": false,
+      "size_after": 557056,
+      "rows_read": 142,
+      "rows_written": 0,
+      "total_attempts": 1
+    }
+  }
+]
+
+
+===== public_phone_otp =====
+
+ ظؤàي╕ wrangler 4.161.0
+ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤
+Resource location: remote 
+
+≡اî Executing on remote database mishwar-db (510eb1ef-8814-4313-95e8-b1386ef40f8e):
+≡اî To execute on your local development database, remove the --remote flag from your wrangler command.
+≡اأث Executed 1 command in 0.23ms
+[
+  {
+    "results": [
+      {
+        "sql": "CREATE TABLE public_phone_otp (\n id TEXT PRIMARY KEY, role TEXT NOT NULL, actor TEXT NOT NULL, phone TEXT NOT NULL,\n session_hash TEXT NOT NULL, created_at TEXT NOT NULL, expires_at TEXT NOT NULL,\n attempts INTEGER NOT NULL DEFAULT 0, consumed_at TEXT\n)"
+      }
+    ],
+    "success": true,
+    "meta": {
+      "served_by": "v3-prod",
+      "served_by_region": "EEUR",
+      "served_by_colo": "MXP",
+      "served_by_primary": true,
+      "timings": {
+        "sql_duration_ms": 0.2252
+      },
+      "duration": 0.2252,
+      "changes": 0,
+      "last_row_id": 0,
+      "changed_db": false,
+      "size_after": 557056,
+      "rows_read": 142,
+      "rows_written": 0,
+      "total_attempts": 1
+    }
+  }
+]
+
+
+===== rider_phone_accounts =====
+
+ ظؤàي╕ wrangler 4.161.0
+ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤
+Resource location: remote 
+
+≡اî Executing on remote database mishwar-db (510eb1ef-8814-4313-95e8-b1386ef40f8e):
+≡اî To execute on your local development database, remove the --remote flag from your wrangler command.
+≡اأث Executed 1 command in 0.20ms
+[
+  {
+    "results": [
+      {
+        "sql": "CREATE TABLE rider_phone_accounts (phone TEXT PRIMARY KEY NOT NULL, actor TEXT NOT NULL UNIQUE, verified_at TEXT NOT NULL)"
+      }
+    ],
+    "success": true,
+    "meta": {
+      "served_by": "v3-prod",
+      "served_by_region": "EEUR",
+      "served_by_colo": "MXP",
+      "served_by_primary": true,
+      "timings": {
+        "sql_duration_ms": 0.2009
+      },
+      "duration": 0.2009,
+      "changes": 0,
+      "last_row_id": 0,
+      "changed_db": false,
+      "size_after": 557056,
+      "rows_read": 142,
+      "rows_written": 0,
+      "total_attempts": 1
+    }
+  }
+]
+
+
+===== rider_sessions =====
+
+ ظؤàي╕ wrangler 4.161.0
+ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤
+Resource location: remote 
+
+≡اî Executing on remote database mishwar-db (510eb1ef-8814-4313-95e8-b1386ef40f8e):
+≡اî To execute on your local development database, remove the --remote flag from your wrangler command.
+≡اأث Executed 1 command in 0.19ms
+[
+  {
+    "results": [
+      {
+        "sql": "CREATE TABLE rider_sessions (token_hash TEXT PRIMARY KEY NOT NULL, actor TEXT NOT NULL, phone TEXT NOT NULL, expires_at TEXT NOT NULL)"
+      }
+    ],
+    "success": true,
+    "meta": {
+      "served_by": "v3-prod",
+      "served_by_region": "EEUR",
+      "served_by_colo": "MXP",
+      "served_by_primary": true,
+      "timings": {
+        "sql_duration_ms": 0.1886
+      },
+      "duration": 0.1886,
+      "changes": 0,
+      "last_row_id": 0,
+      "changed_db": false,
+      "size_after": 557056,
+      "rows_read": 142,
+      "rows_written": 0,
+      "total_attempts": 1
+    }
+  }
+]
+
+
+===== riders =====
+
+ ظؤàي╕ wrangler 4.161.0
+ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤
+Resource location: remote 
+
+≡اî Executing on remote database mishwar-db (510eb1ef-8814-4313-95e8-b1386ef40f8e):
+≡اî To execute on your local development database, remove the --remote flag from your wrangler command.
+≡اأث Executed 1 command in 0.15ms
+[
+  {
+    "results": [
+      {
+        "sql": "CREATE TABLE riders (id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL DEFAULT '', phone TEXT NOT NULL DEFAULT '', email TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'active', created_at TEXT NOT NULL, last_seen TEXT NOT NULL)"
+      }
+    ],
+    "success": true,
+    "meta": {
+      "served_by": "v3-prod",
+      "served_by_region": "EEUR",
+      "served_by_colo": "MXP",
+      "served_by_primary": true,
+      "timings": {
+        "sql_duration_ms": 0.1457
+      },
+      "duration": 0.1457,
+      "changes": 0,
+      "last_row_id": 0,
+      "changed_db": false,
+      "size_after": 557056,
+      "rows_read": 142,
+      "rows_written": 0,
+      "total_attempts": 1
+    }
+  }
+]
+
+
+===== captain_applications =====
+
+ ظؤàي╕ wrangler 4.161.0
+ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤
+Resource location: remote 
+
+≡اî Executing on remote database mishwar-db (510eb1ef-8814-4313-95e8-b1386ef40f8e):
+≡اî To execute on your local development database, remove the --remote flag from your wrangler command.
+≡اأث Executed 1 command in 0.19ms
+[
+  {
+    "results": [
+      {
+        "sql": "CREATE TABLE captain_applications (\n id TEXT PRIMARY KEY NOT NULL,\n user_id TEXT NOT NULL UNIQUE,\n phone TEXT NOT NULL UNIQUE,\n email TEXT NOT NULL,\n personal_json TEXT NOT NULL,\n vehicle_json TEXT NOT NULL,\n documents_json TEXT NOT NULL,\n status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','active','rejected')),\n submitted_at TEXT NOT NULL,\n reviewed_at TEXT\n)"
+      }
+    ],
+    "success": true,
+    "meta": {
+      "served_by": "v3-prod",
+      "served_by_region": "EEUR",
+      "served_by_colo": "MXP",
+      "served_by_primary": true,
+      "timings": {
+        "sql_duration_ms": 0.1889
+      },
+      "duration": 0.1889,
+      "changes": 0,
+      "last_row_id": 0,
+      "changed_db": false,
+      "size_after": 557056,
+      "rows_read": 142,
+      "rows_written": 0,
+      "total_attempts": 1
+    }
+  }
+]
+
+
+===== captain_presence =====
+
+ ظؤàي╕ wrangler 4.161.0
+ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤
+Resource location: remote 
+
+≡اî Executing on remote database mishwar-db (510eb1ef-8814-4313-95e8-b1386ef40f8e):
+≡اî To execute on your local development database, remove the --remote flag from your wrangler command.
+≡اأث Executed 1 command in 0.18ms
+[
+  {
+    "results": [
+      {
+        "sql": "CREATE TABLE captain_presence (application_id TEXT PRIMARY KEY NOT NULL REFERENCES captain_applications(id), available INTEGER NOT NULL DEFAULT 0, last_seen TEXT NOT NULL, latitude REAL, longitude REAL, accuracy REAL, location_at TEXT)"
+      }
+    ],
+    "success": true,
+    "meta": {
+      "served_by": "v3-prod",
+      "served_by_region": "EEUR",
+      "served_by_colo": "MXP",
+      "served_by_primary": true,
+      "timings": {
+        "sql_duration_ms": 0.1829
+      },
+      "duration": 0.1829,
+      "changes": 0,
+      "last_row_id": 0,
+      "changed_db": false,
+      "size_after": 557056,
+      "rows_read": 142,
+      "rows_written": 0,
+      "total_attempts": 1
+    }
+  }
+]
+
+
+===== captain_reviews =====
+
+ ظؤàي╕ wrangler 4.161.0
+ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤
+Resource location: remote 
+
+≡اî Executing on remote database mishwar-db (510eb1ef-8814-4313-95e8-b1386ef40f8e):
+≡اî To execute on your local development database, remove the --remote flag from your wrangler command.
+≡اأث Executed 1 command in 0.20ms
+[
+  {
+    "results": [
+      {
+        "sql": "CREATE TABLE captain_reviews (\n application_id TEXT PRIMARY KEY NOT NULL REFERENCES captain_applications(id),\n reviewer_id TEXT NOT NULL,\n decision TEXT NOT NULL CHECK (decision IN ('active','rejected')),\n reason TEXT NOT NULL DEFAULT '',\n reviewed_documents_json TEXT NOT NULL,\n reviewed_at TEXT NOT NULL\n)"
+      }
+    ],
+    "success": true,
+    "meta": {
+      "served_by": "v3-prod",
+      "served_by_region": "EEUR",
+      "served_by_colo": "MXP",
+      "served_by_primary": true,
+      "timings": {
+        "sql_duration_ms": 0.1955
+      },
+      "duration": 0.1955,
+      "changes": 0,
+      "last_row_id": 0,
+      "changed_db": false,
+      "size_after": 557056,
+      "rows_read": 142,
+      "rows_written": 0,
+      "total_attempts": 1
+    }
+  }
+]
+
+
+===== account_recovery =====
+
+ ظؤàي╕ wrangler 4.161.0
+ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤
+Resource location: remote 
+
+≡اî Executing on remote database mishwar-db (510eb1ef-8814-4313-95e8-b1386ef40f8e):
+≡اî To execute on your local development database, remove the --remote flag from your wrangler command.
+≡اأث Executed 1 command in 0.17ms
+[
+  {
+    "results": [
+      {
+        "sql": "CREATE TABLE account_recovery(id TEXT PRIMARY KEY,role TEXT NOT NULL,actor TEXT,phone TEXT NOT NULL,token_hash TEXT NOT NULL UNIQUE,code_hash TEXT NOT NULL,status TEXT NOT NULL DEFAULT 'pending',created_at TEXT NOT NULL,expires_at TEXT NOT NULL,approved_at TEXT,consumed_at TEXT)"
+      }
+    ],
+    "success": true,
+    "meta": {
+      "served_by": "v3-prod",
+      "served_by_region": "EEUR",
+      "served_by_colo": "MXP",
+      "served_by_primary": true,
+      "timings": {
+        "sql_duration_ms": 0.1694
+      },
+      "duration": 0.1694,
+      "changes": 0,
+      "last_row_id": 0,
+      "changed_db": false,
+      "size_after": 557056,
+      "rows_read": 142,
+      "rows_written": 0,
+      "total_attempts": 1
+    }
+  }
+]
+
+
+===== account_changes =====
+
+ ظؤàي╕ wrangler 4.161.0
+ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤
+Resource location: remote 
+
+≡اî Executing on remote database mishwar-db (510eb1ef-8814-4313-95e8-b1386ef40f8e):
+≡اî To execute on your local development database, remove the --remote flag from your wrangler command.
+≡اأث Executed 1 command in 0.16ms
+[
+  {
+    "results": [
+      {
+        "sql": "CREATE TABLE account_changes(id TEXT PRIMARY KEY,role TEXT NOT NULL,actor TEXT NOT NULL,session_hash TEXT NOT NULL,kind TEXT NOT NULL,old_phone TEXT NOT NULL,new_value TEXT NOT NULL DEFAULT '',new_salt TEXT,new_hash TEXT,old_hash TEXT NOT NULL,stage TEXT NOT NULL DEFAULT 'old',mode TEXT NOT NULL DEFAULT 'manual',attempts INTEGER NOT NULL DEFAULT 0,created_at TEXT NOT NULL,expires_at TEXT NOT NULL,consumed_at TEXT)"
+      }
+    ],
+    "success": true,
+    "meta": {
+      "served_by": "v3-prod",
+      "served_by_region": "EEUR",
+      "served_by_colo": "MXP",
+      "served_by_primary": true,
+      "timings": {
+        "sql_duration_ms": 0.159
+      },
+      "duration": 0.159,
+      "changes": 0,
+      "last_row_id": 0,
+      "changed_db": false,
+      "size_after": 557056,
+      "rows_read": 142,
+      "rows_written": 0,
+      "total_attempts": 1
+    }
+  }
+]
+
+
+===== account_controls =====
+
+ ظؤàي╕ wrangler 4.161.0
+ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤
+Resource location: remote 
+
+≡اî Executing on remote database mishwar-db (510eb1ef-8814-4313-95e8-b1386ef40f8e):
+≡اî To execute on your local development database, remove the --remote flag from your wrangler command.
+≡اأث Executed 1 command in 0.14ms
+[
+  {
+    "results": [
+      {
+        "sql": "CREATE TABLE account_controls (role TEXT NOT NULL, account_id TEXT NOT NULL, suspended INTEGER NOT NULL DEFAULT 0, reason TEXT NOT NULL, updated_by TEXT NOT NULL, updated_at TEXT NOT NULL, PRIMARY KEY(role,account_id))"
+      }
+    ],
+    "success": true,
+    "meta": {
+      "served_by": "v3-prod",
+      "served_by_region": "EEUR",
+      "served_by_colo": "MXP",
+      "served_by_primary": true,
+      "timings": {
+        "sql_duration_ms": 0.1444
+      },
+      "duration": 0.1444,
+      "changes": 0,
+      "last_row_id": 0,
+      "changed_db": false,
+      "size_after": 557056,
+      "rows_read": 142,
+      "rows_written": 0,
+      "total_attempts": 1
+    }
+  }
+]
+
+
+===== email_auth_tokens =====
+
+ ظؤàي╕ wrangler 4.161.0
+ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤
+Resource location: remote 
+
+≡اî Executing on remote database mishwar-db (510eb1ef-8814-4313-95e8-b1386ef40f8e):
+≡اî To execute on your local development database, remove the --remote flag from your wrangler command.
+≡اأث Executed 1 command in 0.18ms
+[
+  {
+    "results": [
+      {
+        "sql": "CREATE TABLE email_auth_tokens (id TEXT PRIMARY KEY, role TEXT NOT NULL, actor TEXT NOT NULL, purpose TEXT NOT NULL CHECK(purpose IN ('verify','reset')), token_hash TEXT NOT NULL UNIQUE, expires_at TEXT NOT NULL, created_at TEXT NOT NULL, consumed_at TEXT)"
+      }
+    ],
+    "success": true,
+    "meta": {
+      "served_by": "v3-prod",
+      "served_by_region": "EEUR",
+      "served_by_colo": "MXP",
+      "served_by_primary": true,
+      "timings": {
+        "sql_duration_ms": 0.1819
+      },
+      "duration": 0.1819,
+      "changes": 0,
+      "last_row_id": 0,
+      "changed_db": false,
+      "size_after": 557056,
+      "rows_read": 142,
+      "rows_written": 0,
+      "total_attempts": 1
+    }
+  }
+]
+
+
+===== verified_emails =====
+
+ ظؤàي╕ wrangler 4.161.0
+ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤
+Resource location: remote 
+
+≡اî Executing on remote database mishwar-db (510eb1ef-8814-4313-95e8-b1386ef40f8e):
+≡اî To execute on your local development database, remove the --remote flag from your wrangler command.
+≡اأث Executed 1 command in 0.15ms
+[
+  {
+    "results": [
+      {
+        "sql": "CREATE TABLE verified_emails (role TEXT NOT NULL, actor TEXT NOT NULL, email TEXT NOT NULL, verified_at TEXT NOT NULL, PRIMARY KEY(role,actor))"
+      }
+    ],
+    "success": true,
+    "meta": {
+      "served_by": "v3-prod",
+      "served_by_region": "EEUR",
+      "served_by_colo": "MXP",
+      "served_by_primary": true,
+      "timings": {
+        "sql_duration_ms": 0.1466
+      },
+      "duration": 0.1466,
+      "changes": 0,
+      "last_row_id": 0,
+      "changed_db": false,
+      "size_after": 557056,
+      "rows_read": 142,
+      "rows_written": 0,
+      "total_attempts": 1
+    }
+  }
+]
+
+
+===== phone_challenges =====
+
+ ظؤàي╕ wrangler 4.161.0
+ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤
+Resource location: remote 
+
+≡اî Executing on remote database mishwar-db (510eb1ef-8814-4313-95e8-b1386ef40f8e):
+≡اî To execute on your local development database, remove the --remote flag from your wrangler command.
+≡اأث Executed 1 command in 0.25ms
+[
+  {
+    "results": [
+      {
+        "sql": "CREATE TABLE phone_challenges (id TEXT PRIMARY KEY NOT NULL, phone TEXT NOT NULL, name TEXT NOT NULL, email TEXT NOT NULL DEFAULT '', platform_actor TEXT NOT NULL DEFAULT '', ip_hash TEXT NOT NULL, attempts INTEGER NOT NULL DEFAULT 0, status TEXT NOT NULL DEFAULT 'pending', created_at TEXT NOT NULL, expires_at TEXT NOT NULL)"
+      }
+    ],
+    "success": true,
+    "meta": {
+      "served_by": "v3-prod",
+      "served_by_region": "EEUR",
+      "served_by_colo": "MXP",
+      "served_by_primary": true,
+      "timings": {
+        "sql_duration_ms": 0.2493
+      },
+      "duration": 0.2493,
+      "changes": 0,
+      "last_row_id": 0,
+      "changed_db": false,
+      "size_after": 557056,
+      "rows_read": 142,
+      "rows_written": 0,
+      "total_attempts": 1
+    }
+  }
+]
+
+
+===== phone_challenge_uses =====
+
+ ظؤàي╕ wrangler 4.161.0
+ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤
+Resource location: remote 
+
+≡اî Executing on remote database mishwar-db (510eb1ef-8814-4313-95e8-b1386ef40f8e):
+≡اî To execute on your local development database, remove the --remote flag from your wrangler command.
+≡اأث Executed 1 command in 0.14ms
+[
+  {
+    "results": [
+      {
+        "sql": "CREATE TABLE phone_challenge_uses (challenge_id TEXT PRIMARY KEY NOT NULL)"
+      }
+    ],
+    "success": true,
+    "meta": {
+      "served_by": "v3-prod",
+      "served_by_region": "EEUR",
+      "served_by_colo": "MXP",
+      "served_by_primary": true,
+      "timings": {
+        "sql_duration_ms": 0.1408
+      },
+      "duration": 0.1408,
+      "changes": 0,
+      "last_row_id": 0,
+      "changed_db": false,
+      "size_after": 557056,
+      "rows_read": 142,
+      "rows_written": 0,
+      "total_attempts": 1
+    }
+  }
+]
+
+
+===== access_rate_limits =====
+
+ ظؤàي╕ wrangler 4.161.0
+ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤
+Resource location: remote 
+
+≡اî Executing on remote database mishwar-db (510eb1ef-8814-4313-95e8-b1386ef40f8e):
+≡اî To execute on your local development database, remove the --remote flag from your wrangler command.
+≡اأث Executed 1 command in 0.21ms
+[
+  {
+    "results": [
+      {
+        "sql": "CREATE TABLE access_rate_limits(bucket TEXT PRIMARY KEY NOT NULL,n INTEGER NOT NULL)"
+      }
+    ],
+    "success": true,
+    "meta": {
+      "served_by": "v3-prod",
+      "served_by_region": "EEUR",
+      "served_by_colo": "MXP",
+      "served_by_primary": true,
+      "timings": {
+        "sql_duration_ms": 0.2086
+      },
+      "duration": 0.2086,
+      "changes": 0,
+      "last_row_id": 0,
+      "changed_db": false,
+      "size_after": 557056,
+      "rows_read": 142,
+      "rows_written": 0,
+      "total_attempts": 1
+    }
+  }
+]
+
+
+===== trips =====
+
+ ظؤàي╕ wrangler 4.161.0
+ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤
+Resource location: remote 
+
+≡اî Executing on remote database mishwar-db (510eb1ef-8814-4313-95e8-b1386ef40f8e):
+≡اî To execute on your local development database, remove the --remote flag from your wrangler command.
+≡اأث Executed 1 command in 0.18ms
+[
+  {
+    "results": [
+      {
+        "sql": "CREATE TABLE trips (id TEXT PRIMARY KEY NOT NULL, rider_id TEXT NOT NULL REFERENCES riders(id), driver_id TEXT, status TEXT NOT NULL, pickup_json TEXT NOT NULL, destination_json TEXT NOT NULL, fare_halalas INTEGER NOT NULL DEFAULT 0, commission_bps INTEGER NOT NULL DEFAULT 0, payment_status TEXT NOT NULL DEFAULT 'demo', is_demo INTEGER NOT NULL DEFAULT 1, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)"
+      }
+    ],
+    "success": true,
+    "meta": {
+      "served_by": "v3-prod",
+      "served_by_region": "EEUR",
+      "served_by_colo": "MXP",
+      "served_by_primary": true,
+      "timings": {
+        "sql_duration_ms": 0.1771
+      },
+      "duration": 0.1771,
+      "changes": 0,
+      "last_row_id": 0,
+      "changed_db": false,
+      "size_after": 557056,
+      "rows_read": 142,
+      "rows_written": 0,
+      "total_attempts": 1
+    }
+  }
+]
+
+
+===== dispatch_offers =====
+
+ ظؤàي╕ wrangler 4.161.0
+ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤
+Resource location: remote 
+
+≡اî Executing on remote database mishwar-db (510eb1ef-8814-4313-95e8-b1386ef40f8e):
+≡اî To execute on your local development database, remove the --remote flag from your wrangler command.
+≡اأث Executed 1 command in 0.14ms
+[
+  {
+    "results": [
+      {
+        "sql": "CREATE TABLE dispatch_offers(trip_id TEXT PRIMARY KEY NOT NULL,captain_id TEXT NOT NULL UNIQUE,offered_at TEXT NOT NULL,expires_at TEXT NOT NULL)"
+      }
+    ],
+    "success": true,
+    "meta": {
+      "served_by": "v3-prod",
+      "served_by_region": "EEUR",
+      "served_by_colo": "MXP",
+      "served_by_primary": true,
+      "timings": {
+        "sql_duration_ms": 0.1416
+      },
+      "duration": 0.1416,
+      "changes": 0,
+      "last_row_id": 0,
+      "changed_db": false,
+      "size_after": 557056,
+      "rows_read": 142,
+      "rows_written": 0,
+      "total_attempts": 1
+    }
+  }
+]
+
+
+===== wallet_accounts =====
+
+ ظؤàي╕ wrangler 4.161.0
+ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤
+Resource location: remote 
+
+≡اî Executing on remote database mishwar-db (510eb1ef-8814-4313-95e8-b1386ef40f8e):
+≡اî To execute on your local development database, remove the --remote flag from your wrangler command.
+≡اأث Executed 1 command in 0.15ms
+[
+  {
+    "results": [
+      {
+        "sql": "CREATE TABLE wallet_accounts (account_id TEXT PRIMARY KEY NOT NULL, balance_halalas INTEGER NOT NULL DEFAULT 0)"
+      }
+    ],
+    "success": true,
+    "meta": {
+      "served_by": "v3-prod",
+      "served_by_region": "EEUR",
+      "served_by_colo": "MXP",
+      "served_by_primary": true,
+      "timings": {
+        "sql_duration_ms": 0.1468
+      },
+      "duration": 0.1468,
+      "changes": 0,
+      "last_row_id": 0,
+      "changed_db": false,
+      "size_after": 557056,
+      "rows_read": 142,
+      "rows_written": 0,
+      "total_attempts": 1
+    }
+  }
+]
+
+
+===== wallet_entries =====
+
+ ظؤàي╕ wrangler 4.161.0
+ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤
+Resource location: remote 
+
+≡اî Executing on remote database mishwar-db (510eb1ef-8814-4313-95e8-b1386ef40f8e):
+≡اî To execute on your local development database, remove the --remote flag from your wrangler command.
+≡اأث Executed 1 command in 0.17ms
+[
+  {
+    "results": [
+      {
+        "sql": "CREATE TABLE wallet_entries (id TEXT PRIMARY KEY NOT NULL, transaction_id TEXT NOT NULL, account_id TEXT NOT NULL, amount_halalas INTEGER NOT NULL, enforce_funds INTEGER NOT NULL DEFAULT 0, kind TEXT NOT NULL, reference TEXT NOT NULL, created_at TEXT NOT NULL, UNIQUE(transaction_id,account_id))"
+      }
+    ],
+    "success": true,
+    "meta": {
+      "served_by": "v3-prod",
+      "served_by_region": "EEUR",
+      "served_by_colo": "MXP",
+      "served_by_primary": true,
+      "timings": {
+        "sql_duration_ms": 0.1677
+      },
+      "duration": 0.1677,
+      "changes": 0,
+      "last_row_id": 0,
+      "changed_db": false,
+      "size_after": 557056,
+      "rows_read": 142,
+      "rows_written": 0,
+      "total_attempts": 1
+    }
+  }
+]
+
+
+===== push_subscriptions =====
+
+ ظؤàي╕ wrangler 4.161.0
+ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤ظ¤
+Resource location: remote 
+
+≡اî Executing on remote database mishwar-db (510eb1ef-8814-4313-95e8-b1386ef40f8e):
+≡اî To execute on your local development database, remove the --remote flag from your wrangler command.
+≡اأث Executed 1 command in 0.18ms
+[
+  {
+    "results": [
+      {
+        "sql": "CREATE TABLE push_subscriptions (endpoint_hash TEXT PRIMARY KEY NOT NULL, endpoint TEXT NOT NULL, role TEXT NOT NULL, actor_id TEXT NOT NULL, session_hash TEXT, created_at TEXT NOT NULL)"
+      }
+    ],
+    "success": true,
+    "meta": {
+      "served_by": "v3-prod",
+      "served_by_region": "EEUR",
+      "served_by_colo": "MXP",
+      "served_by_primary": true,
+      "timings": {
+        "sql_duration_ms": 0.1786
+      },
+      "duration": 0.1786,
+      "changes": 0,
+      "last_row_id": 0,
+      "changed_db": false,
+      "size_after": 557056,
+      "rows_read": 142,
+      "rows_written": 0,
+      "total_attempts": 1
+    }
+  }
+]
+
