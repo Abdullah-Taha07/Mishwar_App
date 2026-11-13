@@ -1,0 +1,17 @@
+DELETE FROM captain_presence;
+DELETE FROM captain_reviews;
+DELETE FROM account_recovery;
+DELETE FROM rider_phone_accounts;
+DELETE FROM fare_counters;
+DELETE FROM trip_expiry_claims;
+DELETE FROM trip_context;
+DELETE FROM trip_commerce;
+DELETE FROM trip_ratings;
+DELETE FROM trip_safety;
+DELETE FROM trip_negotiations;
+DELETE FROM trip_settlements;
+DELETE FROM dispatch_attempts;
+DELETE FROM dispatch_offers;
+DELETE FROM trips;
+DELETE FROM riders;
+DELETE FROM captain_applications;
