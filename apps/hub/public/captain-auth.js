@@ -117,8 +117,35 @@
         if(sms){
             pollCaptainVerification();
             const status = document.querySelector('#captain-otp-status');
-            document.querySelector('#captain-send-otp').onclick = async e => {e.currentTarget.disabled=true;try{const result=await api('phone-otp-start',{});status.textContent='تم طلب إرسال الرمز. افحص رسائلك.';cooldownOtp(e.currentTarget,result.retryAfter||60)}catch(err){status.textContent=err.message;if(e.currentTarget.isConnected)e.currentTarget.disabled=false}};
-            document.querySelector('#captain-otp-form').onsubmit = async e => {e.preventDefault();const btn=e.target.querySelector('button');btn.disabled=true;try{await api('phone-otp-check',{code:e.target.code.value});location.reload()}catch(err){status.textContent=err.message;btn.disabled=false}};
+            document.querySelector('#captain-send-otp').onclick = async e => {
+                const button = e.currentTarget;
+                button.disabled = true;
+                try {
+                    const result = await api('phone-otp-start',{});
+                    if (!button.isConnected) return;
+                    const notice = document.querySelector('#captain-otp-status');
+                    if (notice) notice.textContent = result.alreadyVerified ? 'رقمك موثّق بالفعل.' : 'تم طلب إرسال الرمز. افحص رسائلك.';
+                    if (result.alreadyVerified) { location.reload(); return; }
+                    cooldownOtp(button,result.retryAfter||60);
+                } catch(err) {
+                    const notice = document.querySelector('#captain-otp-status');
+                    if (notice) notice.textContent = err.message;
+                    if (button.isConnected) button.disabled = false;
+                }
+            };
+            document.querySelector('#captain-otp-form').onsubmit = async e => {
+                e.preventDefault();
+                const form = e.currentTarget;
+                const btn = form.querySelector('button');
+                const code = form.elements.namedItem('code').value;
+                btn.disabled = true;
+                try { await api('phone-otp-check',{code}); location.reload(); }
+                catch(err) {
+                    const notice = document.querySelector('#captain-otp-status');
+                    if (notice) notice.textContent = err.message;
+                    if (btn.isConnected) btn.disabled = false;
+                }
+            };
         }
         document.querySelector('#refresh-account').onclick = () => location.reload();
         document.querySelector('#logout-account').onclick = async () => {await api('logout',{});location.reload()};
