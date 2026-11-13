@@ -77,25 +77,27 @@
     }
 
     function pending(d) {
-        let html = '<button type="button" class="text-link" id="captain-pending-back" aria-label="رجوع">→ رجوع</button>';
-        html += '<h2>بانتظار توثيق رقم الجوال</h2>';
-        html += '<p class="intro">مرحبًا ' + esc(d.profile.name) + '. حسابك محفوظ، أرسل رمز حسابك إلى الإدارة عبر واتساب من رقمك المسجل، ثم انتظر اعتماد التوثيق.</p>';
+        const sms = d.smsConfigured === true;
+        let html = '<button type="button" class="text-link" id="captain-pending-back">→ رجوع</button>';
+        html += '<h2>توثيق رقم الجوال</h2><p class="intro">مرحبًا ' + esc(d.profile.name) + '، وثّق رقمك لاستكمال التسجيل.</p>';
         html += '<p dir="ltr">' + esc(d.profile.phone) + '</p>';
-        html += '<p>رمز التوثيق الخاص بحسابك:</p>';
-        html += '<p style="font-size:32px;letter-spacing:6px" dir="ltr">' + esc(d.verificationCode || '') + '</p>';
-        html += '<a class="primary" href="https://wa.me/966548000536?text=' + encodeURIComponent('مرحبًا إدارة مشوار، أريد توثيق حساب كابتن.\nالاسم: ' + d.profile.name + '\nالجوال: ' + d.profile.phone + '\nرمز التوثيق: ' + (d.verificationCode || '')) + '" target="_blank" rel="noopener noreferrer">إرسال رمز التوثيق عبر واتساب ↗</a>';
-        html += '<p class="intro">أرسل الرسالة من واتساب رقمك المسجل. تعتمد الإدارة الرقم بعد مطابقة الرسالة والرمز.</p>';
-        html += '<button class="primary" id="refresh-account">تحديث الحالة</button>';
-        html += '<button class="text-link" id="logout-account">تسجيل الخروج</button>';
-        
+        if (sms) {
+            html += '<button type="button" class="primary" id="captain-send-otp">إرسال رمز SMS</button>';
+            html += '<form id="captain-otp-form" class="form-grid"><div class="field wide"><label>رمز التحقق</label><input name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" required dir="ltr"></div><button class="primary wide">تأكيد الرمز</button></form>';
+            html += '<p id="captain-otp-status" role="status"></p>';
+        } else {
+            html += '<p>خدمة الرسائل غير مهيأة حاليًا. تواصل مع الإدارة للتحقق اليدوي.</p>';
+        }
+        html += '<button class="primary" id="refresh-account">تحديث الحالة</button><button class="text-link" id="logout-account">تسجيل الخروج</button>';
         root().innerHTML = html;
-
-        document.querySelector('#captain-pending-back').onclick = function () { return window.showCaptainWelcome(); };
-        document.querySelector('#refresh-account').onclick = function () { location.reload(); };
-        document.querySelector('#logout-account').onclick = async function () {
-            await api('logout', {});
-            location.reload();
-        };
+        document.querySelector('#captain-pending-back').onclick = () => window.showCaptainWelcome();
+        if(sms){
+            const status = document.querySelector('#captain-otp-status');
+            document.querySelector('#captain-send-otp').onclick = async e => {e.currentTarget.disabled=true;try{await api('phone-otp-start',{});status.textContent='تم طلب إرسال الرمز. افحص رسائلك.'}catch(err){status.textContent=err.message}finally{e.currentTarget.disabled=false}};
+            document.querySelector('#captain-otp-form').onsubmit = async e => {e.preventDefault();const btn=e.target.querySelector('button');btn.disabled=true;try{await api('phone-otp-check',{code:e.target.code.value});location.reload()}catch(err){status.textContent=err.message;btn.disabled=false}};
+        }
+        document.querySelector('#refresh-account').onclick = () => location.reload();
+        document.querySelector('#logout-account').onclick = async () => {await api('logout',{});location.reload()};
     }
 
     window.showCaptainWelcome = function () {
