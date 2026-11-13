@@ -35,11 +35,5 @@
   "categories": [
     "travel",
     "navigation"
-  ],
-  "related_applications": [
-    {
-      "platform": "webapp",
-      "url": "https://rider-turquoise-abdalla.dazzlinglens.chatgpt.site/manifest.webmanifest"
-    }
   ]
 }

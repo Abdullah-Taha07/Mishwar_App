@@ -212,7 +212,7 @@ export default{
             if(path==='/install')path='/install.html';
             
             if(['/admin','/admin/','/admin.html'].includes(path)){
-                return Response.redirect('https://mishwar-administration-abdalla.dazzlinglens.chatgpt.site',302);
+                return Response.redirect('https://mishwar-admin-gamma.vercel.app',302);
             }
             
             if(['/dashboard','/dashboard.html'].includes(path)){
