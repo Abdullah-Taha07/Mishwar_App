@@ -66,3 +66,29 @@ html,body{width:100%;max-width:100%;overflow-x:clip}
   body[data-driver-tab="requests"] .driver-nav{display:flex}
 }
 @media(prefers-reduced-motion:reduce){.driver-shell *{scroll-behavior:auto!important;transition:none!important}}
+
+/* MISHWAR_UX_DRIVER_SHEET_20261114: sheet moves independently of the map / page. */
+@media (max-width:799px) {
+ html,body{height:100%;overflow-y:hidden!important;overscroll-behavior:none}
+ .driver-shell{height:100dvh!important;max-height:100dvh!important;overflow:hidden!important;overscroll-behavior:none}
+ .driver-shell .driver-map{min-height:0;overflow:hidden;overscroll-behavior:contain}
+ body[data-driver-tab="requests"] #driver-panel,
+ body[data-driver-tab="trip"] #driver-panel{
+   -webkit-overflow-scrolling:touch;
+   overflow-y:auto!important;
+   overscroll-behavior-y:contain;
+   overflow-anchor:none;
+   touch-action:pan-y;
+   scroll-padding-top:44px;
+   padding-bottom:calc(22px + env(safe-area-inset-bottom))!important;
+   transition:height .16s ease-out;
+ }
+ body.driver-sheet-dragging[data-driver-tab="requests"] #driver-panel,
+ body.driver-sheet-dragging[data-driver-tab="trip"] #driver-panel{transition:none!important}
+ #driver-panel .driver-grab{position:sticky!important;top:-10px;z-index:4;min-height:40px;height:40px;margin:0 0 8px;background:#fff;touch-action:none;cursor:grab;flex-shrink:0}
+ #driver-panel .driver-grab>span{width:52px;height:5px;background:#a8cbd4}
+ #driver-panel .driver-sheet-handle{touch-action:none;min-height:42px}
+ #driver-panel .primary,#driver-panel .secondary,#driver-panel .decline-offer,#driver-panel .counter-button{min-height:44px;touch-action:manipulation}
+ .driver-shell .driver-nav{position:relative;z-index:30;background:#fff}
+}
+@media(prefers-reduced-motion:reduce){#driver-panel{transition:none!important}}

@@ -21,3 +21,8 @@ html,body{max-width:100%;overflow-x:clip}*,*::before,*::after{box-sizing:border-
  .stat,.metric{min-width:0}.metric strong{font-size:clamp(17px,4vw,24px)}
 }
 @media(max-width:380px){.metrics{grid-template-columns:minmax(0,1fr)}.portal-header .portal-brand strong{font-size:17px}}
+
+/* MISHWAR_UX_ADMIN_ACCESSIBILITY_20261114 */
+#portal-refresh,.data-table button,.top-heading button{min-height:44px}
+#portal-refresh:focus-visible,.data-table button:focus-visible,.portal-header button:focus-visible{outline:3px solid #0da7c0;outline-offset:2px}
+@media(max-width:760px){.table-scroll .data-table td{line-height:1.7}.top-heading button{width:auto;max-width:100%}}

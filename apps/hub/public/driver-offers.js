@@ -1,19 +1,45 @@
 (()=>{let ctx=null,alertId='',alertTimer=null,collapsed=false,drag=null,suppressClick=false;const sheet=document.querySelector('#driver-panel');
 function beep(){try{if(ctx?.state!=='running')return;for(const [index,f]of[880,1100,880].entries()){const o=ctx.createOscillator(),g=ctx.createGain();o.connect(g);g.connect(ctx.destination);o.frequency.value=f;g.gain.setValueAtTime(.0001,ctx.currentTime+index*.22);g.gain.exponentialRampToValueAtTime(.18,ctx.currentTime+index*.22+.02);g.gain.exponentialRampToValueAtTime(.0001,ctx.currentTime+index*.22+.19);o.start(ctx.currentTime+index*.22);o.stop(ctx.currentTime+index*.22+.2)}navigator.vibrate?.([180,90,180])}catch{}}
 document.addEventListener('pointerdown',()=>{try{ctx||=new(window.AudioContext||window.webkitAudioContext)();ctx.resume()}catch{}},{once:true});
-window.prepareDriverAlerts=async()=>{try{ctx||=new(window.AudioContext||window.webkitAudioContext)();await ctx.resume();beep()}catch{toast('الصوت غير متاح. تحقق من إعدادات المتصفح')}if(window.enableMishwarPush)await window.enableMishwarPush(false)};
-window.syncDriverOffers=offers=>{const r=offers?.[0],id=r?.id||'';if(id===alertId)return;clearInterval(alertTimer);alertId=id;if(!id)return;tab='requests';document.documentElement.style.setProperty('--driver-offer-height','86%');document.documentElement.style.setProperty('--driver-sheet-height','86%');beep();alertTimer=setInterval(()=>{if(!data?.requests?.some(x=>x.id===id)||Date.parse(r.offerExpiresAt)<=Date.now()){clearInterval(alertTimer);return}beep()},4500)};
+window.prepareDriverAlerts=async()=>{try{ctx||=new(window.AudioContext||window.webkitAudioContext)();await ctx.resume();beep()}catch{toast('الصوت غير متاح. تحقق من إعدادات المتصفح')}/* Push permission is opt-in from notification settings; never prompt when toggling availability. */};
+window.syncDriverOffers=offers=>{const r=offers?.[0],id=r?.id||'';if(id===alertId)return;clearInterval(alertTimer);alertId=id;if(!id)return;tab='requests';height(86);beep();alertTimer=setInterval(()=>{if(!data?.requests?.some(x=>x.id===id)||Date.parse(r.offerExpiresAt)<=Date.now()){clearInterval(alertTimer);return}beep()},4500)};
 function tick(){document.querySelectorAll('[data-offer-clock]').forEach(el=>{const seconds=Math.max(0,Math.ceil((Date.parse(el.dataset.offerClock)-Date.now())/1000));el.textContent=String(seconds);el.closest('.offer-countdown')?.classList.toggle('ending',seconds<=10);if(!seconds){el.closest('article')?.querySelectorAll('button').forEach(b=>b.disabled=true);refresh()}})}setInterval(tick,1000);
-function height(percent){document.documentElement.style.setProperty('--driver-offer-height',percent+'%');document.documentElement.style.setProperty('--driver-sheet-height',percent+'%')}
-document.addEventListener('click',async e=>{const b=e.target.closest('button');if(!b)return;if(b.hasAttribute('data-enable-driver-alerts')){await window.prepareDriverAlerts();b.textContent='تم تفعيل صوت الطلبات';b.disabled=true}if(b.hasAttribute('data-driver-sheet')){if(suppressClick)return;collapsed=!collapsed;height(collapsed?48:86)}if(b.dataset.declineOffer)await change({action:'decline',tripId:b.dataset.declineOffer});if(b.dataset.counterTrip){document.querySelector('#driver-counter-dialog')?.remove();const d=document.createElement('dialog');d.id='driver-counter-dialog';d.className='recovery-dialog';d.innerHTML=`<h2>اقتراح سعر أعلى</h2><p>لا يُعتمد السعر إلا بعد موافقة الراكب، خلال وقت الطلب المتبقي.</p><form><label>السعر بالريال<input name="amount" type="number" min="${(Number(b.dataset.counterMin)+1)/100}" max="100000" step="0.01" inputmode="decimal" required></label><p role="alert"></p><button class="recovery-primary">إرسال العرض للراكب</button></form><button class="recovery-link" data-close>إغلاق</button>`;document.body.append(d);d.showModal();d.querySelector('[data-close]').onclick=()=>d.remove();d.querySelector('form').onsubmit=async ev=>{ev.preventDefault();const submit=ev.target.querySelector('button');submit.disabled=true;try{await api({action:'counter_offer',tripId:b.dataset.counterTrip,amount:Math.round(Number(ev.target.amount.value)*100)});d.remove();toast('تم إرسال عرضك إلى الراكب');await refresh()}catch(err){d.querySelector('[role=alert]').textContent=err.message;submit.disabled=false}}}});
-function finishDrag(){if(drag?.moved){suppressClick=true;setTimeout(()=>suppressClick=false,300)}drag=null}
-function begin(e,y){if(document.body.dataset.driverTab!=='requests'||!e.target.closest('.driver-offer-heading,.panel-title')||e.target.closest('button:not([data-driver-sheet])'))return;drag={y,moved:false,height:sheet.getBoundingClientRect().height,parent:document.querySelector('.driver-shell').getBoundingClientRect().height}}
-function move(e,y){if(!drag)return;if(Math.abs(y-drag.y)<6&&!drag.moved)return;drag.moved=true;e.preventDefault();height(Math.min(92,Math.max(44,(drag.height+drag.y-y)/drag.parent*100)))}sheet.addEventListener('mousedown',e=>begin(e,e.clientY));document.addEventListener('mousemove',e=>move(e,e.clientY));document.addEventListener('mouseup',finishDrag);sheet.addEventListener('touchstart',e=>{if(e.touches.length===1)begin(e,e.touches[0].clientY)},{passive:true});sheet.addEventListener('touchmove',e=>{if(e.touches.length===1)move(e,e.touches[0].clientY)},{passive:false});sheet.addEventListener('touchend',finishDrag);sheet.addEventListener('touchcancel',finishDrag);document.addEventListener('visibilitychange',()=>{if(!document.hidden){refresh();if(alertId)beep()}});
-sheet.addEventListener('keydown',e=>{if(e.target.closest('[data-driver-sheet]')&&['ArrowUp','ArrowDown'].includes(e.key)){e.preventDefault();height(e.key==='ArrowUp'?86:48)}});
-let gripStart=null;
-sheet.addEventListener('pointerdown',event=>{const grip=event.target.closest('.driver-grab');if(!grip||!['requests','trip'].includes(document.body.dataset.driverTab))return;const shell=document.querySelector('.driver-shell');gripStart={pointerId:event.pointerId,y:event.clientY,height:sheet.getBoundingClientRect().height,shell:shell.getBoundingClientRect().height};grip.setPointerCapture?.(event.pointerId);event.preventDefault();});
-sheet.addEventListener('pointermove',event=>{if(!gripStart||gripStart.pointerId!==event.pointerId)return;height(Math.max(38,Math.min(88,(gripStart.height+gripStart.y-event.clientY)/gripStart.shell*100)));event.preventDefault()});
-for(const type of ['pointerup','pointercancel'])sheet.addEventListener(type,event=>{if(gripStart?.pointerId===event.pointerId)gripStart=null});
-sheet.addEventListener('keydown',event=>{if(!event.target.closest('.driver-grab'))return;if(['ArrowDown','ArrowUp'].includes(event.key)){event.preventDefault();const current=Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--driver-sheet-height'))||56;height(Math.max(38,Math.min(88,current+(event.key==='ArrowUp'?10:-10))))}});
+let sheetPercent=56;
+function height(percent){sheetPercent=Math.max(38,Math.min(86,percent));document.documentElement.style.setProperty('--driver-offer-height',sheetPercent+'%');document.documentElement.style.setProperty('--driver-sheet-height',sheetPercent+'%');const grip=sheet.querySelector('.driver-grab');if(grip){grip.setAttribute('aria-valuenow',String(Math.round(sheetPercent)));grip.setAttribute('aria-valuetext',sheetPercent<=42?'لوحة صغيرة':sheetPercent>=80?'لوحة موسعة':'لوحة متوسطة')}}
+function setSnap(percent){height(percent);collapsed=percent<=40;}
+
+document.addEventListener('click',async e=>{const b=e.target.closest('button');if(!b)return;if(b.hasAttribute('data-enable-driver-alerts')){await window.prepareDriverAlerts();b.textContent='تم تفعيل صوت الطلبات';b.disabled=true}if(b.hasAttribute('data-driver-sheet')||b.classList.contains('driver-grab')){if(suppressClick)return;setSnap(sheetPercent>=80?38:sheetPercent>=55?86:62)}if(b.dataset.declineOffer)await change({action:'decline',tripId:b.dataset.declineOffer});if(b.dataset.counterTrip){document.querySelector('#driver-counter-dialog')?.remove();const d=document.createElement('dialog');d.id='driver-counter-dialog';d.className='recovery-dialog';d.innerHTML=`<h2>اقتراح سعر أعلى</h2><p>لا يُعتمد السعر إلا بعد موافقة الراكب، خلال وقت الطلب المتبقي.</p><form><label>السعر بالريال<input name="amount" type="number" min="${(Number(b.dataset.counterMin)+1)/100}" max="100000" step="0.01" inputmode="decimal" required></label><p role="alert"></p><button class="recovery-primary">إرسال العرض للراكب</button></form><button class="recovery-link" data-close>إغلاق</button>`;document.body.append(d);d.showModal();d.querySelector('[data-close]').onclick=()=>d.remove();d.querySelector('form').onsubmit=async ev=>{ev.preventDefault();const submit=ev.target.querySelector('button');submit.disabled=true;try{await api({action:'counter_offer',tripId:b.dataset.counterTrip,amount:Math.round(Number(ev.target.amount.value)*100)});d.remove();toast('تم إرسال عرضك إلى الراكب');await refresh()}catch(err){d.querySelector('[role=alert]').textContent=err.message;submit.disabled=false}}}});
+/* MISHWAR_UX_SINGLE_POINTER_DRAG_20261114: one drag controller for both sheets. */
+const nearestSnap=percent=>[38,62,86].reduce((best,n)=>Math.abs(n-percent)<Math.abs(best-percent)?n:best);
+let activeDrag=null;
+sheet.addEventListener('pointerdown',event=>{
+ if(!matchMedia('(max-width:799px)').matches || !['requests','trip'].includes(document.body.dataset.driverTab))return;
+ const grip=event.target.closest('.driver-grab,[data-driver-sheet]');
+ if(!grip || event.isPrimary===false || (event.pointerType==='mouse'&&event.button!==0))return;
+ const shell=document.querySelector('.driver-shell');if(!shell)return;
+ activeDrag={id:event.pointerId,y:event.clientY,height:sheet.getBoundingClientRect().height,container:shell.getBoundingClientRect().height,moved:false};
+ try{grip.setPointerCapture(event.pointerId)}catch{}
+});
+sheet.addEventListener('pointermove',event=>{
+ if(!activeDrag||activeDrag.id!==event.pointerId)return;
+ const dy=event.clientY-activeDrag.y;if(!activeDrag.moved&&Math.abs(dy)<7)return;
+ activeDrag.moved=true;event.preventDefault();
+ document.body.classList.add('driver-sheet-dragging');
+ height((activeDrag.height-dy)/activeDrag.container*100);
+});
+function finishDrag(event){if(!activeDrag||event.pointerId!==activeDrag.id)return;const moved=activeDrag.moved;activeDrag=null;document.body.classList.remove('driver-sheet-dragging');if(moved){suppressClick=true;setTimeout(()=>{suppressClick=false},350);setSnap(nearestSnap(sheetPercent));}}
+sheet.addEventListener('pointerup',finishDrag);
+sheet.addEventListener('pointercancel',finishDrag);
+sheet.addEventListener('lostpointercapture',event=>{if(activeDrag?.id===event.pointerId)finishDrag(event)});
+sheet.addEventListener('keydown',event=>{
+ if(!event.target.closest('.driver-grab,[data-driver-sheet]'))return;
+ if(!['ArrowUp','ArrowDown','Home','End'].includes(event.key))return;
+ event.preventDefault();
+ if(event.key==='Home')setSnap(86);
+ else if(event.key==='End')setSnap(38);
+ else if(event.key==='ArrowUp')setSnap(sheetPercent<50?62:86);
+ else setSnap(sheetPercent>75?62:38);
+});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden){refresh();if(alertId)beep()}});
 navigator.serviceWorker?.addEventListener('message',e=>{if(e.data?.type==='REFRESH_DRIVER')refresh()});
 })();
