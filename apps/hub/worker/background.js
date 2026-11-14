@@ -1,3 +1,5 @@
+import{registerNativeDevice,notifyNative}from'./native-push.js';
+import{realtimePublish}from'./realtime.js';
 import { riderSession, tokenHash } from "./rider-auth.js";
 import { secretMatches } from "./operations.js";
 
@@ -136,7 +138,11 @@ export async function notifyAccount(env, role, actor, title, body, url, ctx) {
       .all()
   ).results;
 
-  const job = Promise.allSettled(subscriptions.map((s) => sendSignal(env, s)));
+  const job = Promise.allSettled([
+    ...subscriptions.map(subscription => sendSignal(env,subscription)),
+    realtimePublish(env,[{role,actor}],'notification'),
+    notifyNative(env,role,actor,title,body,url),
+  ]);
 
   if (ctx?.waitUntil) ctx.waitUntil(job);
   else await job;
@@ -222,6 +228,11 @@ export async function backgroundFor(
     }
   } else {
     b.action = new URL(request.url).searchParams.get("action") || "latest";
+  }
+
+  if (b.action === "register_native") {
+    try { return bj(await registerNativeDevice(env,role,actor,sessionHash,b)); }
+    catch (error) { return bj({error:error.message},400); }
   }
 
   if (b.action === "config") {
@@ -364,7 +375,7 @@ export async function handleCaptainBackground(request, env) {
     return bj({ error: "الحساب غير مفعّل" }, 403);
   }
 
-  return backgroundFor(request, env, "captain", app.id);
+  return backgroundFor(request, env, "captain", app.id, request.headers.get("x-mishwar-session-hash"));
 }
 
 export async function handleRiderBackground(request, env) {

@@ -5,10 +5,10 @@ import vm from 'node:vm';
 const read = name => readFileSync(new URL('../'+name, import.meta.url),'utf8');
 test('worker maps verified captain cookie to background notification API without trusting caller identity',()=>{
  const code=read('worker/index.js');
- assert.match(code,/\['\/api\/driver','\/api\/application','\/api\/login','\/api\/captain-presence','\/api\/background'\]/);
+ assert.match(code,/\['\/api\/driver','\/api\/application','\/api\/login','\/api\/captain-presence','\/api\/background','\/api\/documents\/renew'\]/);
  assert.match(code,/const authenticated=token\?await publicSession\(env,token,'captain'\):null/);
  assert.match(code,/headers\.delete\('oai-authenticated-user-id'\)/);
- assert.match(code,/if\(authenticated\?\.phoneVerified\)headers\.set/);
+ assert.match(code,/if\(authenticated\?\.phoneVerified\)\{\s*headers\.set/);
 });
 test('driver blocks further requests after 401 or 403 and displays login CTA',()=>{
  const code=read('public/driver.js');

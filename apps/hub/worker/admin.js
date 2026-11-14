@@ -1,3 +1,6 @@
+import{staffRole,staffAllows,expansionAdmin}from'./expansion.js';
+import{renewalAdmin}from'./document-renewal.js';
+import{launchAdmin}from'./launch-operations.js';
 import{settingsAdmin}from'./account-settings.js';import{rechargeAdmin}from'./recharge.js';
 import{recoveryAdmin}from'./recovery.js';
 import{manualPhoneAdmin}from'./free-auth.js';
@@ -7,15 +10,16 @@ import {DOCUMENTS} from '../public/validation.js';
 const adminJson=(data,status=200)=>new Response(JSON.stringify(data),{status,headers:{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}});
 export function isAdmin(request,env){const id=request.headers.get('oai-authenticated-user-id'),email=request.headers.get('oai-authenticated-user-email');return !!(id&&email&&env.CAPTAIN_ADMIN_EMAIL&&email.trim().toLowerCase()===env.CAPTAIN_ADMIN_EMAIL.trim().toLowerCase())}
 export async function handleAdmin(request,env){
- if(!isAdmin(request,env))return adminJson({error:'هذه الصفحة مخصصة لإدارة كابتن مشوار.'},403);
+ const adminRole=await staffRole(request,env);if(!staffAllows(adminRole,new URL(request.url).pathname,request.method))return adminJson({error:'هذه الصفحة مخصصة لإدارة كابتن مشوار.'},403);
  const url=new URL(request.url),parts=url.pathname.split('/').filter(Boolean);
  if(url.pathname==='/api/admin/notifications'&&request.method==='GET'){
  const pending=await env.DB.prepare("SELECT COUNT(*) AS n FROM captain_applications WHERE status='pending'").first();
  const phones=(await env.DB.prepare("SELECT role,COUNT(*) AS n FROM public_accounts WHERE phone_verified_at IS NULL GROUP BY role").all()).results;
  const requests=await env.DB.prepare("SELECT COUNT(*) AS n FROM trips WHERE status='matching' AND is_demo=0 AND julianday(created_at)>julianday('now','-3 minutes')").first();
- const recovery=await env.DB.prepare("SELECT COUNT(*) AS n FROM account_recovery WHERE status='pending' AND actor IS NOT NULL AND expires_at>?").bind(new Date().toISOString()).first();const changes=await env.DB.prepare("SELECT COUNT(*) AS n FROM account_changes WHERE mode='manual' AND stage IN ('old','new') AND consumed_at IS NULL AND expires_at>?").bind(new Date().toISOString()).first();const items=[{page:'account-changes',label:'طلبات تعديل بيانات الدخول',count:changes.n},{page:'account-recovery',label:'طلبات استعادة الحسابات',count:recovery.n},{page:'applications',label:'طلبات انضمام الكباتن',count:pending.n},{page:'live',label:'طلبات رحلات بانتظار كابتن',count:requests.n}];return adminJson({items,total:items.reduce((n,x)=>n+x.count,0),updatedAt:new Date().toISOString()});
+ const recovery=await env.DB.prepare("SELECT COUNT(*) AS n FROM account_recovery WHERE status='pending' AND actor IS NOT NULL").first();const changes=await env.DB.prepare("SELECT COUNT(*) AS n FROM account_changes WHERE mode='manual' AND stage IN ('old','new') AND consumed_at IS NULL AND expires_at>?").bind(new Date().toISOString()).first();const safety=await env.DB.prepare("SELECT COUNT(*) AS n FROM safety_incidents WHERE status='open'").first();const items=[{page:'safety-center',label:'بلاغات السلامة المفتوحة',count:safety.n},{page:'account-changes',label:'طلبات تعديل بيانات الدخول',count:changes.n},{page:'account-recovery',label:'طلبات استعادة الحسابات',count:recovery.n},{page:'applications',label:'طلبات انضمام الكباتن',count:pending.n},{page:'live',label:'طلبات رحلات بانتظار كابتن',count:requests.n}];return adminJson({items,total:items.reduce((n,x)=>n+x.count,0),updatedAt:new Date().toISOString()});
  }
- if(url.pathname==='/api/admin/session')return adminJson({admin:true});
+ if(url.pathname==='/api/admin/session')return adminJson({admin:true,role:adminRole});
+ if(url.pathname.startsWith('/api/admin/expansion/'))return expansionAdmin(request,env);
  if(!env.DB||!env.BUCKET)return adminJson({error:'خدمة المراجعة غير متاحة حاليًا.'},503);
  if(url.pathname==='/api/admin/trip-extras'&&request.method==='GET'){const id=url.searchParams.get('id')||'';const pricing=await env.DB.prepare('SELECT n.minimum_halalas,q.fare_halalas AS rider_offer FROM trip_negotiations n JOIN trip_commerce c ON c.trip_id=n.trip_id JOIN ride_quotes q ON q.id=c.quote_id WHERE n.trip_id=?').bind(id).first();const offers=(await env.DB.prepare('SELECT captain_id,amount_halalas,status,created_at,expires_at FROM fare_counters WHERE trip_id=? ORDER BY created_at').bind(id).all()).results;const ratings=(await env.DB.prepare('SELECT role,score,comment,created_at FROM trip_ratings WHERE trip_id=?').bind(id).all()).results;const context=await env.DB.prepare('SELECT * FROM trip_context WHERE trip_id=?').bind(id).first();return adminJson({pricing,offers,ratings,context})}
  if(url.pathname==='/api/admin/connections'&&request.method==='GET'){
@@ -25,7 +29,7 @@ export async function handleAdmin(request,env){
  const riders=await env.DB.prepare('SELECT COUNT(*) AS total FROM riders').first();
  return adminJson({connected:true,updatedAt:new Date().toISOString(),captains,trips,riders,services:{database:true,documents:!!env.BUCKET,dispatch:true,history:true,wallet:true,manualPhoneVerification:env.ENABLE_LEGACY_PHONE_VERIFICATION==='true',card:!!livePayments(env),applepay:!!(livePayments(env)&&env.APPLE_PAY_ENABLED==='true'),sms:!!(env.AUTHENTICA_API_KEY&&env.AUTHENTICA_TEMPLATE_ID),push:!!(env.VAPID_PRIVATE_JWK&&env.VAPID_PUBLIC_KEY)}});
  }
- if(url.pathname==='/api/admin/account-changes')return await settingsAdmin(request,env);if(url.pathname==='/api/admin/recharge-cards')return await rechargeAdmin(request,env);
+ if(url.pathname==='/api/admin/launch/renewals')return await renewalAdmin(request,env);if(url.pathname.startsWith('/api/admin/launch/'))return await launchAdmin(request,env,env.__ctx);if(url.pathname==='/api/admin/account-changes')return await settingsAdmin(request,env);if(url.pathname==='/api/admin/recharge-cards')return await rechargeAdmin(request,env);
  if(url.pathname==='/api/admin/account-recovery')return await recoveryAdmin(request,env);
  if(url.pathname==='/api/admin/phone-verifications')return await manualPhoneAdmin(request,env);
  if(url.pathname.startsWith('/api/admin/commerce/'))return await handleCommerceAdmin(request,env);

@@ -1,5 +1,6 @@
+import{realtimeTrip}from'./realtime.js';
 const opJson=(data,status=200)=>new Response(JSON.stringify(data),{status,headers:{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}});
-export async function logEvent(env,source,action,actor,entity=null,details={}){await env.DB.prepare('INSERT INTO operation_events (id,source,action,actor_id,entity_id,details_json,created_at) VALUES (?,?,?,?,?,?,?)').bind(crypto.randomUUID(),source,action,actor,entity,JSON.stringify(details),new Date().toISOString()).run()}
+export async function logEvent(env,source,action,actor,entity=null,details={}){await env.DB.prepare('INSERT INTO operation_events (id,source,action,actor_id,entity_id,details_json,created_at) VALUES (?,?,?,?,?,?,?)').bind(crypto.randomUUID(),source,action,actor,entity,JSON.stringify(details),new Date().toISOString()).run();if(entity)await realtimeTrip(env,entity,action).catch(()=>{})}
 export async function secretMatches(a,b){if(!a||!b||a.length>200||b.length>200)return false;const hash=async x=>new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(x)));const [x,y]=await Promise.all([hash(a),hash(b)]);let diff=0;for(let i=0;i<x.length;i++)diff|=x[i]^y[i];return diff===0}
 async function smallJson(request){if(Number(request.headers.get('content-length')||0)>16384)throw Error('SIZE');const text=await request.text();if(text.length>16384)throw Error('SIZE');return JSON.parse(text)}
 const text=(v,max=150)=>typeof v==='string'?v.trim().slice(0,max):'';
