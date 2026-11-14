@@ -77,6 +77,9 @@
             b.disabled = true;
             try {
                 await api(register ? 'register' : 'password-login', Object.fromEntries(new FormData(e.target)));
+                const confirmed=await api('session');
+                if(!confirmed.authenticated)throw Error('الجهاز لم يحتفظ بجلسة الدخول. افتح الموقع في Safari ثم أعد تسجيل الدخول.');
+                try{sessionStorage.removeItem('mishwar-captain-last-dashboard-hop')}catch{}
                 location.replace('/launch');
             } catch (err) {
                 document.querySelector('#account-error').textContent = err.message;
@@ -159,7 +162,7 @@
     }
 
     window.showCaptainWelcome = function () {
-        root().innerHTML = '<span class="kicker">كابتن مشوار</span><h2>كل طريق، فرصة جديدة</h2><p class="intro">أهلًا بك في مشوار. تابع حسابك وطلباتك من مكان واحد.</p><button class="primary" id="captain-enter">متابعة حسابي</button><a class="text-link" href="/install.html">تنزيل وتثبيت التطبيق</a>';
+        root().innerHTML = '<span class="kicker">كابتن مشوار</span><h2>كل طريق، فرصة جديدة</h2><p class="intro">أهلًا بك في مشوار. تابع حسابك وطلباتك من مكان واحد.</p><button class="primary" id="captain-enter">متابعة حسابي</button><a class="text-link" href="/launch?login=1#login">تسجيل الدخول</a><a class="text-link" href="/install.html">تنزيل وتثبيت التطبيق</a>';
         document.querySelector('#captain-enter').onclick = function () { form(false); };
     };
 
@@ -179,7 +182,7 @@
                     try{recent=Number(sessionStorage.getItem(key))||0}catch{}
                     if(Date.now()-recent<20000){
                         form(false);
-                        document.querySelector('#account-error').textContent='تعذر الانتقال إلى لوحة الكابتن. سجّل الدخول مجددًا إذا كانت جلستك انتهت.';
+                        document.querySelector('#account-error').textContent='تم إيقاف تحويل متكرر إلى لوحة الكابتن. جرّب تسجيل الدخول من هنا، وإذا استمرت المشكلة افتح الرابط في Safari مباشرة.';
                         return false;
                     }
                     try{
