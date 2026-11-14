@@ -2,3 +2,7 @@
 
 .upload-card input[type=file]{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;margin:0;z-index:2}.upload-card:focus-within{outline:3px solid #06b6d4;outline-offset:3px}.upload-pick{display:inline-block;background:#e8f5f7;border-radius:6px;padding:5px 9px;color:#337380;font-size:10px;margin-top:8px}
 .topbar{gap:15px;flex-wrap:wrap}.topbar .text-link{margin:0;font-size:11px}
+
+/* MISHWAR_UX_INCOME_PROMISE_20261114 */
+.captain-income-headline{color:#087c96;font-size:clamp(16px,3.4vw,21px);font-weight:700;line-height:1.65;margin:14px 0 5px}
+.captain-income-caveat{display:block;color:#6c8390;font-size:11px;line-height:1.8;max-width:470px;margin:0 0 14px}
