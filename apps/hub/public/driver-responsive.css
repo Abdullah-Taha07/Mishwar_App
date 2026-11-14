@@ -92,3 +92,16 @@ html,body{width:100%;max-width:100%;overflow-x:clip}
  .driver-shell .driver-nav{position:relative;z-index:30;background:#fff}
 }
 @media(prefers-reduced-motion:reduce){#driver-panel{transition:none!important}}
+
+/* MISHWAR_UX_DRIVER_SHEET_V2 and MISHWAR_SHEET_STOPS_V3 */
+@media(max-width:799px){
+ html,body{position:relative;width:100%;height:100%;overflow:hidden!important;overscroll-behavior:none!important}
+ .driver-shell{position:fixed!important;inset:0!important;width:100%!important;height:var(--vh,100dvh)!important;max-height:var(--vh,100dvh)!important;margin:0 auto!important;overflow:hidden!important;overscroll-behavior:none!important}
+ body[data-driver-tab="requests"] .driver-map,body[data-driver-tab="trip"] .driver-map{min-height:0!important;overflow:hidden!important;overscroll-behavior:none}
+ body[data-driver-tab="requests"] #driver-panel,body[data-driver-tab="trip"] #driver-panel{height:var(--driver-sheet-height,35%)!important;min-height:10%!important;max-height:calc(100% - 110px)!important;overflow-y:auto!important;overscroll-behavior:contain!important;-webkit-overflow-scrolling:touch;touch-action:pan-y!important}
+ #driver-panel .panel-title,#driver-panel .driver-offer-heading{touch-action:none!important;user-select:none;-webkit-user-select:none;cursor:grab}
+ #driver-panel .driver-grab,#driver-panel [data-driver-sheet]{touch-action:none!important;user-select:none;-webkit-user-select:none;cursor:grab}
+ #driver-panel .driver-grab{min-height:38px!important;height:38px!important}
+ body.driver-sheet-dragging #driver-panel .panel-title,body.driver-sheet-dragging #driver-panel .driver-grab{cursor:grabbing}
+ #driver-panel .panel-title button,#driver-panel .driver-offer-heading button{touch-action:manipulation}
+}
