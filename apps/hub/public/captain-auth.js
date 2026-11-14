@@ -162,7 +162,7 @@
     }
 
     window.showCaptainWelcome = function () {
-        root().innerHTML = '<span class="kicker">كابتن مشوار</span><h2>كل طريق، فرصة جديدة</h2><p class="intro">أهلًا بك في مشوار. تابع حسابك وطلباتك من مكان واحد.</p><button class="primary" id="captain-enter">متابعة حسابي</button><a class="text-link" href="/launch?login=1#login">تسجيل الدخول</a><a class="text-link" href="/install.html">تنزيل وتثبيت التطبيق</a>';
+        root().innerHTML = '<span class="kicker">كابتن مشوار</span><h2>كل طريق، فرصة جديدة</h2><p class="intro">أهلًا بك في مشوار. تابع حسابك وطلباتك من مكان واحد.</p><p class="captain-income-headline">استثمر وقتك معنا لتربح ما يصل إلى 10,000 ريال شهريًا</p><small class="captain-income-caveat">الأرباح المحتملة غير مضمونة وتعتمد على عدد الرحلات والطلب الفعلي.</small><button class="primary" id="captain-enter">متابعة حسابي</button><a class="text-link" href="/launch?login=1#login">تسجيل الدخول</a><a class="text-link" href="/install.html">تنزيل وتثبيت التطبيق</a>';
         document.querySelector('#captain-enter').onclick = function () { form(false); };
     };
 

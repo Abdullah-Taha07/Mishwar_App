@@ -14,3 +14,13 @@ html,body{max-width:100%;overflow-x:clip}
 .rider-account-disclosure summary span{font-size:19px;transition:transform .2s}
 .rider-account-disclosure[open] summary span{transform:rotate(180deg)}
 .rider-account-disclosure > form,.rider-account-disclosure > dl{padding:12px;margin:0}
+
+/* MISHWAR_UX_RIDER_TOUCH_20261114 */
+@media(max-width:700px){
+ .ride-handle,[data-ride-expand]{min-height:42px;touch-action:none}
+ .live-trip .primary,.live-trip .secondary,.active-trip-return button{min-height:46px}
+ .live-trip .live-route,.live-trip .driver-card,.active-trip-return{overflow-wrap:anywhere}
+ .ride-scroll{-webkit-overflow-scrolling:touch;overscroll-behavior-y:contain}
+}
+.permission-onboarding .primary,.permission-onboarding .secondary{min-height:46px}
+.permission-onboarding p{line-height:1.85}
