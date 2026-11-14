@@ -11,7 +11,7 @@ test('income marketing is qualified and not represented as guaranteed',()=>{
 test('captain sheet uses one pointer drag controller and discrete snap heights',()=>{
  const js=source('../public/driver-offers.js');
  assert.match(js,/MISHWAR_UX_SINGLE_POINTER_DRAG_20261114/);
- assert.match(js,/nearestSnap=percent=>\[38,62,86\]/);
+ assert.match(js,/Object\.freeze\(\[10,25,35,50,65,80,90\]\)/);
  assert.doesNotMatch(js,/sheet\.addEventListener\('touchmove'/);
  assert.match(source('../public/driver-responsive.css'),/MISHWAR_UX_DRIVER_SHEET_20261114/);
 });
