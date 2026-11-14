@@ -16,7 +16,7 @@ test('driver blocks further requests after 401 or 403 and displays login CTA',()
  assert.match(code,/if\(captainAuthBlocked\)throw Error/);
  assert.match(code,/async function refresh\(force=false\)\{if\(captainAuthBlocked\)return/);
  assert.match(code,/if\(!captainAuthBlocked&&!document.hidden&&navigator.onLine/);
- assert.ok(code.includes('href="/"'));
+ assert.ok(code.includes('href="/launch?login=1#login"'));
 });
 test('a 401 stops subsequent network calls in the client, without a reload loop',async()=>{
  const source=read('public/driver.js');

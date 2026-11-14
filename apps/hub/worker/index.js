@@ -211,6 +211,7 @@ export default{
             
             let path=url.pathname;
             if(path==='/install')path='/install.html';
+            if(path==='/launch')path='/index.html';
             
             if(['/admin','/admin/','/admin.html'].includes(path)){
                 return Response.redirect('https://mishwar-admin-gamma.vercel.app',302);

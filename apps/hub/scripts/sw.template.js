@@ -4,10 +4,12 @@ self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(c
 self.addEventListener('activate',event=>event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>/^(mishwar-shell-|captain-mishwar-|mishwar-captain-|rider-demo-)/.test(k)&&k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
 self.addEventListener('fetch',event=>{
  const url=new URL(event.request.url);
+ // Auth-sensitive navigation must not replay a previous signed-in page.
+ if(event.request.mode==='navigate'||event.request.destination==='document')return;
  if(event.request.method!=='GET'||url.origin!==self.location.origin||url.pathname==='/version.json'||!SHELL.includes(url.pathname))return;
  event.respondWith((async()=>{
    const cache=await caches.open(CACHE);
-   if(event.request.mode==='navigate'||/\.(?:html|js|css)$/.test(url.pathname)){
+   if(/\.(?:js|css|webmanifest)$/.test(url.pathname)){
      try{const fresh=await fetch(event.request,{cache:'no-store'});
        if(fresh.ok&&!fresh.redirected){const type=fresh.headers.get('content-type')||'';if(!url.pathname.endsWith('.js')||type.includes('javascript'))await cache.put(url.pathname,fresh.clone())}
        return fresh;

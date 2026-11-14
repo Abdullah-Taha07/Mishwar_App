@@ -5,7 +5,7 @@
   "description": "تطبيق كابتن مشوار المستقل للسائق — نسخة تجريبية",
   "lang": "ar",
   "dir": "rtl",
-  "start_url": "/",
+  "start_url": "/launch",
   "scope": "/",
   "display": "standalone",
   "background_color": "#f8fafb",
@@ -42,11 +42,11 @@
   "shortcuts": [
     {
       "name": "تسجيل الدخول",
-      "url": "/#login"
+      "url": "/launch?login=1#login"
     },
     {
       "name": "التسجيل ككابتن",
-      "url": "/#register"
+      "url": "/launch#register"
     }
   ]
 }

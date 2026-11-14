@@ -38,7 +38,7 @@
 
     function form(register) {
         register = register || false;
-        const known = localStorage.getItem('mishwar-captain-registered') === 'yes';
+        // A previously used device must still allow a different captain to register.
         
         let html = '<button type="button" class="text-link" id="captain-account-back" aria-label="رجوع">→ رجوع</button>';
         html += '<span class="kicker">كابتن مشوار</span>';
@@ -58,9 +58,7 @@
         html += '</form>';
         html += '<button class="recovery-link" data-account-recovery>نسيت كلمة المرور؟ استعادة حسابي</button>';
         
-        if (!known || register) {
-            html += '<button class="text-link" id="switch-account">' + (register ? 'لدي حساب بالفعل' : 'تسجيل كابتن جديد') + '</button>';
-        }
+        html += '<button type="button" class="text-link" id="switch-account">' + (register ? 'لدي حساب بالفعل' : 'تسجيل كابتن جديد') + '</button>';
         
         root().innerHTML = html;
 
@@ -79,7 +77,7 @@
             b.disabled = true;
             try {
                 await api(register ? 'register' : 'password-login', Object.fromEntries(new FormData(e.target)));
-                location.reload();
+                location.replace('/launch');
             } catch (err) {
                 document.querySelector('#account-error').textContent = err.message;
                 b.disabled = false;
@@ -157,22 +155,51 @@
             };
         }
         document.querySelector('#refresh-account').onclick = () => location.reload();
-        document.querySelector('#logout-account').onclick = async () => {await api('logout',{});location.reload()};
+        document.querySelector('#logout-account').onclick = async () => {try{await api('logout',{});window.captainAccount=null;try{sessionStorage.removeItem('mishwar-captain-last-dashboard-hop')}catch{};location.replace('/launch?login=1#login')}catch(e){const rootElement=root();rootElement.querySelector('#captain-otp-status')?.replaceChildren(document.createTextNode(e.message));alert(e.message)}};
     }
 
     window.showCaptainWelcome = function () {
         root().innerHTML = '<span class="kicker">كابتن مشوار</span><h2>كل طريق، فرصة جديدة</h2><p class="intro">أهلًا بك في مشوار. تابع حسابك وطلباتك من مكان واحد.</p><button class="primary" id="captain-enter">متابعة حسابي</button><a class="text-link" href="/install.html">تنزيل وتثبيت التطبيق</a>';
-        document.querySelector('#captain-enter').onclick = function () { location.reload(); };
+        document.querySelector('#captain-enter').onclick = function () { form(false); };
     };
 
     window.ensureCaptainAccount = async function () {
         try {
+            const params = new URLSearchParams(location.search);
+            if (params.get('login') === '1' || location.hash === '#login') { form(false); return false; }
+            if (location.hash === '#register') { form(true); return false; }
             const d = await api('session');
             if (!d.authenticated) { form(); return false; }
             if (!d.phoneVerified) { pending(d); return false; }
             if (d.application) {
                 localStorage.setItem('mishwar-captain-registered', 'yes');
-                if (d.application.status === 'active') { location.replace('/dashboard'); return false; }
+                if (d.application.status === 'active') {
+                    const key='mishwar-captain-last-dashboard-hop';
+                    let recent=0;
+                    try{recent=Number(sessionStorage.getItem(key))||0}catch{}
+                    if(Date.now()-recent<20000){
+                        form(false);
+                        document.querySelector('#account-error').textContent='تعذر الانتقال إلى لوحة الكابتن. سجّل الدخول مجددًا إذا كانت جلستك انتهت.';
+                        return false;
+                    }
+                    try{
+                        const options={method:'POST',credentials:'same-origin',cache:'no-store',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'watch'})};
+                        if(typeof AbortSignal!=='undefined'&&typeof AbortSignal.timeout==='function')options.signal=AbortSignal.timeout(10000);
+                        const check=await fetch('/api/driver',options);
+                        if(!check.ok){
+                            form(false);
+                            document.querySelector('#account-error').textContent=check.status===401||check.status===403?'جلسة الكابتن غير صالحة للوحة التشغيل. سجّل الدخول من جديد.':'تعذر الاتصال بلوحة التشغيل. حاول تسجيل الدخول مجددًا.';
+                            return false;
+                        }
+                    }catch(e){
+                        form(false);
+                        document.querySelector('#account-error').textContent='تعذر الوصول إلى لوحة التشغيل. تحقق من الاتصال وأعد المحاولة.';
+                        return false;
+                    }
+                    try{sessionStorage.setItem(key,String(Date.now()))}catch{}
+                    location.replace('/dashboard');
+                    return false;
+                }
             }
             window.captainAccount = d;
             return true;
