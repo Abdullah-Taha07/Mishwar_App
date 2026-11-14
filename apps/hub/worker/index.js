@@ -167,7 +167,7 @@ export default{
             const token=(request.headers.get('cookie')||'').match(/(?:^|;\s*)__Host-mishwar_captain=([a-f0-9]{64})(?:;|$)/)?.[1];
             // Never trust user-identity headers supplied to the public workers.dev endpoint.
             // Captain operations are authenticated exclusively with our signed-in HTTP-only session.
-            if(['/api/driver','/api/application','/api/login','/api/captain-presence'].includes(url.pathname)){
+            if(['/api/driver','/api/application','/api/login','/api/captain-presence','/api/background'].includes(url.pathname)){
                 const authenticated=token?await publicSession(env,token,'captain'):null;
                 const headers=new Headers(request.headers);
                 headers.delete('oai-authenticated-user-id');
