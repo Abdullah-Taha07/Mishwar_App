@@ -18,7 +18,7 @@ test('SMS send handler survives currentTarget becoming null after await', async 
   const requests=[];
   const mockFetch=async(url)=>{requests.push(url);return Response.json(url.includes('phone-otp-start')?{ok:true,retryAfter:60}:{authenticated:true,phoneVerified:false,smsConfigured:true,profile:{name:'QA',phone:'+966500000000'}})};
   const timers=[];
-  runInNewContext(script,{window,document,fetch:mockFetch,localStorage:{getItem(){return null}},location:{reload(){}},console,setInterval(fn){timers.push(fn);return timers.length},clearInterval(){},setTimeout(){},Response,JSON});
+  runInNewContext(script,{URLSearchParams,window,document,fetch:mockFetch,localStorage:{getItem(){return null}},location:{reload(){}},console,setInterval(fn){timers.push(fn);return timers.length},clearInterval(){},setTimeout(){},Response,JSON});
   await window.ensureCaptainAccount();
   assert.match(html,/captain-otp-form/);
   const event={currentTarget:sendButton};
