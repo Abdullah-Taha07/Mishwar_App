@@ -1,0 +1,23 @@
+{
+  "project": "Mishwar",
+  "as_of": "2026-11-14",
+  "baseline": {
+    "local_end_to_end_ride": "reported_passed",
+    "integration_merge": "applied_locally",
+    "builds": "passed_on_last_log",
+    "automated_captain_tests": {"passed": 113, "total": 114, "status": "blocking_one_failure"},
+    "rider_admin_test_suites": "not_confirmed_from_latest_log",
+    "production_released": false
+  },
+  "gates": [
+    {"id":"G0","title":"أساس الدمج والأمان","status":"in_progress","exit":"All tests and source audit pass; secrets review completed"},
+    {"id":"S1","title":"Private staging 3 apps + backend + D1/R2","status":"not_started","exit":"Online E2E with isolated resources"},
+    {"id":"S2","title":"Real Android/iPhone background test","status":"not_started","exit":"Documented push/location/recovery tests"},
+    {"id":"S3","title":"Arabic Riyadh maps and phone OTP","status":"not_started","exit":"Documented geocoding/traffic ETA/SMS tests"},
+    {"id":"S4","title":"Moyasar sandbox + settlements","status":"not_started","exit":"Reconciled payment/refund/ledger and separate live approval"},
+    {"id":"S5","title":"Security, stress, monitoring, restore","status":"not_started","exit":"No critical issues, performance and restore reports"},
+    {"id":"S6","title":"Saudi licensing and operations","status":"not_started","exit":"Valid authorization, legal and driver checks"},
+    {"id":"S7","title":"Authorized limited Riyadh field pilot","status":"not_started","exit":"Metrics and Go/No-Go decision"}
+  ],
+  "policies": {"never_use_prod_for_staging":true,"no_prod_migrations_without_explicit_approval":true,"no_real_paid_rides_before_regulatory_clearance":true,"secrets_never_in_repository":true}
+}

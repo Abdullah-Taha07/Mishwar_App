@@ -1,10 +1,12 @@
+import{renewDocument}from'./document-renewal.js';
+import{sharedTrip,providerReadiness}from'./launch-features.js';import{runPlatformJobs}from'./launch-operations.js';import{commercialPlaces}from'./commercial-maps.js';
 import{captainAuth,publicSession}from'./free-auth.js';
 import{routeEstimate}from'./routing.js';
 import{handleRiderAuth}from'./rider-auth.js';
 import{handleCaptainBackground,handleRiderBackground}from'./background.js';
 import{handleLiveRider,handleDriver}from'./commerce.js';
 import{handleRiderBridge,handleOperations,handleCaptainPresence,secretMatches,logEvent}from'./operations.js';
-import{handleAdmin,isAdmin}from'./admin.js';
+import{handleAdmin}from'./admin.js';
 import{DOCUMENTS,phoneNumber,digits,validatePersonal,validateVehicle,fileError}from'../public/validation.js';
 
 const MAX_BODY=26*1024*1024;
@@ -125,7 +127,7 @@ export async function handleApi(request,env){
                     docs[key]={key:storageKey,type:file.type,size:file.size}
                 }
                 
-                const cleanPersonal=Object.fromEntries(['name','birthDate','nationality','identityType','identityNumber','city','district','street','building','postalCode'].map(k=>[k,String(p[k]).trim()]));
+                const cleanPersonal=Object.fromEntries(['name','birthDate','nationality','identityType','identityNumber','city','district','street','building','postalCode'].map(k=>[k,String(p[k]??'').trim()]));
                 cleanPersonal.identityNumber=digits(cleanPersonal.identityNumber);
                 cleanPersonal.postalCode=digits(cleanPersonal.postalCode);
                 
@@ -146,7 +148,7 @@ export async function handleApi(request,env){
     return json({error:'المسار غير موجود.'},404)
 }
 
-export default{
+const worker = {
     async fetch(request,env,ctx){
         // ✅ التعديل الرابع: معالجة طلبات الفحص المسبق (Preflight) التي يرسلها المتصفح
         if (request.method === 'OPTIONS') {
@@ -167,15 +169,26 @@ export default{
             const token=(request.headers.get('cookie')||'').match(/(?:^|;\s*)__Host-mishwar_captain=([a-f0-9]{64})(?:;|$)/)?.[1];
             // Never trust user-identity headers supplied to the public workers.dev endpoint.
             // Captain operations are authenticated exclusively with our signed-in HTTP-only session.
-            if(['/api/driver','/api/application','/api/login','/api/captain-presence','/api/background'].includes(url.pathname)){
+            if(['/api/driver','/api/application','/api/login','/api/captain-presence','/api/background','/api/documents/renew'].includes(url.pathname)){
                 const authenticated=token?await publicSession(env,token,'captain'):null;
                 const headers=new Headers(request.headers);
                 headers.delete('oai-authenticated-user-id');
                 headers.delete('oai-authenticated-user-email');
-                if(authenticated?.phoneVerified)headers.set('oai-authenticated-user-id',authenticated.actor);
+                headers.delete('x-mishwar-session-hash');
+                if(authenticated?.phoneVerified){
+                    headers.set('oai-authenticated-user-id',authenticated.actor);
+                    headers.set('x-mishwar-session-hash',authenticated.token_hash);
+                }
                 request=new Request(request,{headers});
             }
             
+            if (['/internal/services','/internal/share'].includes(url.pathname)) {
+                if (!await secretMatches(request.headers.get('x-mishwar-key'),env.RIDER_SERVICE_KEY)) return json({error:'غير مسموح'},403);
+                return url.pathname === '/internal/services' ? json({features:providerReadiness(env)}) : sharedTrip(env,url.searchParams.get('token'));
+            }
+            if(url.pathname.startsWith('/internal/places/'))return commercialPlaces(request,env);
+            if(url.pathname==='/api/map-config')return json({provider:env.TOMTOM_MAPS_BROWSER_KEY?'TomTom':'OpenStreetMap',browserKey:env.TOMTOM_MAPS_BROWSER_KEY||null});
+            if(url.pathname==='/api/documents/renew')return renewDocument(request,env);
             if(url.pathname==='/internal/route-estimate')return await routeEstimate(request,env);
             if(url.pathname==='/internal/rider-auth')return await handleRiderAuth(request,env);
             if(url.pathname==='/internal/rider-background')return await handleRiderBackground(request,env);
@@ -206,7 +219,7 @@ export default{
                 return json({ready:true,adminConfigured:!!env.CAPTAIN_ADMIN_EMAIL,operationsReady:true,dispatchReady:true})
             }
             
-            if(url.pathname.startsWith('/api/admin/'))return await handleAdmin(request,env);
+            if(url.pathname.startsWith('/api/admin/'))return json({error:'غير مسموح'},403);
             if(url.pathname.startsWith('/api/'))return await handleApi(request,env);
             
             let path=url.pathname;
@@ -255,4 +268,21 @@ export default{
             return json({error:'تعذر إكمال العملية الآن. أعد المحاولة لاحقًا.'},500)
         }
     }
+};
+
+export default {
+    async fetch(request,env,ctx){
+        const started=Date.now();
+        const response=await worker.fetch(request,{...env,__ctx:ctx},ctx);
+        const path=new URL(request.url).pathname;
+        if(env.DB && ctx?.waitUntil && /^(?:\/api|\/internal)\//.test(path) && Math.random()<0.1){
+            ctx.waitUntil(env.DB.prepare('INSERT INTO request_metrics VALUES(?,?,?,?,?)')
+                .bind(crypto.randomUUID(),path,response.status,Date.now()-started,new Date().toISOString())
+                .run().catch(()=>{}));
+        }
+        return response;
+    },
+    async scheduled(_event,env,ctx){
+        if(env.SCHEDULER_ENABLED==='true')await runPlatformJobs(env,ctx);
+    },
 };
