@@ -218,18 +218,19 @@ export default{
             }
             
             if(['/dashboard','/dashboard.html'].includes(path)){
-                const user=request.headers.get('oai-authenticated-user-id');
-                if(!user)return Response.redirect(url.origin+'/#login',302);
-                if(!env.DB)return Response.redirect(url.origin+'/#login',302);
-                const row=await record(env,user);
-                if(row?.status!=='active')return Response.redirect(url.origin+'/#login',302);
+                // A verified HttpOnly captain cookie, NOT a request header, authorizes navigation.
+                const signedIn=token?await publicSession(env,token,'captain'):null;
+                if(!signedIn?.phoneVerified||!env.DB)return Response.redirect(url.origin+'/launch?login=1#login',302);
+                const row=await record(env,signedIn.actor);
+                if(row?.status!=='active')return Response.redirect(url.origin+'/launch?login=1#login',302);
                 path='/dashboard.html';
             }
             
             if(path==='/'){
-                const actor=request.headers.get('oai-authenticated-user-id');
-                if(actor){
-                    const saved=await record(env,actor);
+                // Same session model for both the homepage and the dashboard.
+                const signedIn=token?await publicSession(env,token,'captain'):null;
+                if(signedIn?.phoneVerified){
+                    const saved=await record(env,signedIn.actor);
                     if(saved?.status==='active')return Response.redirect(url.origin+'/dashboard',302)
                 }
                 path='/index.html'
