@@ -1,3 +1,4 @@
+import {staffAuth,authenticateStaff,guardStaff,securityAdmin,audit as staffAudit,reply as staffReply} from './staff-security.js';
 import{renewDocument}from'./document-renewal.js';
 import{sharedTrip,providerReadiness}from'./launch-features.js';import{runPlatformJobs}from'./launch-operations.js';import{commercialPlaces}from'./commercial-maps.js';
 import{captainAuth,publicSession}from'./free-auth.js';
@@ -199,14 +200,32 @@ const worker = {
             
             if(url.pathname.startsWith('/internal/administration/')){
                 if(!await secretMatches(request.headers.get('x-mishwar-key'),env.ADMIN_SERVICE_KEY))return json({error:'غير مسموح'},403);
+                if(url.pathname.startsWith('/internal/administration/staff-auth/'))return await staffAuth(request,env);
+                const staffToken=request.headers.get('x-mishwar-staff-session');
+                const staff=staffToken?await authenticateStaff(env,staffToken):null;
+                if(staffToken&&!staff)return staffReply({error:'انتهت الجلسة أو تم إلغاء الوصول'},401);
                 const target=new URL(request.url);
                 target.pathname=target.pathname.replace('/internal/administration/','/api/admin/');
                 const headers=new Headers(request.headers);
                 headers.set('origin',target.origin);
-                headers.set('oai-authenticated-user-id','administration-service');
+                headers.set('oai-authenticated-user-id',staff?staff.staff_id:'administration-service');
                 headers.set('oai-authenticated-user-email',env.CAPTAIN_ADMIN_EMAIL||'');
                 const trusted=new Request(target,{method:request.method,headers,...(request.method==='GET'?{}:{body:request.body,duplex:'half'})});
-                return await handleAdmin(trusted,env)
+                if(target.pathname.startsWith('/api/admin/security/'))return await securityAdmin(trusted,env,!staff,staff);
+                if(staff){const denied=await guardStaff(trusted,env,staff);if(denied)return denied;}
+                if(staff&&target.pathname==='/api/admin/notifications'){
+                 const base=await handleAdmin(trusted,env);const data=await base.json();
+                 const sections={applications:'applications','account-recovery':'captains','account-changes':'captains','safety-center':'support',live:'trips'};
+                 const allowed=JSON.parse(staff.permissions);data.items=data.items.filter(x=>sections[x.page]&&allowed.includes(sections[x.page]+':view'));data.total=data.items.reduce((n,x)=>n+x.count,0);return staffReply(data);
+                }
+                if(!staff&&target.pathname==='/api/admin/notifications'){
+                 const base=await handleAdmin(trusted,env);const data=await base.json();
+                 const pending=await env.DB.prepare("SELECT (SELECT COUNT(*) FROM staff_accounts WHERE status='pending')+(SELECT COUNT(*) FROM staff_approvals WHERE status='pending' AND expires_at>?) AS n").bind(Math.floor(Date.now()/1000)).first();
+                 data.items.push({page:'staff-access',label:'طلبات الموظفين والدخول والعمليات',count:pending.n});data.total+=pending.n;return staffReply(data);
+                }
+                const response=await handleAdmin(trusted,env);
+                if(staff)await staffAudit(env,staff.staff_id,request.method==='GET'?'read':'mutation',target.pathname,response.ok?'success':'failed',target.pathname);
+                return response
             }
             
             if(url.pathname==='/api/captain-presence')return await handleCaptainPresence(request,env);
