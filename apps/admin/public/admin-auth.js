@@ -1,81 +1,28 @@
 (() => {
-  let release;
-  window.mishwarAdminAuthReady = new Promise(resolve => { release = resolve; });
-  const style = document.createElement("style");
-  style.textContent = `
-    #mishwar-admin-auth{position:fixed;inset:0;z-index:99999;background:#f4f7f7;display:grid;place-items:center;padding:20px;font-family:Tajawal,Arial,sans-serif}
-    #mishwar-admin-auth form{width:min(100%,390px);background:#fff;border:1px solid #dce5e5;border-radius:18px;padding:26px;box-shadow:0 18px 55px #0f33441a}
-    #mishwar-admin-auth h1{font-size:22px;margin:0 0 8px;color:#083344}
-    #mishwar-admin-auth p{color:#61747a;font-size:14px;line-height:1.8}
-    #mishwar-admin-auth input{width:100%;box-sizing:border-box;padding:13px;border:1px solid #cbd5d7;border-radius:10px;font:inherit;margin:8px 0 14px}
-    #mishwar-admin-auth button{width:100%;border:0;border-radius:10px;padding:13px;background:#083344;color:white;font:inherit;font-weight:700;cursor:pointer}
-    #mishwar-admin-auth [role=alert]{color:#b42318;min-height:24px;font-size:13px}
-    #mishwar-admin-logout{border:1px solid #d4dddd;background:#fff;color:#083344;border-radius:9px;padding:8px 12px;cursor:pointer;font:inherit;margin-inline-start:8px}
-  `;
-  document.head.append(style);
-  const gate = document.createElement("section");
-  gate.id = "mishwar-admin-auth";
-  gate.innerHTML = `<form><h1>دخول إدارة مشوار</h1><p>اللوحة محمية بكلمة مرور خاصة بالإدارة. الجلسة تنتهي تلقائيًا بعد 8 ساعات.</p><label for="mishwar-admin-password">كلمة مرور الإدارة</label><input id="mishwar-admin-password" type="password" autocomplete="current-password" required minlength="16"><div role="alert" aria-live="polite"></div><button type="submit">دخول آمن</button></form>`;
-  document.body.append(gate);
-  const message = gate.querySelector("[role=alert]");
-  async function check() {
-    try {
-      const r = await fetch("/api/admin-auth/session", { credentials: "same-origin", cache: "no-store" });
-      const data = await r.json();
-      if (r.ok && data.authenticated) {
-        gate.remove();
-        release(true);
-        addLogout();
-        return;
-      }
-      message.textContent = data.error || "أدخل كلمة مرور الإدارة للمتابعة.";
-    } catch { message.textContent = "تعذر الاتصال بخدمة تسجيل الدخول."; }
-  }
-  function addLogout() {
-    const actions = document.querySelector(".header-actions");
-    if (!actions || document.getElementById("mishwar-admin-logout")) return;
-    const button = document.createElement("button");
-    button.id = "mishwar-admin-logout";
-    button.type = "button";
-    button.textContent = "تسجيل الخروج";
-    button.addEventListener("click", async () => {
-      await fetch("/api/admin-auth/logout", { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: "{}" });
-      location.reload();
-    });
-    actions.append(button);
-  }
-  gate.querySelector("form").addEventListener("submit", async event => {
-    event.preventDefault();
-    const button = gate.querySelector("button");
-    button.disabled = true;
-    message.textContent = "جارٍ التحقق…";
-    try {
-      const r = await fetch("/api/admin-auth/login", {
-        method: "POST", credentials: "same-origin",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password: gate.querySelector("input").value })
-      });
-      const data = await r.json();
-      if (!r.ok || !data.authenticated) throw new Error(data.error || "تعذر تسجيل الدخول.");
-      // A successful password response is not proof that the browser's
-      // subsequent requests will be authenticated. Verify the issued cookie.
-      const verification = await fetch("/api/admin-auth/session", { credentials: "same-origin", cache: "no-store" });
-      const session = await verification.json();
-      if (!verification.ok || !session.authenticated) {
-        const reasons = {
-          cookie_missing: "لم تُحفظ جلسة الدخول في المتصفح.",
-          cookie_malformed: "بيانات جلسة الدخول غير مكتملة.",
-          signature_invalid: "تعذر التحقق من توقيع الجلسة. راجع توحيد ADMIN_SESSION_SECRET في نشر Vercel.",
-          payload_invalid: "بيانات جلسة الدخول غير صالحة.",
-          expired: "انتهت صلاحية جلسة الدخول."
-        };
-        throw new Error(reasons[session.reason] || "لم يتم تأكيد جلسة الإدارة. أعد المحاولة أو راجع إعدادات النشر.");
-      }
-      gate.remove();
-      release(true);
-      addLogout();
-    } catch (error) { message.textContent = error.message || "تعذر تسجيل الدخول."; }
-    finally { button.disabled = false; }
-  });
-  check();
+ let release;window.mishwarAdminAuthReady=new Promise(resolve=>release=resolve);
+ const style=document.createElement('link');style.rel='stylesheet';style.href='/staff-security.css';document.head.append(style);
+ const gate=document.createElement('section');gate.id='mishwar-admin-auth';gate.dir='rtl';gate.lang='ar';gate.setAttribute('role','dialog');gate.setAttribute('aria-modal','true');gate.setAttribute('aria-labelledby','login-welcome');if(navigator.hardwareConcurrency<=4||navigator.connection?.saveData)gate.classList.add('reduced-cars');
+ const roads=['M -50 130 H 360 Q 440 130 440 210 V 620 Q 440 700 520 700 H 1250','M 1250 830 H 850 Q 780 830 780 750 V 310 Q 780 230 700 230 H -50','M 150 -50 V 390 Q 150 470 230 470 H 1000 Q 1080 470 1080 550 V 950','M 1250 80 H 1010 Q 940 80 940 150 V 330 Q 940 390 1000 390 H 1250','M -50 770 H 250 Q 310 770 310 830 V 950'];
+ gate.innerHTML=`<svg class="road-map" viewBox="0 0 1200 900" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><defs>${roads.map((d,i)=>`<path id="road-${i}" d="${d}"/>`).join('')}<g id="mini-car"><rect x="-10" y="-5" width="20" height="10" rx="3" fill="#a5f3fc"/><rect x="-4" y="-4" width="8" height="8" rx="2" fill="#083344"/><path d="M7 -4v8" stroke="white"/></g></defs>${roads.map((d,i)=>`<use href="#road-${i}" class="road road-${i}"/><use href="#road-${i}" class="road-dash"/>`).join('')}<circle cx="940" cy="230" r="40" class="roundabout"/>${roads.flatMap((d,i)=>[0,1].map((v)=>`<g class="car car-${i}-${v}"><use href="#mini-car"/><animateMotion dur="${22+i*4+v*7}s" repeatCount="indefinite" rotate="auto" keyPoints="${v?'1;0':'0;1'}" keyTimes="0;1" calcMode="linear"><mpath href="#road-${i}"/></animateMotion></g>`)).join('')}</svg><form class="login-card"><img src="/icon.svg" alt="شعار مشوار" width="64" height="64"><h1 id="login-welcome">مرحبًا بك في مشوار</h1><p>بوابة إدارة وتشغيل منظومة مشوار</p><label>نوع الدخول<select name="mode"><option value="owner">المالك</option><option value="staff">موظف الإدارة</option></select></label><label class="staff-email" hidden>البريد الإلكتروني<input name="email" type="email" autocomplete="username" dir="ltr" maxlength="254"></label><label for="mishwar-admin-password">كلمة المرور</label><div class="password-field"><input id="mishwar-admin-password" name="password" type="password" autocomplete="current-password" required maxlength="256"><button type="button" class="show-password" aria-label="إظهار كلمة المرور" aria-pressed="false">إظهار</button></div><div role="alert" aria-live="polite"></div><button class="login-submit" type="submit">تسجيل الدخول</button></form>`;
+ const inerted=[...document.body.children].filter(e=>!e.inert);inerted.forEach(e=>e.inert=true);document.body.append(gate);gate.addEventListener('keydown',e=>{if(e.key!=='Tab')return;const all=[...gate.querySelectorAll('input,button,select')].filter(x=>!x.disabled&&x.offsetParent!==null);const first=all[0],last=all.at(-1);if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}});gate.querySelector('select').focus();const form=gate.querySelector('form'),message=gate.querySelector('[role=alert]');let pending=null,poll;
+ // SMIL is paused as well as CSS when the user's motion preference changes.
+ const motion=matchMedia('(prefers-reduced-motion: reduce)');const reduce=()=>{const svg=gate.querySelector('svg');if(motion.matches)svg.pauseAnimations();else svg.unpauseAnimations();};reduce();motion.addEventListener('change',reduce);
+ const staffCall=async(action,body={})=>{const r=await fetch('/api/admin-auth/staff',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({action,...body})});const d=await r.json();if(!r.ok)throw Error(d.error||'تعذر تسجيل الدخول');return d;};
+ window.mishwarStaffCall=staffCall;
+ function ready(data){clearInterval(poll);window.mishwarStaffSession=data?.staff?data:null;gate.remove();inerted.forEach(e=>e.inert=false);release(true);addLogout();if(data?.staff){window.renderStaffWorkspace();startSessionWatch();}}
+ function addLogout(){const actions=document.querySelector('.header-actions');if(!actions||document.getElementById('mishwar-admin-logout'))return;const button=document.createElement('button');button.id='mishwar-admin-logout';button.textContent='تسجيل الخروج';button.onclick=async()=>{try{if(window.mishwarStaffSession)await staffCall('logout');else await fetch('/api/admin-auth/logout',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});}finally{location.reload();}};actions.append(button);}
+ let lastActivity=0;
+ function startSessionWatch(){
+  for(const name of ['pointerdown','keydown'])document.addEventListener(name,e=>{if(e.isTrusted&&document.visibilityState==='visible'&&Date.now()-lastActivity>60000){lastActivity=Date.now();staffCall('activity').catch(()=>location.reload());}}, {passive:true});
+  setInterval(async()=>{try{const s=await staffCall('session');const remaining=Math.min(s.expiresAt,s.idleExpiresAt)*1000-Date.now();const out=document.getElementById('staff-session-warning');if(out)out.textContent=remaining<120000?'ستنتهي الجلسة خلال أقل من دقيقتين':'';}catch{location.reload();}},15000);
+ }
+ form.elements.mode.onchange=()=>{const staff=form.elements.mode.value==='staff';gate.querySelector('.staff-email').hidden=!staff;form.elements.email.required=staff;message.textContent='';pending=null;clearInterval(poll);};
+ gate.querySelector('.show-password').onclick=e=>{const input=form.elements.password,show=input.type==='password';input.type=show?'text':'password';e.target.textContent=show?'إخفاء':'إظهار';e.target.setAttribute('aria-label',show?'إخفاء كلمة المرور':'إظهار كلمة المرور');e.target.setAttribute('aria-pressed',String(show));};
+ async function complete(){try{const d=await staffCall('complete',{challenge:pending});if(d.authenticated)ready(await staffCall('session'));}catch(e){clearInterval(poll);pending=null;message.textContent=e.message;}}
+ form.onsubmit=async e=>{e.preventDefault();const button=gate.querySelector('.login-submit');button.disabled=true;message.textContent='جارٍ التحقق من بيانات الدخول…';clearInterval(poll);
+  try{if(form.elements.mode.value==='staff'){const d=await staffCall('login',{email:form.elements.email.value,password:form.elements.password.value});form.elements.password.value='';if(d.pending){pending=d.challenge;message.textContent='بانتظار موافقة المالك على الدخول أو الجهاز الجديد. صلاحية الطلب خمس دقائق. رمز المطابقة: '+d.approvalReference;poll=setInterval(complete,5000);return;}ready(await staffCall('session'));}
+  else {const r=await fetch('/api/admin-auth/login',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:form.elements.password.value})});const d=await r.json();if(!r.ok||!d.authenticated)throw Error(d.error||'بيانات الدخول غير صحيحة');const verify=await fetch('/api/admin-auth/session',{cache:'no-store'});if(!(await verify.json()).authenticated)throw Error('لم تُحفظ جلسة الدخول في المتصفح');ready();}}
+  catch(err){message.textContent=err.message||'تعذر الاتصال بخدمة الدخول';}finally{button.disabled=false;}
+ };
+ (async()=>{try{const r=await fetch('/api/admin-auth/session',{cache:'no-store'});if((await r.json()).authenticated)return ready();try{const s=await staffCall('session');if(s.authenticated)return ready(s);}catch{}message.textContent='أدخل بياناتك للمتابعة. الحسابات الجديدة تحتاج اعتماد المالك.';}catch{message.textContent='تعذر الاتصال بخدمة الدخول';}})();
 })();

@@ -52,7 +52,16 @@ export default async function handler(req, res) {
   }
   if (action === "login") {
     const password = typeof req.body?.password === "string" ? req.body.password : "";
-    if (!safeEqual(password, process.env.ADMIN_LOGIN_PASSWORD)) {
+    const success=safeEqual(password, process.env.ADMIN_LOGIN_PASSWORD);
+    // Preserve the owner's existing password/cookie protocol. Use the durable Worker
+    // limiter when the operational bridge is configured, as it is for protected APIs.
+    if(process.env.HUB_URL && process.env.ADMIN_SERVICE_KEY){
+      try{
+        const auditResponse=await fetch(process.env.HUB_URL.replace(/\/+$/,'')+'/internal/administration/staff-auth/owner-attempt',{method:'POST',headers:{'Content-Type':'application/json','x-mishwar-key':process.env.ADMIN_SERVICE_KEY},body:JSON.stringify({success,source:String(req.headers['x-vercel-forwarded-for']||req.socket?.remoteAddress||'unknown').split(',')[0]}),signal:AbortSignal.timeout(10000)});
+        if(!auditResponse.ok)return json(res,auditResponse.status===429?429:503,{error:'تعذر اعتماد محاولة الدخول؛ أعد المحاولة لاحقًا.'});
+      }catch{return json(res,503,{error:'تعذر التحقق الأمني؛ أعد المحاولة لاحقًا.'});}
+    }
+    if (!success) {
       return json(res, 401, { error: "كلمة المرور غير صحيحة." });
     }
     const payload = Buffer.from(JSON.stringify({ role: "admin", exp: Date.now() + MAX_AGE * 1000 })).toString("base64url");
