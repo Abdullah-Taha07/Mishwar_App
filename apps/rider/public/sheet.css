@@ -60,3 +60,35 @@
  #search-sheet{top:0;height:var(--visible-height,100dvh)}
 }
 @media(prefers-reduced-motion:reduce){.rider-home-sheet .booking,#search-sheet{transition:none}}
+
+/* MISHWAR_FIXED_BOTTOM_NAV_V1 */
+@media (max-width:700px) {
+  body:not(.address-editing) .mobile-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    z-index: 100;
+    height: calc(64px + env(safe-area-inset-bottom));
+    padding: 7px 12px calc(7px + env(safe-area-inset-bottom));
+    background: #083344;
+    border-top: 1px solid rgba(255,255,255,.12);
+    box-shadow: 0 -4px 20px rgba(8,51,68,.12);
+  }
+
+  body:not(.address-editing) .mobile-nav button {
+    min-height: 44px;
+    color: #c5dce3;
+    transition: color .18s ease, background-color .18s ease;
+  }
+
+  body:not(.address-editing) .mobile-nav button.active {
+    color: #67e8f9;
+  }
+
+  .rider-home-sheet .booking {
+    bottom: 0;
+    padding-bottom: 8px;
+  }
+}
