@@ -1,5 +1,5 @@
 import{staffRole,staffAllows,expansionAdmin}from'./expansion.js';
-import{renewalAdmin}from'./document-renewal.js';
+import{renewalAdmin,documentManagement}from'./document-renewal.js';
 import{launchAdmin}from'./launch-operations.js';
 import{settingsAdmin}from'./account-settings.js';import{rechargeAdmin}from'./recharge.js';
 import{recoveryAdmin}from'./recovery.js';
@@ -29,7 +29,7 @@ export async function handleAdmin(request,env){
  const riders=await env.DB.prepare('SELECT COUNT(*) AS total FROM riders').first();
  return adminJson({connected:true,updatedAt:new Date().toISOString(),captains,trips,riders,services:{database:true,documents:!!env.BUCKET,dispatch:true,history:true,wallet:true,manualPhoneVerification:env.ENABLE_LEGACY_PHONE_VERIFICATION==='true',card:!!livePayments(env),applepay:!!(livePayments(env)&&env.APPLE_PAY_ENABLED==='true'),sms:!!(env.AUTHENTICA_API_KEY&&env.AUTHENTICA_TEMPLATE_ID),push:!!(env.VAPID_PRIVATE_JWK&&env.VAPID_PUBLIC_KEY)}});
  }
- if(url.pathname==='/api/admin/launch/renewals')return await renewalAdmin(request,env);if(url.pathname.startsWith('/api/admin/launch/'))return await launchAdmin(request,env,env.__ctx);if(url.pathname==='/api/admin/account-changes')return await settingsAdmin(request,env);if(url.pathname==='/api/admin/recharge-cards')return await rechargeAdmin(request,env);
+ if(url.pathname==='/api/admin/launch/documents')return await documentManagement(request,env);if(url.pathname==='/api/admin/launch/renewals')return await renewalAdmin(request,env);if(url.pathname.startsWith('/api/admin/launch/'))return await launchAdmin(request,env,env.__ctx);if(url.pathname==='/api/admin/account-changes')return await settingsAdmin(request,env);if(url.pathname==='/api/admin/recharge-cards')return await rechargeAdmin(request,env);
  if(url.pathname==='/api/admin/account-recovery')return await recoveryAdmin(request,env);
  if(url.pathname==='/api/admin/phone-verifications')return await manualPhoneAdmin(request,env);
  if(url.pathname.startsWith('/api/admin/commerce/'))return await handleCommerceAdmin(request,env);
