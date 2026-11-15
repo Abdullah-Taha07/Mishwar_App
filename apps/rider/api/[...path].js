@@ -12,6 +12,8 @@ export default async function handler(req, res) {
     const url = new URL(req.url || "/", `https://${req.headers.host || "localhost"}`);
     const headers = new Headers();
     for (const [key, value] of Object.entries(req.headers || {})) {
+      // Platform identity headers are not authenticated on this public Node endpoint.
+      if (key.toLowerCase().startsWith("oai-")) continue;
       if (value !== undefined) headers.set(key, Array.isArray(value) ? value.join(", ") : String(value));
     }
     const body = nodeBody(req);

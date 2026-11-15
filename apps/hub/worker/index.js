@@ -6,6 +6,7 @@ import{routeEstimate}from'./routing.js';
 import{handleRiderAuth}from'./rider-auth.js';
 import{handleCaptainBackground,handleRiderBackground}from'./background.js';
 import{handleLiveRider,handleDriver}from'./commerce.js';
+import{handleMoyasarWebhook}from'./payment-webhook.js';
 import{handleRiderBridge,handleOperations,handleCaptainPresence,secretMatches,logEvent}from'./operations.js';
 import{handleAdmin}from'./admin.js';
 import{DOCUMENTS,phoneNumber,digits,validatePersonal,validateVehicle,fileError}from'../public/validation.js';
@@ -165,6 +166,7 @@ const worker = {
 
         const url=new URL(request.url);
         try{
+            if(url.pathname==='/api/payments/moyasar-webhook')return await handleMoyasarWebhook(request,env);
             if(url.pathname.startsWith('/api/auth/'))return await captainAuth(request,env);
             
             const token=(request.headers.get('cookie')||'').match(/(?:^|;\s*)__Host-mishwar_captain=([a-f0-9]{64})(?:;|$)/)?.[1];

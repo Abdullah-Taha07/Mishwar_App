@@ -3,7 +3,7 @@ const sheetMedia=matchMedia('(max-width:700px)');
 function openTripSearch(){openSearchSheet(pickupPoint?'destination':'pickup')}
 function attachSheetGesture(element,handle,mode){
  let drag=null,suppressClick=false;
- element.addEventListener('pointerdown',e=>{
+ handle.addEventListener('pointerdown',e=>{
   if(!sheetMedia.matches||e.button!==0||mode==='compact'&&state.stage!=='home')return;
   if(e.target.closest('input,textarea,a,select,button')!==null&&!handle.contains(e.target))return;
   drag={id:e.pointerId,startY:e.clientY,lastY:e.clientY,startTime:performance.now()};(handle.contains(e.target)?handle:element).setPointerCapture(e.pointerId);element.classList.add('sheet-dragging');
