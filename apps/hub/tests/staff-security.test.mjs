@@ -52,7 +52,20 @@ test('expired sensitive approval and another employee cannot authorize a request
 test('explicit report export requires export permission and owner approval',async()=>{const c=setup();await account(c);const [,d]=await login(c),s=await authenticateStaff(c.env,d.sessionToken);const request=new Request('https://local.test/api/admin/operations/reports?export=1');assert.equal((await guardStaff(request,c.env,{...s,permissions:'["reports:view"]'})).status,403);assert.equal((await guardStaff(request,c.env,s)).status,202);c.db.close();});
 test('approval summaries exclude injected password and secret fields',async()=>{const c=setup();await account(c);const [,d]=await login(c),s=await authenticateStaff(c.env,d.sessionToken);await guardStaff(operation({id:'w',decision:'paid',password:'do-not-log-this',secret:'hidden'}),c.env,s);const row=c.db.prepare("SELECT summary FROM staff_approvals WHERE kind='operation'").get();assert.doesNotMatch(row.summary,/password|secret|do-not-log-this|hidden/);c.db.close();});
 
-test('all 22 migrations apply locally; staff migration preserves existing tables and rows',()=>{const db=new DatabaseSync(':memory:');db.exec('PRAGMA foreign_keys=ON');const directory=new URL('../drizzle/',import.meta.url);const files=readdirSync(directory).filter(x=>x.endsWith('.sql')).sort();assert.equal(files.length,22);for(const file of files.slice(0,-1))db.exec(readFileSync(new URL(file,directory),'utf8'));const tables=db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all().map(x=>x.name);const counts=Object.fromEntries(tables.map(name=>[name,db.prepare('SELECT COUNT(*) AS n FROM "'+name+'"').get().n]));db.exec(readFileSync(new URL(files.at(-1),directory),'utf8'));for(const [name,count] of Object.entries(counts))assert.equal(db.prepare('SELECT COUNT(*) AS n FROM "'+name+'"').get().n,count);assert.equal(db.prepare('PRAGMA foreign_key_check').all().length,0);db.close();});
+test('all migrations apply locally; staff migration preserves existing tables and rows',()=>{
+ const db=new DatabaseSync(':memory:');db.exec('PRAGMA foreign_keys=ON');
+ const directory=new URL('../drizzle/',import.meta.url),files=readdirSync(directory).filter(x=>x.endsWith('.sql')).sort();
+ assert.ok(files.length>=22);
+ for(let i=0;i<files.length;i++)assert.equal(Number(files[i].slice(0,4)),i,'Migration sequence must remain contiguous');
+ const staff=files.indexOf('0021_staff_security.sql');assert.equal(staff,21);
+ for(const file of files.slice(0,staff))db.exec(readFileSync(new URL(file,directory),'utf8'));
+ const tables=db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all().map(x=>x.name);
+ const counts=Object.fromEntries(tables.map(name=>[name,db.prepare('SELECT COUNT(*) AS n FROM "'+name+'"').get().n]));
+ db.exec(readFileSync(new URL(files[staff],directory),'utf8'));
+ for(const [name,count]of Object.entries(counts))assert.equal(db.prepare('SELECT COUNT(*) AS n FROM "'+name+'"').get().n,count);
+ for(const file of files.slice(staff+1))db.exec(readFileSync(new URL(file,directory),'utf8'));
+ assert.equal(db.prepare('PRAGMA foreign_key_check').all().length,0);db.close();
+});
 
 test('bundled Worker gateway enforces service authentication and staff identity before legacy owner handlers',async()=>{
  const c=setup();for(const file of readdirSync(new URL('../drizzle/',import.meta.url)).filter(x=>x.endsWith('.sql')&&!x.startsWith('0021')).sort())c.db.exec(readFileSync(new URL('../drizzle/'+file,import.meta.url),'utf8'));

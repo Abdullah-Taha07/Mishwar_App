@@ -7,6 +7,16 @@ const validPassword=p=>typeof p==='string'&&p.length>=8&&p.length<=128;
 const appUrl=role=>role==='rider'?'https://mishwar-rider.vercel.app':'https://mishwar-captain.vercel.app';
 async function send(env,to,subject,html){if(!env.RESEND_API_KEY||!env.MISHWAR_EMAIL_FROM)throw Error('إرسال البريد غير مهيأ على الخادم');const r=await fetch('https://api.resend.com/emails',{method:'POST',headers:{Authorization:'Bearer '+env.RESEND_API_KEY,'Content-Type':'application/json'},body:JSON.stringify({from:env.MISHWAR_EMAIL_FROM,to:[to],subject,html}),signal:AbortSignal.timeout(10000)});if(!r.ok)throw Error('تعذر إرسال البريد الآن')}
 async function throttle(env,role,action,key){const bucket='email:'+role+':'+action+':'+await tokenHash(key)+':'+Math.floor(Date.now()/900000);const row=await env.DB.prepare('INSERT INTO access_rate_limits VALUES(?,1) ON CONFLICT(bucket) DO UPDATE SET n=n+1 RETURNING n').bind(bucket).first();if(row.n>5)throw Error('طلبات كثيرة. حاول بعد ١٥ دقيقة')}
+// These statements precede an email update in the same batch. Invalidating
+// tokens prevents changing A -> B -> A from reviving an old delivery link.
+export function emailChangeStatements(env,role,actor,email,at){
+ const changed='EXISTS (SELECT 1 FROM public_accounts a WHERE a.role=? AND a.actor=? AND lower(trim(a.email))<>?)';
+ const args=[role,actor,String(email||'').trim().toLowerCase()];
+ return [
+  env.DB.prepare(`UPDATE email_auth_tokens SET expires_at=? WHERE role=? AND actor=? AND consumed_at IS NULL AND ${changed}`).bind(at,role,actor,...args),
+  env.DB.prepare(`DELETE FROM verified_emails WHERE role=? AND actor=? AND ${changed}`).bind(role,actor,...args),
+ ];
+}
 export async function emailAuth(env,role,b){try{
  const action=b.action, now=new Date().toISOString();
  if(action==='email-request-verification'||action==='email-request-reset'){
@@ -21,7 +31,9 @@ export async function emailAuth(env,role,b){try{
   if(!env.RESEND_API_KEY||!env.MISHWAR_EMAIL_FROM)return reply({error:'خدمة البريد لم تُفعّل بعد. تواصل مع الإدارة.'},503);
   const token=hex(),purpose=action==='email-request-reset'?'reset':'verify',id=crypto.randomUUID(),expires=new Date(Date.now()+15*60000).toISOString();
   const url=new URL(appUrl(role));url.hash='email-'+purpose+'='+token;
-  await env.DB.prepare('INSERT INTO email_auth_tokens(id,role,actor,purpose,token_hash,expires_at,created_at) VALUES(?,?,?,?,?,?,?)').bind(id,role,account.actor,purpose,await tokenHash(token),expires,now).run();
+   // Bind delivery to a snapshot and recheck the address inside the insert.
+   const inserted=await env.DB.prepare('INSERT INTO email_auth_tokens(id,role,actor,purpose,token_hash,expires_at,created_at,target_email) SELECT ?,?,?,?,?,?,?,? WHERE EXISTS (SELECT 1 FROM public_accounts WHERE role=? AND actor=? AND lower(trim(email))=?)').bind(id,role,account.actor,purpose,await tokenHash(token),expires,now,email,role,account.actor,email).run();
+   if(!inserted.meta?.changes)return reply(message);
   try{await send(env,email,purpose==='reset'?'استعادة كلمة مرور مشوار':'تأكيد بريدك في مشوار',`<div dir="rtl"><h2>مشوار</h2><p>${purpose==='reset'?'طلب استعادة كلمة المرور':'تأكيد البريد الإلكتروني'}</p><p><a href="${url.toString()}">اضغط هنا لإكمال الطلب</a></p><p>الرابط صالح لمدة 15 دقيقة ولمرة واحدة. تجاهل الرسالة إذا لم تطلبها.</p></div>`)}catch(e){await env.DB.prepare('DELETE FROM email_auth_tokens WHERE id=?').bind(id).run();throw e}
   return reply(message);
  }
@@ -30,13 +42,30 @@ export async function emailAuth(env,role,b){try{
   const purpose=action==='email-confirm'?'verify':'reset';
   await throttle(env,role,action,String(b.clientIp||'')+':'+token.slice(0,8));
   const row=await env.DB.prepare('SELECT * FROM email_auth_tokens WHERE role=? AND purpose=? AND token_hash=? AND consumed_at IS NULL AND expires_at>?').bind(role,purpose,await tokenHash(token),now).first();if(!row)return reply({error:'الرابط مستخدم أو منتهي الصلاحية'},400);
-  const account=await env.DB.prepare('SELECT actor,email FROM public_accounts WHERE actor=? AND role=?').bind(row.actor,role).first();if(!account)return reply({error:'الحساب غير موجود'},400);
+   // Legacy rows have no trustworthy delivery address; do not backfill them.
+   if(!row.target_email)return reply({error:'الرابط مستخدم أو منتهي الصلاحية. اطلب رابطًا جديدًا.'},400);
+   const account=await env.DB.prepare('SELECT actor,email FROM public_accounts WHERE actor=? AND role=?').bind(row.actor,role).first();if(!account||String(account.email||'').trim().toLowerCase()!==row.target_email)return reply({error:'تغير البريد الإلكتروني. اطلب رابطًا جديدًا لبريدك الحالي.'},400);
   if(purpose==='reset'&&!validPassword(b.password))return reply({error:'كلمة المرور يجب أن تكون من ٨ إلى ١٢٨ حرفًا'},400);
-  const consumed=env.DB.prepare('UPDATE email_auth_tokens SET consumed_at=? WHERE id=? AND consumed_at IS NULL').bind(now,row.id);
-  const statements=[consumed];
-  if(purpose==='verify')statements.push(env.DB.prepare('INSERT INTO verified_emails(role,actor,email,verified_at) VALUES(?,?,?,?) ON CONFLICT(role,actor) DO UPDATE SET email=excluded.email,verified_at=excluded.verified_at').bind(role,row.actor,account.email,now));
-  else{const salt=hex();statements.push(env.DB.prepare('UPDATE public_accounts SET salt=?,password_hash=? WHERE actor=? AND role=?').bind(salt,await passwordDigest(b.password,salt),row.actor,role),env.DB.prepare('DELETE FROM push_subscriptions WHERE session_hash IN (SELECT token_hash FROM public_sessions WHERE actor=? AND role=?)').bind(row.actor,role),env.DB.prepare('DELETE FROM public_sessions WHERE actor=? AND role=?').bind(row.actor,role),env.DB.prepare('DELETE FROM rider_sessions WHERE actor=?').bind(row.actor));}
-  await env.DB.batch(statements);return reply({ok:true,message:purpose==='reset'?'تم تغيير كلمة المرور. سجل الدخول من جديد.':'تم توثيق البريد الإلكتروني.'});
+   const credentials=purpose==='reset'?{salt:hex()}:null;
+   if(credentials)credentials.hash=await passwordDigest(b.password,credentials.salt);
+   // Every effect checks current eligibility inside the atomic batch. Checking
+   // only an earlier SELECT or the result of a zero-row UPDATE is insufficient.
+   // Use one cutoff for the operation: expiry cannot change eligibility halfway
+   // through a batch after an earlier effect has already been applied.
+   const checkedAt=new Date().toISOString(),eligible="EXISTS (SELECT 1 FROM email_auth_tokens t JOIN public_accounts a ON a.actor=t.actor AND a.role=t.role WHERE t.id=? AND t.role=? AND t.actor=? AND t.purpose=? AND t.consumed_at IS NULL AND t.expires_at>? AND t.target_email IS NOT NULL AND t.target_email=lower(trim(a.email)))";
+   const args=[row.id,role,row.actor,purpose,checkedAt],statements=[];
+   if(purpose==='verify')statements.push(env.DB.prepare(`INSERT INTO verified_emails(role,actor,email,verified_at) SELECT ?,?,?,? WHERE ${eligible} ON CONFLICT(role,actor) DO UPDATE SET email=excluded.email,verified_at=excluded.verified_at`).bind(role,row.actor,row.target_email,now,...args));
+   else{const {salt,hash}=credentials;statements.push(
+    env.DB.prepare(`UPDATE public_accounts SET salt=?,password_hash=? WHERE actor=? AND role=? AND ${eligible}`).bind(salt,hash,row.actor,role,...args),
+    env.DB.prepare(`DELETE FROM push_subscriptions WHERE session_hash IN (SELECT token_hash FROM public_sessions WHERE actor=? AND role=?) AND ${eligible}`).bind(row.actor,role,...args),
+    env.DB.prepare(`DELETE FROM public_sessions WHERE actor=? AND role=? AND ${eligible}`).bind(row.actor,role,...args));
+    if(role==='rider')statements.push(env.DB.prepare(`DELETE FROM rider_sessions WHERE actor=? AND ${eligible}`).bind(row.actor,...args));
+   }
+   // Consume last; all preceding effects use the same eligibility condition.
+   statements.push(env.DB.prepare(`UPDATE email_auth_tokens SET consumed_at=? WHERE id=? AND ${eligible}`).bind(checkedAt,row.id,...args));
+   const results=await env.DB.batch(statements);
+   if(!results.at(-1)?.meta?.changes)return reply({error:'الرابط مستخدم أو منتهي الصلاحية. اطلب رابطًا جديدًا.'},400);
+   return reply({ok:true,message:purpose==='reset'?'تم تغيير كلمة المرور. سجل الدخول من جديد.':'تم توثيق البريد الإلكتروني.'});
  }
  return reply({error:'عملية غير معروفة'},400)
 }catch(e){return reply({error:e.message||'تعذر إكمال الطلب'},/طلبات كثيرة/.test(e.message)?429:400)}}
