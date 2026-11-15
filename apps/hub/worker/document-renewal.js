@@ -40,12 +40,12 @@ export async function renewalAdmin(request,env){
   if(!id){
    const url=new URL(request.url),captain=url.searchParams.get('captain'),kind=url.searchParams.get('kind');
    if(!captain&&!kind)return documentManagement(request,env);
-   if(!DOCUMENTS.some(([key])=>key===kind))return drJson({error:'??? ?????'},404);
+   if(!DOCUMENTS.some(([key])=>key===kind))return drJson({error:'المستند غير موجود'},404);
    const app=await env.DB.prepare('SELECT documents_json FROM captain_applications WHERE id=?').bind(captain).first();
-   const doc=app&&JSON.parse(app.documents_json)[kind];if(!doc?.key)return drJson({error:'??? ?????'},404);
+   const doc=app&&JSON.parse(app.documents_json)[kind];if(!doc?.key)return drJson({error:'المستند غير موجود'},404);
    const ext=({'application/pdf':'pdf','image/png':'png','image/jpeg':'jpg','image/webp':'webp'})[doc.type];
-   if(!ext)return drJson({error:'??? ??? ?????'},400);
-   const file=await env.BUCKET.get(doc.key);if(!file)return drJson({error:'????? ??? ?????'},404);
+   if(!ext)return drJson({error:'نوع المستند غير مدعوم'},400);
+   const file=await env.BUCKET.get(doc.key);if(!file)return drJson({error:'ملف المستند غير موجود'},404);
    return new Response(file.body,{headers:{'Content-Type':doc.type,'Content-Disposition':'inline; filename="'+kind+'.'+ext+'"','Content-Security-Policy':"sandbox; default-src 'none'",'Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer'}});
   }
   const r=await env.DB.prepare('SELECT * FROM document_renewals WHERE id=?').bind(id).first();
