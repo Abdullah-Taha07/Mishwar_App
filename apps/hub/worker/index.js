@@ -1,3 +1,4 @@
+import {allowedApiOrigin, apiPreflight, withApiCors} from './request-policy.js';
 import {staffAuth,authenticateStaff,guardStaff,securityAdmin,audit as staffAudit,reply as staffReply} from './staff-security.js';
 import{renewDocument}from'./document-renewal.js';
 import{sharedTrip,providerReadiness}from'./launch-features.js';import{runPlatformJobs}from'./launch-operations.js';import{commercialPlaces}from'./commercial-maps.js';
@@ -294,6 +295,9 @@ const worker = {
 export default {
     async fetch(request,env,ctx){
         const started=Date.now();
+        const publicApi=new URL(request.url).pathname.startsWith('/api/');
+        if(publicApi&&request.method==='OPTIONS')return apiPreflight(request,env);
+        if(publicApi&&request.headers.has('origin')&&!allowedApiOrigin(request,env))return new Response(JSON.stringify({error:'غير مسموح'}),{status:403,headers:{'Content-Type':'application/json','Cache-Control':'no-store',Vary:'Origin'}});
         const response=await worker.fetch(request,{...env,__ctx:ctx},ctx);
         const path=new URL(request.url).pathname;
         if(env.DB && ctx?.waitUntil && /^(?:\/api|\/internal)\//.test(path) && Math.random()<0.1){
@@ -301,7 +305,7 @@ export default {
                 .bind(crypto.randomUUID(),path,response.status,Date.now()-started,new Date().toISOString())
                 .run().catch(()=>{}));
         }
-        return response;
+        return publicApi?withApiCors(response,request,env):response;
     },
     async scheduled(_event,env,ctx){
         if(env.SCHEDULER_ENABLED==='true')await runPlatformJobs(env,ctx);

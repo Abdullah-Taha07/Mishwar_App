@@ -32,7 +32,7 @@ test('local cash journey crosses compiled rider, hub and admin gateways with one
     headers: {origin, 'content-type': 'application/json', cookie, ...extraHeaders},
     ...(body === undefined ? {} : {body: JSON.stringify(body)}),
   });
-  const asRider = (path, body, cookie = '', headers) => rider.fetch(request(origins.rider, path, body, cookie, headers), riderEnv);
+  const asRider = (path, body, cookie = '', headers) => rider.fetch(request(origins.rider, path, body, cookie, headers), riderEnv, {trustedClientIp:'192.0.2.11'});
   const asCaptain = (action, body = {}, cookie = '', headers) => hub.fetch(request(origins.hub, '/api/driver', {action, ...body}, cookie, headers), env, {});
   // The compiled admin Worker is a platform-authenticated owner adapter. These
   // identity headers model that trusted platform boundary, not Vercel staff login.

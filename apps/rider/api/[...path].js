@@ -1,4 +1,10 @@
-import riderWorker from "../worker/index.js";
+import riderWorker, {canonicalClientIp} from "../worker/index.js";
+
+function sourceIp(req){
+  // Vercel overwrites this header at its edge. Outside Vercel trust only the socket.
+  const value=process.env.VERCEL==='1'?req.headers?.['x-vercel-forwarded-for']:req.socket?.remoteAddress;
+  return canonicalClientIp(typeof value==='string'?value:'');
+}
 
 function nodeBody(req) {
   if (req.method === "GET" || req.method === "HEAD") return undefined;
@@ -13,7 +19,7 @@ export default async function handler(req, res) {
     const headers = new Headers();
     for (const [key, value] of Object.entries(req.headers || {})) {
       // Platform identity headers are not authenticated on this public Node endpoint.
-      if (key.toLowerCase().startsWith("oai-")) continue;
+      if (key.toLowerCase().startsWith("oai-") || /^(cf-|x-forwarded-|x-vercel-|x-real-ip|x-mishwar-)/i.test(key)) continue;
       if (value !== undefined) headers.set(key, Array.isArray(value) ? value.join(", ") : String(value));
     }
     const body = nodeBody(req);
@@ -27,7 +33,7 @@ export default async function handler(req, res) {
       HUB_ACCESS_TOKEN: process.env.HUB_ACCESS_TOKEN,
       HUB_SERVICE_KEY: process.env.HUB_SERVICE_KEY,
     };
-    const response = await riderWorker.fetch(request, env);
+    const response = await riderWorker.fetch(request, env, {trustedClientIp:sourceIp(req)});
     res.statusCode = response.status;
     response.headers.forEach((value, key) => {
       if (key.toLowerCase() !== "transfer-encoding") res.setHeader(key, value);
