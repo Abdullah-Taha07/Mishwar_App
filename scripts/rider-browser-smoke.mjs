@@ -9,7 +9,7 @@ const root=resolve(process.argv[2]||'apps/rider/public');
 const pwaRequired=process.argv.includes('--pwa');
 const artifact=resolve('artifacts/rider-repairs-2026-11-15/browser-'+Date.now());
 mkdirSync(artifact,{recursive:true});
-const fixtures={owner:null,chat:[],requests:[],missing:[],blocked:[],exceptions:[],results:[],notifications:[],notificationAcks:[],sharedFailures:0,pauseLive:false,liveReleases:[],liveResponses:0};
+const fixtures={owner:null,chat:[],requests:[],missing:[],blocked:[],exceptions:[],results:[],notifications:[],notificationAcks:[],sharedFailures:0,pauseLive:false,liveReleases:[],liveResponses:0,cases:[],supportLoseResponse:true};
 const keys={a:'a'.repeat(64),b:'b'.repeat(64)};
 const point=(name,lat=24.7,lng=46.6)=>({name,lat,lng,area:'Offline fixture'});
 const profile=owner=>({name:owner==='a'?'Rider Alpha':'Rider Beta',phone:owner==='a'?'+966500000001':'+966500000002',email:owner+'@example.test'});
@@ -20,7 +20,7 @@ const server=createServer(async(req,res)=>{
  const path=new URL(req.url,'http://127.0.0.1').pathname;
  if(path.startsWith('/api/')){
   let raw='';for await(const chunk of req)raw+=chunk;let body={};try{body=JSON.parse(raw)}catch{}
-  fixtures.requests.push({path,action:body.action,owner:fixtures.owner,hasMessage:!!body.body});
+  fixtures.requests.push({path,action:body.action,owner:fixtures.owner,hasMessage:!!body.body,clientRequestId:body.clientRequestId});
   let data={};
   if(path==='/api/auth/password-login'){fixtures.owner=String(body.phone).includes('2')?'b':'a';data={authenticated:true,profile:profile(fixtures.owner)};}
   else if(path==='/api/auth/logout'){fixtures.owner=null;data={ok:true};}
@@ -43,7 +43,18 @@ const server=createServer(async(req,res)=>{
   else if(body.action==='live_realtime_token'){res.statusCode=503;data={error:'Offline provider is intentionally disabled'};}
   else if(body.action==='live_reservations')data={schedulerConfigured:false,items:[]};
   else if(body.action==='live_history')data={trips:[],ratings:{average:0,receivedCount:0},nextOffset:null};
-  else if(body.action==='live_cases'||body.action==='live_contacts')data={items:[]};
+  else if(body.action==='live_cases')data={items:fixtures.cases.filter(row=>row.owner===fixtures.owner)};
+  else if(body.action==='live_case_create'){
+   let item=fixtures.cases.find(row=>row.owner===fixtures.owner&&row.clientRequestId===body.clientRequestId);
+   if(!item){item={id:'offline-case-'+fixtures.cases.length,owner:fixtures.owner,clientRequestId:body.clientRequestId,kind:body.kind,description:body.description,status:'open',messages:[{role:'rider',body:body.description},{role:'admin',body:'Local support response'}]};fixtures.cases.push(item);}
+   data={id:item.id,ok:true};if(fixtures.supportLoseResponse){fixtures.supportLoseResponse=false;res.statusCode=503;data={error:'لم يصل تأكيد الإرسال. أعد المحاولة بنفس النص.'};}
+  }
+  else if(body.action==='live_case_messages'){
+   const item=fixtures.cases.find(row=>row.owner===fixtures.owner&&row.id===body.caseId);
+   if(!item){res.statusCode=404;data={error:'الطلب غير موجود'};}
+   else{if(body.body&&!item.messages.some(row=>row.clientRequestId===body.clientRequestId))item.messages.push({role:'rider',body:body.body,clientRequestId:body.clientRequestId});data={case:item,messages:item.messages};}
+  }
+  else if(body.action==='live_contacts')data={items:[]};
   else if(body.action==='live_payment_status')data={items:[]};
   else if(body.action==='live_referral')data={enabled:false,notice:'Offline program is not enabled',code:'OFFLINE',reward:0,stats:{invited:0,rewards:0},linked:false};
   else if(body.action==='live_chat'){
@@ -97,6 +108,18 @@ try{
  // Authentication is simulated only by this loopback server. No real account is created.
  fixtures.owner='a';await navigate(origin);await waitFor("document.querySelector('#panel')?.innerText.includes('a-offline-trip'.slice(0,8))",'Account A trip must finish restoring');
  assert.ok(await evaluate("document.querySelector('#panel').innerText.includes('a-offline-trip'.slice(0,8))"),'Account A trip is restored');
+ // A response can be lost after the server has saved a support request.
+ await evaluate('window.MishwarSupport.open()');
+ await waitFor("!!document.querySelector('[data-support-create]')",'The real help action must open account support');
+ await evaluate("(()=>{const form=document.querySelector('[data-support-create]');form.elements.description.value='Offline support draft that must survive a lost response';form.dispatchEvent(new Event('input',{bubbles:true}));form.requestSubmit()})()");
+ await waitFor("!!document.querySelector('[data-support-error]')?.textContent",'A failed confirmation must keep the support form');
+ assert.equal(await evaluate("document.querySelector('[data-support-create]').elements.description.value"),'Offline support draft that must survive a lost response');
+ await evaluate("document.querySelector('[data-support-create]').requestSubmit()");
+ await waitFor("document.querySelector('#rider-support-dialog')?.innerText.includes('Local support response')",'A confirmed request must expose the existing support conversation');
+ assert.equal(fixtures.cases.length,1,'Retrying a lost confirmation must not create a second case');
+ const attempts=fixtures.requests.filter(row=>row.action==='live_case_create');assert.equal(attempts.length,2);assert.ok(attempts[0].clientRequestId&&attempts[0].clientRequestId===attempts[1].clientRequestId);
+ await evaluate("document.querySelector('#rider-support-dialog').close()");
+ fixtures.results.push({name:'support-draft-loss-and-idempotent-retry',passed:true});
  // Real layout matters: a short phone cannot expose every card at once.
  fixtures.notifications=Array.from({length:5},(_,i)=>({id:'offline-notification-'+i,title:'إشعار اختبار '+(i+1),body:'رسالة محلية للتحقق من ظهور الإشعار قبل تأكيد قراءته. '.repeat(3)}));
  const localUnreadBefore=await evaluate("document.querySelector('#notification-count').hidden?0:Number(document.querySelector('#notification-count').textContent)");

@@ -1,5 +1,5 @@
 (()=>{const captain=!!document.querySelector('.driver-shell'),escape=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])),price=n=>(Number(n)/100).toFixed(2)+' ر.س';
-async function call(action,body={}){const r=await fetch(captain?'/api/driver':'/api/live',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:captain?action:'live_'+action,...body})}),d=await r.json();if(!r.ok)throw Error(d.error||'تعذر تنفيذ العملية');return d}
+async function call(action,body={},options={}){const r=await fetch(captain?'/api/driver':'/api/live',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:captain?action:'live_'+action,...body}),...(options.signal?{signal:options.signal}:{})}),d=await r.json();if(!r.ok)throw Error(d.error||'تعذر تنفيذ العملية');return d}
 function modal(title,body){const old=document.querySelector('#launch-dialog');old?.close();old?.remove();const d=document.createElement('dialog');d.id='launch-dialog';d.className='launch-dialog';d.innerHTML=`<header class="launch-head"><button type="button" aria-label="رجوع" data-launch-back>→</button><h2>${escape(title)}</h2></header><div class="launch-body">${body}</div>`;document.body.append(d);d.querySelector('[data-launch-back]').onclick=()=>d.close();d.addEventListener('close',()=>{d.cleanup?.();d.remove()},{once:true});d.showModal();return d}
 function error(d,e){const el=d.querySelector('[data-error]');if(el)el.textContent=e.message;else d.querySelector('.launch-body')?.insertAdjacentHTML('beforeend',`<p class="launch-error" role="alert">${escape(e.message)}</p>`)}
 async function capabilities(){try{return await call('capabilities')}catch{const r=await fetch('/api/service-status');if(!r.ok)throw Error('تعذر عرض حالة الخدمات');return r.json()}}
@@ -7,11 +7,141 @@ async function readiness(){const d=modal('خدمات مشوار','<p>جارٍ ت
 async function contacts(){const d=modal('جهات موثوقة','<p>جارٍ التحميل…</p>');async function draw(){const v=await call('contacts');d.querySelector('.launch-body').innerHTML=`<p class="launch-note">تُحفظ لحسابك فقط. لا تُرسل رسائل تلقائية لجهاتك؛ أنت تختار مشاركة رابط الرحلة.</p>${v.items.map(x=>`<article class="launch-row"><div><b>${escape(x.name)}</b><small dir="ltr">${escape(x.phone)}</small></div><a href="tel:${escape(x.phone)}">اتصال</a><button data-remove-contact="${escape(x.id)}" type="button">إزالة</button></article>`).join('')}<form class="launch-form"><label>الاسم<input name="name" required minlength="2" maxlength="80"></label><label>رقم الجوال<input name="phone" type="tel" required maxlength="16" dir="ltr"></label><button class="primary">إضافة جهة موثوقة</button></form><p data-error role="alert"></p>`;d.querySelector('form').onsubmit=async e=>{e.preventDefault();try{await call('contacts',{save:true,...Object.fromEntries(new FormData(e.target))});await draw()}catch(err){error(d,err)}};d.querySelectorAll('[data-remove-contact]').forEach(b=>b.onclick=async()=>{try{await call('contacts',{remove:b.dataset.removeContact});await draw()}catch(e){error(d,e)}})}try{await draw()}catch(e){error(d,e)}}
 async function safety(tripId){const d=modal('أمان مشوار',`<div class="safety-hero"><span>◇</span><h3>سلامتك أولًا</h3><p>تحقق من اسم الكابتن والسيارة واللوحة. لا تشارك رمز البدء إلا بعد الركوب.</p></div><a class="emergency-call" href="tel:911">اتصال بالطوارئ ٩١١ · الرياض</a><p class="launch-note">زر الاتصال يفتح هاتفك. بلاغ مشوار وحده لا يستدعي الشرطة أو الإسعاف، ولا يضمن استجابة بشرية فورية.</p><button class="secondary" data-trusted>جهاتي الموثوقة</button>${tripId?`<button class="secondary" data-trip-share>مشاركة تتبع الرحلة</button><details><summary>تسجيل بلاغ عاجل لإدارة مشوار</summary><form class="launch-form"><label>ما الذي يحدث؟<textarea name="description" required minlength="3" maxlength="1000" rows="3"></textarea></label><button class="primary">تسجيل البلاغ</button></form></details>`:''}<p data-error role="alert"></p>`);d.querySelector('[data-trusted]').onclick=contacts;d.querySelector('[data-trip-share]')?.addEventListener('click',()=>share(tripId));d.querySelector('form')?.addEventListener('submit',async e=>{e.preventDefault();const b=e.target.querySelector('button');b.disabled=true;try{const v=await call('incident',{tripId,description:e.target.description.value});d.querySelector('[data-error]').textContent=v.notice+' رقم البلاغ: '+v.id.slice(0,8);e.target.reset()}catch(err){error(d,err)}finally{b.disabled=false}})}
 async function share(tripId){const d=modal('مشاركة تتبع مباشر','<p>جارٍ تجهيز الرابط…</p>');try{if(captain)throw Error('ينشئ الراكب رابط مشاركة الرحلة. تقدر تتواصل معه عبر المحادثة.');const v=await call('share_create',{tripId}),url=location.origin+'/track.html#'+v.token;d.querySelector('.launch-body').innerHTML=`<p class="launch-note">من يملك الرابط يرى الانطلاق والوجهة وموقع الكابتن أثناء الرحلة. يتوقف بعد انتهاء الرحلة أو إيقاف المشاركة، وتنتهي صلاحيته خلال ٦ ساعات.</p><input class="share-link" readonly dir="ltr" value="${escape(url)}" aria-label="رابط التتبع"><button class="primary" data-share-link>مشاركة الرابط</button><button class="secondary" data-copy-link>نسخ الرابط</button><button class="secondary" data-stop-share>إيقاف المشاركة</button><p data-error role="status"></p>`;d.querySelector('[data-share-link]').onclick=async()=>{try{if(navigator.share)await navigator.share({title:'تابع مشواري',url});else{await navigator.clipboard.writeText(url);d.querySelector('[data-error]').textContent='تم نسخ الرابط'}}catch(e){if(e.name!=='AbortError')error(d,e)}};d.querySelector('[data-copy-link]').onclick=async()=>{try{await navigator.clipboard.writeText(url);d.querySelector('[data-error]').textContent='تم نسخ الرابط'}catch(e){error(d,e)}};d.querySelector('[data-stop-share]').onclick=async()=>{try{await call('share_revoke',{tripId});d.close()}catch(e){error(d,e)}}}catch(e){d.querySelector('.launch-body').innerHTML='<p class="launch-error">'+escape(e.message)+'</p>'}}
-async function chat(tripId){const d=modal('محادثة المشوار',`<p class="launch-note">محادثة بين الراكب والكابتن المسند فقط، أثناء الرحلة. قد تراجع الإدارة الرسائل عند البلاغ.</p><div class="chat-log" role="log" aria-live="polite"></div><form class="launch-form chat-compose"><input name="body" required maxlength="1000" placeholder="اكتب رسالتك" aria-label="رسالة المشوار"><button class="primary">إرسال</button></form><p data-error role="alert"></p>`);let after=0,loading=false;async function load(body){if(loading||!d.open)return;loading=true;try{const v=await call('chat',{tripId,after,...(body?{body}:{})});if(!d.open)return;const log=d.querySelector('.chat-log');for(const m of v.messages){after=Math.max(after,m.id);log.insertAdjacentHTML('beforeend',`<article class="chat-bubble ${m.role===(captain?'captain':'rider')?'mine':''}"><small>${m.role==='captain'?'الكابتن':'الراكب'}</small><p>${escape(m.body)}</p><time>${new Date(m.created_at).toLocaleTimeString('ar-SA',{hour:'2-digit',minute:'2-digit'})}</time></article>`)}if(v.messages.length)log.scrollTop=log.scrollHeight;d.querySelector('[data-error]').textContent=''}catch(e){error(d,e)}finally{loading=false}}d.querySelector('form').onsubmit=async e=>{e.preventDefault();const f=e.target,b=f.querySelector('button');b.disabled=true;const text=f.body.value;await load(text);if(!d.querySelector('[data-error]').textContent)f.reset();b.disabled=false};const tick=setInterval(()=>{if(!document.hidden)load()},window.mishwarRealtimeConnected?10000:2000);const event=()=>load();window.addEventListener('mishwar-realtime',event);d.cleanup=()=>{clearInterval(tick);window.removeEventListener('mishwar-realtime',event)};await load()}
+const messageDrafts=new Map();
+function messageOwner(){
+  if(!captain){
+    const context=window.MishwarAccountContext,ticket=context?.capture();
+    if(!ticket?.accountKey||context.snapshot().status!=='ready')throw Error('سجّل الدخول إلى حسابك لكتابة الرسالة.');
+    return {key:'rider:'+ticket.accountKey,current:()=>context.isCurrent(ticket)};
+  }
+  const id=()=>String((typeof data!=='undefined'?data?.captain?.id:null)||window.captainAccount?.application?.id||'');
+  const owner=id();if(!owner)throw Error('سجّل الدخول إلى حساب الكابتن لكتابة الرسالة.');
+  return {key:'captain:'+owner,current:()=>id()===owner};
+}
+function messageDraft(kind,id){
+  const owner=messageOwner(),key='mishwar-message-draft:'+owner.key+':'+kind+':'+id;
+  const read=()=>{
+    let value=messageDrafts.get(key);
+    if(!value)try{const raw=sessionStorage.getItem(key);if(raw&&raw.length<12000)value=JSON.parse(raw)}catch{}
+    return value&&value.value&&typeof value.value==='object'?value:{value:{}};
+  };
+  const store=value=>{messageDrafts.set(key,value);try{sessionStorage.setItem(key,JSON.stringify(value))}catch{}};
+  const remember=value=>{if(!owner.current())return null;const old=read(),next={value:{...value}};if(JSON.stringify(old.value)===JSON.stringify(next.value))next.clientRequestId=old.clientRequestId;store(next);return next};
+  return {current:owner.current,read:()=>({...read().value}),remember,
+    prepare(value){const next=remember(value);if(!next)throw Error('تغير الحساب أثناء كتابة الرسالة.');if(!next.clientRequestId){next.clientRequestId=crypto.randomUUID();store(next)}return {...next,value:{...next.value}}},
+    clear(submitted){if(!owner.current())return false;const saved=read();if(saved.clientRequestId!==submitted.clientRequestId||JSON.stringify(saved.value)!==JSON.stringify(submitted.value))return false;messageDrafts.delete(key);try{sessionStorage.removeItem(key)}catch{}return true}
+  };
+}
+async function messageRequest(draft,dialog,action,body={}){
+  if(!draft.current()||!dialog.open){const error=Error('تغير الحساب أثناء الطلب.');error.name='AbortError';throw error}
+  const controller=new AbortController();let rejectDeadline;
+  const cancelled=()=>{const error=Error('Message request cancelled');error.name='AbortError';rejectDeadline(error);controller.abort()};
+  const deadline=new Promise((_,reject)=>{rejectDeadline=reject});
+  const timer=setTimeout(()=>{const error=Error('انتهت مهلة الاتصال. احتفظنا بالمسودة؛ راجع سجل الرسائل أو أعد المحاولة بنفس الرسالة.');error.name='TimeoutError';rejectDeadline(error);controller.abort()},15000);
+  const events=['mishwar-account-reset','mishwar-captain-auth-required','pagehide'];
+  for(const name of events)window.addEventListener(name,cancelled);
+  dialog.addEventListener('close',cancelled,{once:true});
+  try{
+    const value=await Promise.race([call(action,body,{signal:controller.signal}),deadline]);
+    if(!draft.current()||!dialog.open||controller.signal.aborted){const error=Error('Message request cancelled');error.name='AbortError';throw error}
+    return value;
+  }finally{clearTimeout(timer);for(const name of events)window.removeEventListener(name,cancelled);dialog.removeEventListener('close',cancelled)}
+}
+async function chat(tripId){
+  const d=modal('محادثة المشوار','<p class="launch-note">محادثة بين الراكب والكابتن المسند فقط، أثناء الرحلة. قد تراجع الإدارة الرسائل عند البلاغ.</p><div class="chat-log" role="log" aria-live="polite"></div><form class="launch-form chat-compose"><input name="body" required maxlength="1000" placeholder="اكتب رسالتك" aria-label="رسالة المشوار"><button class="primary">إرسال</button></form><p data-error role="alert"></p>');
+  let draft;try{draft=messageDraft('trip',tripId)}catch(e){error(d,e);return}
+  const form=d.querySelector('form'),input=form.body,button=form.querySelector('button'),messages=new Map();
+  input.value=String(draft.read().body||'');input.addEventListener('input',()=>draft.remember({body:input.value}));
+  let after=0,polling=false,sending=false;
+  function paint(value){
+    if(!draft.current()||!d.open)return;
+    for(const item of value.messages||[]){messages.set(item.id,item);after=Math.max(after,Number(item.id)||0)}
+    const log=d.querySelector('.chat-log');
+    log.innerHTML=[...messages.values()].sort((a,b)=>Number(a.id)-Number(b.id)).map(m=>'<article class="chat-bubble '+(m.role===(captain?'captain':'rider')?'mine':'')+'"><small>'+(m.role==='captain'?'الكابتن':'الراكب')+'</small><p>'+escape(m.body)+'</p><time>'+new Date(m.created_at).toLocaleTimeString('ar-SA',{hour:'2-digit',minute:'2-digit'})+'</time></article>').join('');
+    if(value.messages?.length)log.scrollTop=log.scrollHeight;
+  }
+  async function poll(){
+    if(polling||sending||!d.open||!draft.current())return;
+    polling=true;
+    try{paint(await messageRequest(draft,d,'chat',{tripId,after}))}catch(e){if(d.open&&draft.current()&&e.name!=='AbortError'&&!sending)error(d,e)}finally{polling=false}
+  }
+  form.onsubmit=async event=>{
+    event.preventDefault();if(sending||!draft.current()||!d.open)return;
+    const text=input.value;if(!text.trim())return;
+    const submitted=draft.prepare({body:text});sending=true;button.disabled=true;
+    try{
+      const value=await messageRequest(draft,d,'chat',{tripId,after,body:text,clientRequestId:submitted.clientRequestId});
+      paint(value);
+      if(d.open&&draft.current()){
+        if(input.value===text&&draft.clear(submitted))input.value='';
+        d.querySelector('[data-error]').textContent='';
+      }
+    }catch(e){if(d.open&&draft.current()&&e.name!=='AbortError')error(d,e)}
+    finally{sending=false;if(d.open&&draft.current())button.disabled=false}
+  };
+  const tick=setInterval(()=>{if(!document.hidden)void poll()},window.mishwarRealtimeConnected?10000:2000),event=()=>void poll();
+  window.addEventListener('mishwar-realtime',event);
+  d.cleanup=()=>{clearInterval(tick);window.removeEventListener('mishwar-realtime',event)};
+  await poll();
+}
 async function maskedCall(tripId){const d=modal('اتصال يحمي رقمك','<p>جارٍ فحص خدمة الاتصال…</p>');try{const v=await call('masked_call',{tripId});d.querySelector('.launch-body').innerHTML=`<p>رقم وسيط صالح لمدة ١٠ دقائق؛ لا يُظهر رقم الطرف الآخر.</p><a class="primary" href="tel:${escape(v.phone)}">بدء الاتصال</a>`}catch(e){d.querySelector('.launch-body').innerHTML=`<p class="launch-note">${escape(e.message)}</p><button class="primary" data-open-chat>المحادثة داخل التطبيق</button>`;d.querySelector('button').onclick=()=>chat(tripId)}}
-async function createCase(tripId){const d=modal('الدعم والمفقودات',`<p class="launch-note">يرتبط الطلب بهذه الرحلة ويصل للإدارة. للدعم العاجل أو الخطر افتح مركز الأمان.</p><form class="launch-form"><label>نوع الطلب<select name="kind"><option value="lost_item">غرض مفقود</option><option value="fare">مراجعة الأجرة</option><option value="driver_behavior">السلوك أثناء الرحلة</option><option value="technical">مشكلة تقنية</option><option value="other">أخرى</option></select></label><label>التفاصيل<textarea name="description" required minlength="10" maxlength="2000" rows="4"></textarea></label><button class="primary">فتح طلب دعم</button></form><p data-error role="alert"></p>`);d.querySelector('form').onsubmit=async e=>{e.preventDefault();const b=e.target.querySelector('button');b.disabled=true;try{const v=await call('case_create',{tripId,...Object.fromEntries(new FormData(e.target))});caseChat(v.id)}catch(err){error(d,err);b.disabled=false}}}
-async function cases(){const d=modal('طلباتي لدى الدعم','<p>جارٍ التحميل…</p>');try{const v=await call('cases');d.querySelector('.launch-body').innerHTML=v.items.map(x=>`<button class="launch-case" data-case="${escape(x.id)}"><b>${({lost_item:'غرض مفقود',fare:'مراجعة الأجرة',driver_behavior:'السلوك',technical:'مشكلة تقنية',other:'طلب دعم'})[x.kind]}</b><span>${({open:'مفتوح',in_progress:'قيد المتابعة',closed:'مغلق'})[x.status]}</span><small>${escape(x.description.slice(0,100))}</small></button>`).join('')||'<p class="launch-note">لا توجد طلبات. افتح تفاصيل رحلة لإنشاء طلب دعم أو بلاغ مفقودات.</p>';d.querySelectorAll('[data-case]').forEach(b=>b.onclick=()=>caseChat(b.dataset.case))}catch(e){error(d,e)}}
-async function caseChat(caseId){const d=modal('متابعة طلب الدعم','<p>جارٍ التحميل…</p>');try{const v=await call('case_messages',{caseId});d.querySelector('.launch-body').innerHTML=`<p class="launch-note">حالة الطلب: ${({open:'مفتوح',in_progress:'قيد المتابعة',closed:'مغلق'})[v.case.status]}</p><div class="chat-log">${v.messages.map(m=>`<article class="chat-bubble ${m.role==='admin'?'':'mine'}"><small>${m.role==='admin'?'فريق مشوار':'أنت'}</small><p>${escape(m.body)}</p></article>`).join('')}</div>${v.case.status==='closed'?'':`<form class="launch-form"><label>ردك<textarea name="body" required maxlength="2000" rows="2"></textarea></label><button class="primary">إرسال الرد</button></form>`}<p data-error role="alert"></p>`;d.querySelector('form')?.addEventListener('submit',async e=>{e.preventDefault();const b=e.target.querySelector('button');b.disabled=true;try{await call('case_messages',{caseId,body:e.target.body.value});caseChat(caseId)}catch(err){error(d,err);b.disabled=false}})}catch(e){error(d,e)}}
+async function createCase(tripId){
+  const d=modal('الدعم والمفقودات','<p class="launch-note">يرتبط الطلب بهذه الرحلة ويصل للإدارة. للدعم العاجل أو الخطر افتح مركز الأمان.</p><form class="launch-form"><label>نوع الطلب<select name="kind"><option value="lost_item">غرض مفقود</option><option value="fare">مراجعة الأجرة</option><option value="driver_behavior">السلوك أثناء الرحلة</option><option value="technical">مشكلة تقنية</option><option value="other">أخرى</option></select></label><label>التفاصيل<textarea name="description" required minlength="10" maxlength="2000" rows="4"></textarea></label><button class="primary">فتح طلب دعم</button></form><p data-error role="alert"></p>');
+  let draft;try{draft=messageDraft('case-create',tripId||'general')}catch(e){error(d,e);return}
+  const form=d.querySelector('form'),saved=draft.read();
+  form.kind.value=saved.kind||'lost_item';form.description.value=saved.description||'';
+  const values=()=>({kind:form.kind.value,description:form.description.value});
+  form.addEventListener('input',()=>draft.remember(values()));form.addEventListener('change',()=>draft.remember(values()));
+  let sending=false;
+  form.onsubmit=async event=>{
+    event.preventDefault();if(sending||!draft.current())return;
+    const submitted=draft.prepare(values()),button=form.querySelector('button');sending=true;button.disabled=true;
+    try{
+      const result=await messageRequest(draft,d,'case_create',{tripId,...submitted.value,clientRequestId:submitted.clientRequestId});
+      if(!d.open||!draft.current())return;
+      const unchanged=draft.clear(submitted);
+      if(unchanged)void caseChat(result.id);
+      else d.querySelector('[data-error]').textContent='تم إرسال الطلب. احتفظنا بالتغييرات الجديدة غير المرسلة.';
+    }catch(e){if(d.open&&draft.current()&&e.name!=='AbortError')error(d,e)}
+    finally{sending=false;if(d.open&&draft.current())button.disabled=false}
+  };
+}
+async function cases(){
+ const d=modal('طلباتي لدى الدعم','<p>جارٍ التحميل…</p>');let draft;
+ try{
+  draft=messageDraft('case-list','list');
+  const value=await messageRequest(draft,d,'cases');
+  d.querySelector('.launch-body').innerHTML=value.items.map(item=>'<button class="launch-case" data-case="'+escape(item.id)+'"><b>'+({lost_item:'غرض مفقود',fare:'مراجعة الأجرة',driver_behavior:'السلوك',technical:'مشكلة تقنية',other:'طلب دعم'})[item.kind]+'</b><span>'+({open:'مفتوح',in_progress:'قيد المتابعة',closed:'مغلق'})[item.status]+'</span><small>'+escape(item.description.slice(0,100))+'</small></button>').join('')||'<p class="launch-note">لا توجد طلبات دعم مسجلة حتى الآن.</p>';
+  d.querySelectorAll('[data-case]').forEach(button=>button.onclick=()=>{if(d.open&&draft.current())void caseChat(button.dataset.case)});
+ }catch(e){if(d.open&&(!draft||draft.current())&&e.name!=='AbortError')error(d,e)}
+}
+async function caseChat(caseId){
+  const d=modal('متابعة طلب الدعم','<p>جارٍ التحميل…</p>');
+  let draft;try{draft=messageDraft('case-reply',caseId)}catch(e){error(d,e);return}
+  try{
+    const value=await messageRequest(draft,d,'case_messages',{caseId});
+    const reply=value.case.status==='closed'?'':'<form class="launch-form"><label>ردك<textarea name="body" required maxlength="2000" rows="2"></textarea></label><button class="primary">إرسال الرد</button></form>';
+    d.querySelector('.launch-body').innerHTML='<p class="launch-note">حالة الطلب: <span data-case-status>'+({open:'مفتوح',in_progress:'قيد المتابعة',closed:'مغلق'})[value.case.status]+'</span></p><div class="chat-log"></div>'+reply+'<p data-error role="alert"></p>';
+    const paint=items=>{d.querySelector('.chat-log').innerHTML=(items||[]).map(m=>'<article class="chat-bubble '+(m.role==='admin'?'':'mine')+'"><small>'+(m.role==='admin'?'فريق مشوار':'أنت')+'</small><p>'+escape(m.body)+'</p></article>').join('')};
+    paint(value.messages);
+    const form=d.querySelector('form');if(!form)return;
+    form.body.value=String(draft.read().body||'');form.body.addEventListener('input',()=>draft.remember({body:form.body.value}));
+    let sending=false;
+    form.onsubmit=async event=>{
+      event.preventDefault();if(sending||!draft.current())return;
+      const text=form.body.value;if(!text.trim())return;
+      const submitted=draft.prepare({body:text}),button=form.querySelector('button');sending=true;button.disabled=true;
+      try{
+        const next=await messageRequest(draft,d,'case_messages',{caseId,body:text,clientRequestId:submitted.clientRequestId});
+        if(!d.open||!draft.current())return;
+        paint(next.messages);
+        if(form.body.value===text&&draft.clear(submitted))form.body.value='';
+        d.querySelector('[data-error]').textContent='';
+      }catch(e){if(d.open&&draft.current()&&e.name!=='AbortError')error(d,e)}
+      finally{sending=false;if(d.open&&draft.current())button.disabled=false}
+    };
+  }catch(e){if(d.open&&draft.current()&&e.name!=='AbortError')error(d,e)}
+}
 async function receipt(tripId){const d=modal('إيصال المشوار','<p>جارٍ تجهيز الإيصال…</p>');try{const{receipt:v}=await call('receipt',{tripId});d.querySelector('.launch-body').innerHTML=`<article class="trip-receipt"><div class="receipt-brand">مشوار</div><span>${escape(v.merchant.name)}</span><h3>إيصال مشوار</h3><p dir="ltr">${escape(v.receipt_number)}</p><dl><div><dt>الانطلاق</dt><dd>${escape(v.pickup.name)}</dd></div><div><dt>الوصول</dt><dd>${escape(v.destination.name)}</dd></div><div><dt>الأجرة</dt><dd>${price(v.fare)}</dd></div><div><dt>الخصم</dt><dd>${price(v.discount)}</dd></div><div><dt>الإجمالي</dt><dd>${price(v.paid)}</dd></div><div><dt>الدفع</dt><dd>${({cash:'نقدًا',wallet:'المحفظة',card:'بطاقة',applepay:'Apple Pay'})[v.method]||'غير محدد'}</dd></div>${v.commission!==undefined?`<div><dt>عمولة التطبيق</dt><dd>${price(v.commission)}</dd></div>`:''}</dl><p class="launch-note">${escape(v.note)}</p></article><button class="primary" data-print-receipt>طباعة أو حفظ PDF</button>`;d.querySelector('[data-print-receipt]').onclick=()=>window.print()}catch(e){error(d,e)}}
 async function reservations(){const d=modal('الحجوزات المسبقة','<p>جارٍ التحميل…</p>');try{const v=await call('reservations');d.querySelector('.launch-body').innerHTML=`<p class="launch-note">احجز موعدًا بعد ٣٠ دقيقة وحتى ٧ أيام. السعر يحفظ نقدًا دون خصومات. يبدأ البحث قبل الموعد بعشر دقائق، ويصلك تأكيد مستقل عند قبول كابتن؛ توفر السيارة غير مضمون.</p>${!v.schedulerConfigured?'<p class="launch-warning">بانتظار تفعيل المجدول في الخادم. الحجز المسبق غير متاح للتأكيد حاليًا.</p>':''}<form class="launch-form"><label>موعد الانطلاق<input type="datetime-local" name="pickupAt" required></label><p>يستخدم المسار والفئة المحددين في شاشة طلب المشوار.</p><button class="primary" ${v.schedulerConfigured?'':'disabled'}>تأكيد الحجز للمسار المحدد</button></form><p data-error role="alert"></p><h3>حجوزاتي</h3>${v.items.map(x=>`<article class="launch-reservation"><b>${escape(x.destination.name)}</b><p>${new Date(x.pickup_at).toLocaleString('ar-SA')} · ${price(x.fare_halalas)}</p><small>${({scheduled:'مجدول',dispatched:'بدأ البحث عن كابتن',cancelled:'ملغى',missed:'تعذر التنفيذ في الموعد',blocked:'يحتاج مراجعة الحساب'})[x.status]||'قيد المعالجة'}</small>${x.status==='scheduled'?`<button class="secondary" data-cancel-reservation="${escape(x.id)}">إلغاء الحجز المسبق</button>`:''}</article>`).join('')}`;d.querySelector('form').onsubmit=async e=>{e.preventDefault();const b=e.target.querySelector('button');b.disabled=true;try{const q=await window.getMishwarBookingQuote?.();if(!q?.id)throw Error('حدد الانطلاق والوجهة والفئة أولًا واحسب سعرًا تلقائيًا دون خصم.');await call('reserve',{quoteId:q.id,pickupAt:new Date(e.target.pickupAt.value).toISOString()});reservations()}catch(err){error(d,err);b.disabled=false}};d.querySelectorAll('[data-cancel-reservation]').forEach(b=>b.onclick=async()=>{try{await call('reserve_cancel',{id:b.dataset.cancelReservation});reservations()}catch(e){error(d,e)}})}catch(e){error(d,e)}}
 async function bookingOptions(){const saved=window.MishwarBookingOptions||{stops:[],guestName:'',businessNote:''},selected=[...(saved.stops||[])];const d=modal('خيارات المشوار',`<p class="launch-note">أضف حتى محطتين قبل الوجهة. يعاد احتساب مسار القيادة والسعر قبل التأكيد. لا توجد رسوم انتظار تلقائية في هذه النسخة.</p><form class="launch-form">${[0,1].map(i=>`<label>محطة ${i+1} · اختياري<input data-stop-search="${i}" value="${escape(selected[i]?.name||'')}" placeholder="ابحث عن مكان في الرياض" autocomplete="off"><div class="stop-results" data-stop-results="${i}"></div></label>`).join('')}<label>حجز لشخص آخر · الاسم<input name="guestName" maxlength="80" value="${escape(saved.guestName)}"></label><label class="launch-check"><input name="guestConsent" type="checkbox" ${saved.guestConsent?'checked':''}>لدي موافقة الشخص على الحجز ومشاركة اسمه مع الكابتن</label><label>مرجع عمل أو شركة · اختياري<input name="businessNote" maxlength="150" value="${escape(saved.businessNote)}"></label><button class="primary">اعتماد الخيارات وإعادة حساب السعر</button></form><p data-error role="alert"></p>`);d.querySelectorAll('[data-stop-search]').forEach(input=>{let timer,sequence=0;input.oninput=()=>{clearTimeout(timer);const i=Number(input.dataset.stopSearch);selected[i]=null;const seq=++sequence;timer=setTimeout(async()=>{const box=d.querySelector('[data-stop-results="'+i+'"]');if(input.value.trim().length<2){box.innerHTML='';return}try{const points=await window.searchMishwarPlaces(input.value);if(seq!==sequence||!d.open)return;box.innerHTML=points.slice(0,5).map((p,j)=>`<button type="button" data-stop-choice="${j}">${escape(p.name)}<small>${escape(p.area||'')}</small></button>`).join('')||'<small>لم تظهر نتائج قريبة.</small>';box.querySelectorAll('button').forEach(b=>b.onclick=()=>{selected[i]=points[Number(b.dataset.stopChoice)];input.value=selected[i].name;box.innerHTML=''})}catch(e){error(d,e)}},350)}});d.querySelector('form').onsubmit=e=>{e.preventDefault();try{const f=e.target,guest=f.guestName.value.trim();if(guest&&!f.guestConsent.checked)throw Error('أكد موافقة الشخص الذي تحجز له');for(const input of d.querySelectorAll('[data-stop-search]'))if(input.value.trim()&&!selected[Number(input.dataset.stopSearch)])throw Error('اختر محطة من نتائج البحث');window.MishwarBookingOptions={stops:selected.filter(Boolean),guestName:guest,guestConsent:f.guestConsent.checked,businessNote:f.businessNote.value.trim()};window.resetMishwarQuote?.();d.close()}catch(err){error(d,err)}}}
