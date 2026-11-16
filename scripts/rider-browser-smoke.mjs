@@ -9,10 +9,10 @@ const root=resolve(process.argv[2]||'apps/rider/public');
 const pwaRequired=process.argv.includes('--pwa');
 const artifact=resolve('artifacts/rider-repairs-2026-11-15/browser-'+Date.now());
 mkdirSync(artifact,{recursive:true});
-const fixtures={owner:null,chat:[],requests:[],missing:[],blocked:[],exceptions:[],results:[],notifications:[],notificationAcks:[],sharedFailures:0,pauseLive:false,liveReleases:[],liveResponses:0,cases:[],supportLoseResponse:true};
+const fixtures={owner:null,chat:[],requests:[],missing:[],blocked:[],exceptions:[],results:[],notifications:[],notificationAcks:[],sharedFailures:0,pauseLive:false,liveReleases:[],liveResponses:0,cases:[],supportLoseResponse:true,accountChange:null,accountPhones:{}};
 const keys={a:'a'.repeat(64),b:'b'.repeat(64)};
 const point=(name,lat=24.7,lng=46.6)=>({name,lat,lng,area:'Offline fixture'});
-const profile=owner=>({name:owner==='a'?'Rider Alpha':'Rider Beta',phone:owner==='a'?'+966500000001':'+966500000002',email:owner+'@example.test'});
+const profile=owner=>({name:owner==='a'?'Rider Alpha':'Rider Beta',phone:fixtures.accountPhones[owner]||(owner==='a'?'+966500000001':'+966500000002'),email:owner+'@example.test'});
 const trip=owner=>({id:owner+'-offline-trip',status:'riding',rider_id:'fixture:'+owner,driver_id:'offline-driver',pickup:point(owner+' private pickup'),destination:point(owner+' private destination',24.71,46.61),driver_name:'Offline Captain',driver_make:'Offline',driver_model:'Car',driver_plate:'TEST',driver_color:'white',fare_halalas:1000,discount_halalas:0,method:'cash',payment_status:'cash_due',created_at:new Date().toISOString(),options:{stops:[]},driverLocation:{lat:24.705,lng:46.605,at:new Date().toISOString(),fresh:true}});
 const payments={cash:true,wallet:true,card:false,applepay:false};
 function session(owner){return {guest:!owner,verified:!!owner,accountKey:owner?keys[owner]:null,profile:owner?profile(owner):null,trip:owner==='a'?trip(owner):null,recentTrip:null,ratings:{average:0,receivedCount:0},wallet:{balance:owner==='a'?98765:0,entries:[]},payments};}
@@ -25,6 +25,11 @@ const server=createServer(async(req,res)=>{
   if(path==='/api/auth/password-login'){fixtures.owner=String(body.phone).includes('2')?'b':'a';data={authenticated:true,profile:profile(fixtures.owner)};}
   else if(path==='/api/auth/logout'){fixtures.owner=null;data={ok:true};}
   else if(path==='/api/auth/session')data={authenticated:!!fixtures.owner,phoneVerified:!!fixtures.owner,accountKey:fixtures.owner?keys[fixtures.owner]:null,profile:fixtures.owner?profile(fixtures.owner):null};
+  else if(path==='/api/auth/change-start'){fixtures.accountChange={id:'local-change-fixture',kind:body.kind,stage:'old',mode:'sms',phone:profile(fixtures.owner).phone,newPhone:body.value,expiresAt:new Date(Date.now()+900000).toISOString()};data=fixtures.accountChange;}
+  else if(path==='/api/auth/change-check'){const change=fixtures.accountChange;change.stage=change.kind==='phone'&&change.stage==='old'?'new':'approved';if(change.stage==='new')change.phone='+966'+change.newPhone.slice(1);data=change;}
+  else if(path==='/api/auth/change-finish'){if(fixtures.accountChange.kind==='phone')fixtures.accountPhones[fixtures.owner]=fixtures.accountChange.phone;data={ok:true};}
+  else if(path==='/api/auth/change-cancel'){fixtures.accountChange=null;data={ok:true};}
+  else if(path==='/api/auth/change-status')data=fixtures.accountChange;
   else if(path==='/api/map-config')data={searchConfigured:false};
   else if(path==='/api/service-status')data={features:[]};
   else if(path==='/api/background'){
@@ -108,6 +113,23 @@ try{
  // Authentication is simulated only by this loopback server. No real account is created.
  fixtures.owner='a';await navigate(origin);await waitFor("document.querySelector('#panel')?.innerText.includes('a-offline-trip'.slice(0,8))",'Account A trip must finish restoring');
  assert.ok(await evaluate("document.querySelector('#panel').innerText.includes('a-offline-trip'.slice(0,8))"),'Account A trip is restored');
+ const originalAccountKey=await evaluate('window.MishwarAccountContext.snapshot().accountKey');
+ await evaluate('showAccount()');await waitFor("!!document.querySelector('[data-rider-account-settings]')",'Account security must be reachable from the profile');
+ await evaluate("document.querySelector('[data-rider-account-settings]').click()");
+ await waitFor("!!document.querySelector('#rider-account-change')",'Account settings form must render');
+ await evaluate("(()=>{const form=document.querySelector('#rider-account-change');form.elements.kind.value='phone';form.elements.kind.dispatchEvent(new Event('change'));form.elements.oldPassword.value='local-old-password';form.elements.value.value='0500000020';form.requestSubmit()})()");
+ await waitFor("!!document.querySelector('#rider-account-code')",'Current phone verification must be required');
+ assert.equal(fixtures.accountChange.stage,'old');
+ for(const expected of ['new','approved']){
+  await evaluate("(()=>{const form=document.querySelector('#rider-account-code');form.elements.code.value='1234';form.requestSubmit()})()");
+  await waitFor(expected==='new'?"document.querySelector('[data-rider-security-view]')?.textContent.includes('تحقق الآن من رقم الجوال الجديد.')":"!!document.querySelector('[data-finish-account-change]')",'Phone proof must advance to '+expected);
+  assert.equal(fixtures.accountChange.stage,expected);
+ }
+ await evaluate("document.querySelector('[data-finish-account-change]').click()");
+ await waitFor("!!document.querySelector('.rider-account-card')",'Saved account change must refresh the profile');
+ assert.equal(await evaluate('window.MishwarAccountContext.snapshot().accountKey'),originalAccountKey,'Changing a phone must preserve the immutable account namespace');
+ await evaluate("document.querySelector('#modal').close()");
+ fixtures.results.push({name:'account-phone-proof-and-stable-identity',passed:true});
  // A response can be lost after the server has saved a support request.
  await evaluate('window.MishwarSupport.open()');
  await waitFor("!!document.querySelector('[data-support-create]')",'The real help action must open account support');
