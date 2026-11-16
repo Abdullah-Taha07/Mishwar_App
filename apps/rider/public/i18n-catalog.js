@@ -314,6 +314,8 @@
     'ملاحظة الوصول':'Pickup note',
     'الطلب:':'Request:',
     'رقم الطلب:':'Request reference:',
+    'تواصل مع الدعم عبر قنواته المعتمدة من رقمك المسجل، واذكر رقم الطلب ورمز التحقق. تبقى الاستعادة بانتظار مراجعة الإدارة. بعد الاعتماد لديك ١٠ دقائق لحفظ كلمة المرور الجديدة.':'Contact support through its approved channels using your registered number, and provide the request reference and verification code. Recovery remains pending administrative review. After approval, you have 10 minutes to save your new password.',
+    'الاستعادة بمراجعة الإدارة عبر قنوات الدعم المعتمدة، دون إرسال SMS تلقائي.':'Recovery requires administrative review through approved support channels. No SMS is sent automatically.',
     'الحالة:':'Status:',
     'الانطلاق الآن':'Leave now',
     'دقة الموقع نحو':'Location accuracy is approximately',
