@@ -48,7 +48,7 @@ document.addEventListener('click',e=>{
  if(!e.target.closest('[data-sheet-other]'))return;
  const favorites=savedAddresses();
  const placesContext=window.MishwarAccountContext,placesTicket=placesContext?.capture();
- modal('أماكني المفضلة',`<p class="feature-intro">أماكنك المحفوظة للوصول السريع.</p>${favorites.length?`<div class="sheet-favorite-list">${favorites.slice(0,5).map((p,i)=>`<button type="button" data-sheet-favorite="${i}">${icon('pin')}<span><strong>${esc(p.name)}</strong><small>${esc(p.area||'مكان محفوظ')}</small></span></button>`).join('')}</div>`:'<div class="empty-state"><strong>احفظ مكانك المفضل</strong><p>ابحث عن المكان واضغط القلب بجواره لإضافته هنا.</p></div>'}<button type="button" class="primary" data-sheet-add>البحث عن مكان</button>`);
+ modal('أماكني المفضلة',`<p class="feature-intro">أماكنك المحفوظة للوصول السريع.</p>${favorites.length?`<div class="sheet-favorite-list">${favorites.slice(0,5).map((p,i)=>`<button type="button" data-sheet-favorite="${i}">${icon('pin')}<span><strong data-no-translate>${esc(p.name)}</strong><small><span data-no-translate>${esc(p.area||'')}</span>${p.area?'':'مكان محفوظ'}</small></span></button>`).join('')}</div>`:'<div class="empty-state"><strong>احفظ مكانك المفضل</strong><p>ابحث عن المكان واضغط القلب بجواره لإضافته هنا.</p></div>'}<button type="button" class="primary" data-sheet-add>البحث عن مكان</button>`);
  $('#modal').querySelectorAll('[data-sheet-favorite]').forEach(button=>button.onclick=()=>{if(placesContext&&!placesContext.isCurrent(placesTicket))return;const point=favorites[Number(button.dataset.sheetFavorite)];$('#modal').close();choose(point);fitLocations()});
  $('[data-sheet-add]').onclick=()=>{$('#modal').close();openSearchSheet('destination')};
 });

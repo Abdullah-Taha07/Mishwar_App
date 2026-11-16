@@ -12,7 +12,7 @@ mkdirSync(artifact,{recursive:true});
 const fixtures={owner:null,chat:[],requests:[],missing:[],blocked:[],exceptions:[],results:[],notifications:[],notificationAcks:[],sharedFailures:0,pauseLive:false,liveReleases:[],liveResponses:0,cases:[],supportLoseResponse:true,accountChange:null,accountPhones:{}};
 const keys={a:'a'.repeat(64),b:'b'.repeat(64)};
 const point=(name,lat=24.7,lng=46.6)=>({name,lat,lng,area:'Offline fixture'});
-const profile=owner=>({name:owner==='a'?'Rider Alpha':'Rider Beta',phone:fixtures.accountPhones[owner]||(owner==='a'?'+966500000001':'+966500000002'),email:owner+'@example.test'});
+const profile=owner=>({name:owner==='a'?'أحمد الاختبار':'Rider Beta',phone:fixtures.accountPhones[owner]||(owner==='a'?'+966500000001':'+966500000002'),email:owner+'@example.test'});
 const trip=owner=>({id:owner+'-offline-trip',status:'riding',rider_id:'fixture:'+owner,driver_id:'offline-driver',pickup:point(owner+' private pickup'),destination:point(owner+' private destination',24.71,46.61),driver_name:'Offline Captain',driver_make:'Offline',driver_model:'Car',driver_plate:'TEST',driver_color:'white',fare_halalas:1000,discount_halalas:0,method:'cash',payment_status:'cash_due',created_at:new Date().toISOString(),options:{stops:[]},driverLocation:{lat:24.705,lng:46.605,at:new Date().toISOString(),fresh:true}});
 const payments={cash:true,wallet:true,card:false,applepay:false};
 function session(owner){return {guest:!owner,verified:!!owner,accountKey:owner?keys[owner]:null,profile:owner?profile(owner):null,trip:owner==='a'?trip(owner):null,recentTrip:null,ratings:{average:0,receivedCount:0},wallet:{balance:owner==='a'?98765:0,entries:[]},payments};}
@@ -92,6 +92,13 @@ try{
  const evaluate=async expression=>{const r=await command('Runtime.evaluate',{expression,returnByValue:true,awaitPromise:true});if(r.exceptionDetails)throw Error(JSON.stringify(r.exceptionDetails));return r.result.value;};
  const waitFor=async(expression,message)=>{const deadline=Date.now()+10000;while(Date.now()<deadline){if(await evaluate(expression))return;await wait(100);}throw Error(message);};
  const navigate=async url=>{const mark='leaving-'+Date.now();await evaluate(`document.documentElement.dataset.offlineNavigation=${JSON.stringify(mark)}`);await command('Page.navigate',{url});await waitFor(`document.documentElement?.dataset.offlineNavigation!==${JSON.stringify(mark)}&&document.readyState==='complete'`,'New document must finish loading');};
+ const englishAudit=async(name,selector)=>{
+  await evaluate("window.MishwarLang.set('en')");await wait(40);
+  const missing=await evaluate(`(()=>{const root=document.querySelector(${JSON.stringify(selector)})||document.body,missing=[];const skip=el=>!el||el.closest('script,style,textarea,[data-no-translate],.leaflet-pane,.leaflet-control-attribution,[data-inline-language],#mishwar-language');const visible=el=>{const r=el.getBoundingClientRect(),s=getComputedStyle(el);return r.width>0&&r.height>0&&s.display!=='none'&&s.visibility!=='hidden'};const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);let node;while(node=walker.nextNode()){const value=node.nodeValue.trim();if(/[\u0600-\u06ff]/.test(value)&&!skip(node.parentElement)&&visible(node.parentElement))missing.push(value)}for(const el of root.querySelectorAll('[placeholder],[title],[aria-label]'))if(!skip(el)&&visible(el))for(const key of ['placeholder','title','aria-label']){const value=el.getAttribute(key)||'';if(/[\u0600-\u06ff]/.test(value))missing.push(key+': '+value)}return [...new Set(missing)]})()`);
+  fixtures.results.push({name:'english-'+name,passed:missing.length===0,untranslated:missing});
+  assert.deepEqual(missing,[],name+' English UI must contain no untranslated system labels');
+  await evaluate("window.MishwarLang.set('ar')");
+ };
  await command('Runtime.enable');await command('Page.enable');await command('Network.enable');
  await command('Network.setBlockedURLs',{urls:['https://*']});await command('Fetch.enable',{patterns:[{urlPattern:'*'}]});
  await command('Page.addScriptToEvaluateOnNewDocument',{source:"try{localStorage.setItem('mishwar-permissions-onboarded-v2','true')}catch{}"});
@@ -108,6 +115,9 @@ try{
   await waitFor("!!document.querySelector('.background-notifications-dialog[open]')",'Guest activation must explain that sign-in is required');
   assert.equal(await evaluate("document.querySelector('#background-notifications-button').disabled"),false);
   await evaluate("document.querySelector('.background-notifications-dialog').close()");
+  if(name==='desktop'){
+   await evaluate('showSettings()');await englishAudit('settings','#modal');await evaluate("document.querySelector('#modal').close();showHelp()");await englishAudit('help','#modal');await evaluate("document.querySelector('#modal').close();window.showRiderLogin()");await englishAudit('login','#modal');await evaluate("document.querySelector('#modal').close()");
+  }
   const shot=await command('Page.captureScreenshot',{format:'png'});writeFileSync(join(artifact,name+'.png'),Buffer.from(shot.data,'base64'));
  }
  // Authentication is simulated only by this loopback server. No real account is created.
@@ -115,11 +125,14 @@ try{
  assert.ok(await evaluate("document.querySelector('#panel').innerText.includes('a-offline-trip'.slice(0,8))"),'Account A trip is restored');
  const originalAccountKey=await evaluate('window.MishwarAccountContext.snapshot().accountKey');
  await evaluate('showAccount()');await waitFor("!!document.querySelector('[data-rider-account-settings]')",'Account security must be reachable from the profile');
+ await englishAudit('profile','#modal');assert.ok(await evaluate("document.querySelector('#modal').innerText.includes('أحمد الاختبار')"),'Arabic user names must remain unchanged');
  await evaluate("document.querySelector('[data-rider-account-settings]').click()");
  await waitFor("!!document.querySelector('#rider-account-change')",'Account settings form must render');
+ await englishAudit('account-security','#modal');
  await evaluate("(()=>{const form=document.querySelector('#rider-account-change');form.elements.kind.value='phone';form.elements.kind.dispatchEvent(new Event('change'));form.elements.oldPassword.value='local-old-password';form.elements.value.value='0500000020';form.requestSubmit()})()");
  await waitFor("!!document.querySelector('#rider-account-code')",'Current phone verification must be required');
  assert.equal(fixtures.accountChange.stage,'old');
+ await englishAudit('account-otp','#modal');
  for(const expected of ['new','approved']){
   await evaluate("(()=>{const form=document.querySelector('#rider-account-code');form.elements.code.value='1234';form.requestSubmit()})()");
   await waitFor(expected==='new'?"document.querySelector('[data-rider-security-view]')?.textContent.includes('تحقق الآن من رقم الجوال الجديد.')":"!!document.querySelector('[data-finish-account-change]')",'Phone proof must advance to '+expected);
@@ -133,11 +146,14 @@ try{
  // A response can be lost after the server has saved a support request.
  await evaluate('window.MishwarSupport.open()');
  await waitFor("!!document.querySelector('[data-support-create]')",'The real help action must open account support');
+ await englishAudit('support-create','#rider-support-dialog');
  await evaluate("(()=>{const form=document.querySelector('[data-support-create]');form.elements.description.value='Offline support draft that must survive a lost response';form.dispatchEvent(new Event('input',{bubbles:true}));form.requestSubmit()})()");
  await waitFor("!!document.querySelector('[data-support-error]')?.textContent",'A failed confirmation must keep the support form');
+ await englishAudit('support-error','#rider-support-dialog');
  assert.equal(await evaluate("document.querySelector('[data-support-create]').elements.description.value"),'Offline support draft that must survive a lost response');
  await evaluate("document.querySelector('[data-support-create]').requestSubmit()");
  await waitFor("document.querySelector('#rider-support-dialog')?.innerText.includes('Local support response')",'A confirmed request must expose the existing support conversation');
+ await englishAudit('support-conversation','#rider-support-dialog');
  assert.equal(fixtures.cases.length,1,'Retrying a lost confirmation must not create a second case');
  const attempts=fixtures.requests.filter(row=>row.action==='live_case_create');assert.equal(attempts.length,2);assert.ok(attempts[0].clientRequestId&&attempts[0].clientRequestId===attempts[1].clientRequestId);
  await evaluate("document.querySelector('#rider-support-dialog').close()");
