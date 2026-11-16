@@ -1,4 +1,5 @@
 import{authenticaReady}from'./authentica.js';
+import{allowedApiOrigin}from'./request-policy.js';
 import{publicPhoneOtp}from'./public-phone-otp.js';
 import{accountSettings}from'./account-settings.js';
 import{emailAuth}from'./email-auth.js';
@@ -41,7 +42,7 @@ export async function freeAuth(env,role,b){try{if(b.action?.startsWith('email-')
 export async function captainAuth(request,env){const url=new URL(request.url);let b={action:url.pathname.split('/').pop()};if(request.method==='POST'){
     // ✅ التعديل الثالث: تعديل شرط فحص الـ Origin ليقبل دومين Vercel
     const origin = request.headers.get('origin');
-    if(origin && origin !== url.origin && origin !== FREE_AUTH_ALLOWED_ORIGIN) {
+    if(origin && !allowedApiOrigin(request,env)) {
         return fj({error:'غير مسموح'},403);
     }
     

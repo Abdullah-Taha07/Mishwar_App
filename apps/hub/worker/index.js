@@ -69,7 +69,7 @@ export async function handleApi(request,env){
     if(request.method==='POST'){
         // ✅ التعديل الثالث: السماح بالطلبات القادمة من Vercel أو من نفس الدومين
         const origin = request.headers.get('origin');
-        if(origin && origin !== url.origin && origin !== ALLOWED_ORIGIN) {
+        if(origin && !allowedApiOrigin(request,env)) {
             return json({error:'طلب غير مسموح.'}, 403);
         }
         
