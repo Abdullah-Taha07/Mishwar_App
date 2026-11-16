@@ -21,3 +21,4 @@ artifacts/rider-repairs-2026-11-15/
 mishwar-backup-before-otp-test.sql
 .wrangler/
 apps/rider/public/rider-auth.js.backup
+apps/hub/tests/staff-security.test.mjs.before-d1-fix.bak

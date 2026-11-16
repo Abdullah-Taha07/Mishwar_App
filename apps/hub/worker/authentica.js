@@ -1,3 +1,4 @@
+import {maintenanceFetch} from './maintenance.js';
 // Authentica is called exclusively from the Worker; never expose the API key to browsers.
 const BASE = 'https://api.authentica.sa/api/v2';
 export const authenticaReady = env => Boolean(env.AUTHENTICA_API_KEY && env.AUTHENTICA_TEMPLATE_ID);
@@ -5,7 +6,7 @@ async function call(env, endpoint, payload) {
   if (!authenticaReady(env)) throw Error('خدمة رسائل الجوال غير مهيأة: راجع AUTHENTICA_TEMPLATE_ID');
   let response;
   try {
-    response = await fetch(`${BASE}/${endpoint}`, {
+    response = await maintenanceFetch(env,`${BASE}/${endpoint}`, {
       method: 'POST',
       headers: { 'X-Authorization': env.AUTHENTICA_API_KEY, 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify(payload), signal: AbortSignal.timeout(15000)

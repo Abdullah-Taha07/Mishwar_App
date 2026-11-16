@@ -8,12 +8,13 @@ const password='private-local-test-password-123';
 function setup(){
  const db=new DatabaseSync(':memory:');db.exec(readFileSync(new URL('../drizzle/0021_staff_security.sql',import.meta.url),'utf8'));
  const env={CAPTAIN_ADMIN_EMAIL:'owner@example.test',DB:{
-  prepare(sql){const bind=(...args)=>{const q=db.prepare(sql);return {
+  prepare(sql){const bind=(...args)=>{const q=db.prepare(sql);return {reader:q.columns().length>0,
+   execute(){if(q.columns().length>0)return {results:q.all(...args)};const v=q.run(...args);return {meta:{changes:Number(v.changes)}}},
    async first(){return q.get(...args)||null},
    async all(){return {results:q.all(...args)}},
    async run(){const v=q.run(...args);return {meta:{changes:Number(v.changes)}}}
   };};return {bind,...bind()};},
-  async batch(items){db.exec('BEGIN');try{const result=await Promise.all(items.map(i=>i.run()));db.exec('COMMIT');return result}catch(e){db.exec('ROLLBACK');throw e;}}
+  async batch(items){db.exec('BEGIN');try{const result=items.map(i=>i.execute());db.exec('COMMIT');return result}catch(e){db.exec('ROLLBACK');throw e;}}
  }};
  const req=(action,body)=>new Request('https://local.test/internal/administration/staff-auth/'+action,{method:'POST',headers:{'Content-Type':'application/json','user-agent':'local test browser'},body:JSON.stringify(body)});
  const auth=(action,body)=>staffAuth(req(action,body),env);
@@ -26,6 +27,18 @@ async function account(ctx,policy='account'){
 }
 async function login(ctx){const r=await ctx.auth('login',{email:'employee@example.test',password});return [r,await r.json()];}
 const operation=(body,approval)=>new Request('https://local.test/api/admin/commerce/withdrawals',{method:'POST',headers:{'Content-Type':'application/json',...(approval?{'x-staff-approval':approval}:{})},body:JSON.stringify(body)});
+
+test('staff D1 fixture batches preserve SELECT results and roll back every preceding write on failure',async()=>{
+ const c=setup();
+ try{
+  c.db.exec('CREATE TABLE fixture_atomic_probe(id INTEGER PRIMARY KEY, amount INTEGER CHECK(amount>=0))');
+  const result=await c.env.DB.batch([c.env.DB.prepare('INSERT INTO fixture_atomic_probe VALUES(1,10)'),c.env.DB.prepare('SELECT amount FROM fixture_atomic_probe WHERE id=1')]);
+  assert.equal(result[0].meta.changes,1);assert.equal(result[1].results[0].amount,10);
+  await assert.rejects(c.env.DB.batch([c.env.DB.prepare('UPDATE fixture_atomic_probe SET amount=20 WHERE id=1'),c.env.DB.prepare('SELECT amount FROM fixture_atomic_probe'),c.env.DB.prepare('INSERT INTO fixture_atomic_probe VALUES(2,-1)')]));
+  assert.equal(c.db.prepare('SELECT amount FROM fixture_atomic_probe WHERE id=1').get().amount,10);
+  assert.equal(c.db.prepare('SELECT COUNT(*) AS n FROM fixture_atomic_probe').get().n,1);
+ }finally{c.db.close()}
+});
 
 test('pending accounts default to no permissions and cannot log in',async()=>{const c=setup();await c.admin('accounts',{name:'Employee',email:'employee@example.test',role:'support',password});assert.equal((await login(c))[0].status,401);const row=c.db.prepare('SELECT * FROM staff_accounts').get();assert.equal(row.status,'pending');assert.equal(row.permissions,'[]');assert.equal(row.max_seconds,14400);assert.equal(row.idle_seconds,900);assert.equal(row.policy,'device');assert.notEqual(row.password_hash,password);c.db.close();});
 test('wrong password and unknown account have the same response',async()=>{const c=setup();await account(c);const a=await c.auth('login',{email:'employee@example.test',password:'incorrect'}),b=await c.auth('login',{email:'unknown@example.test',password:'incorrect'});assert.equal(a.status,401);assert.deepEqual(await a.json(),await b.json());c.db.close();});
@@ -72,7 +85,7 @@ test('bundled Worker gateway enforces service authentication and staff identity 
  c.env.ADMIN_SERVICE_KEY='offline-gateway-key';c.env.BUCKET={};await account(c);const [,d]=await login(c);
  const request=(path,{token=d.sessionToken,key=c.env.ADMIN_SERVICE_KEY}={})=>new Request('https://offline.test'+path,{headers:{'x-mishwar-key':key,'x-mishwar-staff-session':token,'oai-authenticated-user-email':'owner@example.test','oai-authenticated-user-id':'forged-owner'}});
  assert.equal((await gateway.fetch(request('/internal/administration/operations/support',{key:'wrong'}),c.env,{})).status,403);
- assert.equal((await gateway.fetch(request('/internal/administration/operations/support'),c.env,{})).status,200);
+ const supportResponse=await gateway.fetch(request('/internal/administration/operations/support'),c.env,{});assert.equal(supportResponse.status,200);
  assert.equal((await gateway.fetch(request('/internal/administration/operations/riders'),c.env,{})).status,403);
  assert.equal((await gateway.fetch(request('/internal/administration/security/accounts'),c.env,{})).status,403);
  assert.equal((await gateway.fetch(request('/api/admin/operations/support'),c.env,{})).status,403);

@@ -1,3 +1,4 @@
+import {maintenanceFetch} from './maintenance.js';
 import{registerNativeDevice,notifyNative}from'./native-push.js';
 import{realtimePublish}from'./realtime.js';
 import { riderSession, tokenHash } from "./rider-auth.js";
@@ -89,7 +90,7 @@ export async function sendSignal(env, row) {
     return;
 
   try {
-    const response = await fetch(row.endpoint, {
+    const response = await maintenanceFetch(env,row.endpoint, {
       method: "POST",
       headers: {
         Authorization: await pushAuthorization(env, row.endpoint),

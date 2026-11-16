@@ -1,3 +1,4 @@
+import {maintenanceFetch} from './maintenance.js';
 import {passwordDigest,publicSession} from './free-auth.js';
 import {tokenHash} from './rider-auth.js';
 const reply=(data,status=200)=>new Response(JSON.stringify(data),{status,headers:{'Content-Type':'application/json','Cache-Control':'no-store'}});
@@ -5,7 +6,7 @@ const hex=()=>[...crypto.getRandomValues(new Uint8Array(32))].map(v=>v.toString(
 const validEmail=e=>typeof e==='string'&&e.length<=150&&/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
 const validPassword=p=>typeof p==='string'&&p.length>=8&&p.length<=128;
 const appUrl=role=>role==='rider'?'https://mishwar-rider.vercel.app':'https://mishwar-captain.vercel.app';
-async function send(env,to,subject,html){if(!env.RESEND_API_KEY||!env.MISHWAR_EMAIL_FROM)throw Error('إرسال البريد غير مهيأ على الخادم');const r=await fetch('https://api.resend.com/emails',{method:'POST',headers:{Authorization:'Bearer '+env.RESEND_API_KEY,'Content-Type':'application/json'},body:JSON.stringify({from:env.MISHWAR_EMAIL_FROM,to:[to],subject,html}),signal:AbortSignal.timeout(10000)});if(!r.ok)throw Error('تعذر إرسال البريد الآن')}
+async function send(env,to,subject,html){if(!env.RESEND_API_KEY||!env.MISHWAR_EMAIL_FROM)throw Error('إرسال البريد غير مهيأ على الخادم');const r=await maintenanceFetch(env,'https://api.resend.com/emails',{method:'POST',headers:{Authorization:'Bearer '+env.RESEND_API_KEY,'Content-Type':'application/json'},body:JSON.stringify({from:env.MISHWAR_EMAIL_FROM,to:[to],subject,html}),signal:AbortSignal.timeout(10000)});if(!r.ok)throw Error('تعذر إرسال البريد الآن')}
 async function throttle(env,role,action,key){const bucket='email:'+role+':'+action+':'+await tokenHash(key)+':'+Math.floor(Date.now()/900000);const row=await env.DB.prepare('INSERT INTO access_rate_limits VALUES(?,1) ON CONFLICT(bucket) DO UPDATE SET n=n+1 RETURNING n').bind(bucket).first();if(row.n>5)throw Error('طلبات كثيرة. حاول بعد ١٥ دقيقة')}
 // These statements precede an email update in the same batch. Invalidating
 // tokens prevents changing A -> B -> A from reviving an old delivery link.

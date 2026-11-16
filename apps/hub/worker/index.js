@@ -1,4 +1,5 @@
 import {allowedApiOrigin, apiPreflight, withApiCors} from './request-policy.js';
+import {acquireMaintenanceScope,maintenanceReply,maintenanceSnapshot} from './maintenance.js';
 import {staffAuth,authenticateStaff,guardStaff,securityAdmin,audit as staffAudit,reply as staffReply} from './staff-security.js';
 import{renewDocument}from'./document-renewal.js';
 import{sharedTrip,providerReadiness}from'./launch-features.js';import{runPlatformJobs}from'./launch-operations.js';import{commercialPlaces}from'./commercial-maps.js';
@@ -295,19 +296,49 @@ const worker = {
 export default {
     async fetch(request,env,ctx){
         const started=Date.now();
-        const publicApi=new URL(request.url).pathname.startsWith('/api/');
+        const path=new URL(request.url).pathname,publicApi=path.startsWith('/api/');
         if(publicApi&&request.method==='OPTIONS')return apiPreflight(request,env);
         if(publicApi&&request.headers.has('origin')&&!allowedApiOrigin(request,env))return new Response(JSON.stringify({error:'غير مسموح'}),{status:403,headers:{'Content-Type':'application/json','Cache-Control':'no-store',Vary:'Origin'}});
-        const response=await worker.fetch(request,{...env,__ctx:ctx},ctx);
-        const path=new URL(request.url).pathname;
-        if(env.DB && ctx?.waitUntil && /^(?:\/api|\/internal)\//.test(path) && Math.random()<0.1){
-            ctx.waitUntil(env.DB.prepare('INSERT INTO request_metrics VALUES(?,?,?,?,?)')
-                .bind(crypto.randomUUID(),path,response.status,Date.now()-started,new Date().toISOString())
-                .run().catch(()=>{}));
+        // These exact paths do not authenticate, write metrics, or run jobs.
+        if(path==='/api/maintenance'&&request.method==='GET'){
+            try{const state=await maintenanceSnapshot(env.DB);return withApiCors(json({ready:state.mode==='open',mode:state.mode},state.mode==='open'?200:503),request,env)}
+            catch{return withApiCors(maintenanceReply(),request,env)}
         }
-        return publicApi?withApiCors(response,request,env):response;
+        if(path==='/api/health'&&request.method==='GET'){
+            try{
+                const state=await maintenanceSnapshot(env.DB),response=await worker.fetch(request,env,ctx);
+                if(state.mode!=='open')return withApiCors(json({ready:false,maintenance:true,mode:state.mode,schemaReady:response.ok},503),request,env);
+                return withApiCors(response,request,env);
+            }
+            catch{return withApiCors(maintenanceReply(),request,env)}
+        }
+        const assetPath=path==='/install'?'/install.html':path==='/launch'?'/index.html':path;
+        if(request.method==='GET'&&['/dashboard','/dashboard.html'].includes(path)&&!env.DB&&!/(?:^|;\s*)__Host-mishwar_captain=[a-f0-9]{64}(?:;|$)/.test(request.headers.get('cookie')||''))return Response.redirect(new URL(request.url).origin+'/launch?login=1#login',302);
+        if(!['/','/dashboard','/dashboard.html'].includes(path)&&!/^\/(?:api|internal)(?:\/|$)/.test(path)&&!['/admin','/admin/','/admin.html'].includes(path)&&typeof ASSETS!=='undefined'){if(ASSETS[assetPath])return worker.fetch(request,env,ctx);return new Response('Not Found',{status:404});}
+        let scope;
+        try{
+            scope=await acquireMaintenanceScope(env,ctx,'request');
+            const response=await worker.fetch(request,scope.env,scope.ctx);
+            if(scope.blocked)return publicApi?withApiCors(maintenanceReply(),request,env):maintenanceReply();
+            if(scope.env.DB && ctx?.waitUntil && /^(?:\/api|\/internal)\//.test(path) && Math.random()<0.1){
+                scope.ctx.waitUntil(scope.env.DB.prepare('INSERT INTO request_metrics VALUES(?,?,?,?,?)')
+                    .bind(crypto.randomUUID(),path,response.status,Date.now()-started,new Date().toISOString())
+                    .run().catch(()=>{}));
+            }
+            return publicApi?withApiCors(response,request,env):response;
+        }catch(error){
+            const response=error?.code==='MAINTENANCE_UNAVAILABLE'||!scope?maintenanceReply():json({error:'تعذر إكمال العملية الآن. أعد المحاولة لاحقًا.'},500);
+            return publicApi?withApiCors(response,request,env):response;
+        }
+        finally{
+            if(scope){const finish=scope.finish().catch(()=>{});if(ctx?.waitUntil)ctx.waitUntil(finish);else await finish}
+        }
     },
     async scheduled(_event,env,ctx){
-        if(env.SCHEDULER_ENABLED==='true')await runPlatformJobs(env,ctx);
+        if(env.SCHEDULER_ENABLED!=='true')return;
+        let scope;
+        try{scope=await acquireMaintenanceScope(env,ctx,'scheduled');await runPlatformJobs(scope.env,scope.ctx)}
+        catch(error){if(error?.code!=='MAINTENANCE_UNAVAILABLE')throw error}
+        finally{if(scope){const finish=scope.finish().catch(()=>{});if(ctx?.waitUntil)ctx.waitUntil(finish);else await finish}}
     },
 };

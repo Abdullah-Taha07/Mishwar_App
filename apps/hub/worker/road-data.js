@@ -1,3 +1,4 @@
+import {maintenanceFetch} from './maintenance.js';
 export function checkedRouteSnapshot(route,{distinct=true}={}){
  if(!route||!Number.isFinite(route.distanceMeters)||!Number.isFinite(route.durationSeconds)||route.distanceMeters<0||route.durationSeconds<0||route.distanceMeters>10000000||route.durationSeconds>604800)throw Error('بيانات الطريق غير موثوقة. أعد حساب المسار.');
  if(distinct&&(!route.distanceMeters||!route.durationSeconds))throw Error('لا يوجد مسار قيادة موثوق بين الموقعين.');
@@ -12,11 +13,11 @@ export function assertPriceableRoute(env,route){
  if((route.demoProvider||route.provider==='OSRM'&&!env.OSRM_BASE_URL)&&env.ALLOW_PUBLIC_ROUTE_QUOTES!=='true')throw Error('الحجز ينتظر إعداد مزود توجيه معتمد. لا يوجد سعر قابل للتأكيد حاليًا.');
  return route;
 }
-export async function boundedRoadJson(url,options={},timeoutMs=8000){
+export async function boundedRoadJson(url,options={},timeoutMs=8000,env={}){
  const controller=new AbortController();let timer;
  const deadline=new Promise((_,reject)=>{timer=setTimeout(()=>{const error=Error('انتهت مهلة خدمة الطريق. أعد المحاولة.');error.name='TimeoutError';reject(error);controller.abort()},timeoutMs)});
  const work=(async()=>{
-  const response=await fetch(url,{...options,redirect:'error',signal:controller.signal});
+  const response=await maintenanceFetch(env,url,{...options,redirect:'error',signal:controller.signal});
   if(!response.ok)throw Error('تعذر جلب مسار قيادة موثوق. أعد المحاولة.');
   return response.json();
  })();
