@@ -1,0 +1,103 @@
+{
+  "date": "2026-11-16",
+  "sourceBase": "a4fa59a4abbddbafe02d9d62b5f831bacca84ad7",
+  "full": {
+    "tests": [
+      207,
+      157,
+      21
+    ],
+    "pass": [
+      207,
+      157,
+      21
+    ],
+    "fail": [
+      0,
+      0,
+      0
+    ],
+    "skipped": [
+      0,
+      0,
+      0
+    ]
+  },
+  "operations": {
+    "tests": [
+      19
+    ],
+    "pass": [
+      19
+    ],
+    "fail": [
+      0
+    ],
+    "skipped": [
+      0
+    ]
+  },
+  "browser": {
+    "passed": true,
+    "scenarios": 22,
+    "exceptions": 0,
+    "artifact": "artifacts/rider-repairs-2026-11-15/browser-1794847918155"
+  },
+  "staticContracts": {
+    "passed": 19,
+    "total": 19
+  },
+  "legacyLinkAudit": "passed",
+  "backup": {
+    "verified": true,
+    "sha256": "b12c05319f0fdfddf60c0a73f24a3001463762a390ac251ed7b7c0ab32b28ca7",
+    "bytes": 128519,
+    "tables": 84,
+    "rows": 351,
+    "checkedAt": "2026-11-16T17:03:46.219Z",
+    "independentDisks": false
+  },
+  "rehearsal": {
+    "passed": true,
+    "applied": [
+      "0022_email_token_identity.sql",
+      "0023_account_support_requests.sql"
+    ],
+    "checks": {
+      "originalDataPreserved": true,
+      "sequencePreserved": true,
+      "foreignKeys": true,
+      "integrity": true,
+      "accountSupport": true,
+      "duplicateMessageRejected": true,
+      "duplicateTripMessageRejected": true,
+      "orphanMessageRejected": true,
+      "orphanCaseRejected": true,
+      "persistedDatabaseReopened": true,
+      "sourceUnchanged": true
+    }
+  },
+  "productionChanges": false,
+  "wranglerLocal": {
+    "verified": false,
+    "completedAttempt": "isolated-local-restore-failed-EPIPE",
+    "escalatedRetry": "not-completed",
+    "meaning": "runtime-evidence-pending; not evidence of corrupt SQL"
+  },
+  "externalR09Delivery": false,
+  "r09LivePreflight": {
+    "scope": "read-only-production",
+    "checkedAt": "2026-11-16T17:09:53.857Z",
+    "ownerSuppliedPhoneAlreadyVerifiedForBothRoles": true,
+    "emailBindingNamesPresent": false,
+    "recipientValuesIncludedInRepository": false,
+    "messagesSent": false
+  },
+  "changedSourceSafetyCheck": {
+    "passed": true,
+    "files": 20,
+    "privateArtifactOrRecipientOrCredentialPatternFindings": 0,
+    "scope": "changed-and-added-source-only; heuristic; does-not-clear-public-history"
+  },
+  "privateArtifactsRemainOnDisk": true
+}
