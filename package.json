@@ -10,7 +10,8 @@
     "build": "node scripts/run.mjs build",
     "audit:source": "node scripts/release-audit.mjs",
     "test:source": "node scripts/run.mjs test",
-    "test:ops": "node --test scripts/tests/*.test.mjs"
+    "test:ops": "node --test scripts/tests/*.test.mjs",
+    "test:security": "node --test scripts/security/*.test.mjs"
   },
   "devDependencies": {
     "esbuild": "^0.28.2"
