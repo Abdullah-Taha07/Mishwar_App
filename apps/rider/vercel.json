@@ -1,7 +1,19 @@
 {
   "version": 2,
   "buildCommand": "npm run build",
-  "outputDirectory": "public",
+  "outputDirectory": "dist/public",
+  "headers": [
+    {
+      "source": "/sw.js",
+      "headers": [
+        {"key": "Cache-Control", "value": "no-store"},
+        {"key": "Service-Worker-Allowed", "value": "/"}
+      ]
+    },
+    {"source": "/version.json", "headers": [{"key": "Cache-Control", "value": "no-store"}]},
+    {"source": "/", "headers": [{"key": "Cache-Control", "value": "no-store"}]},
+    {"source": "/:path*.html", "headers": [{"key": "Cache-Control", "value": "no-store"}]}
+  ],
   "functions": {
     "api/**/*.js": {
       "maxDuration": 60

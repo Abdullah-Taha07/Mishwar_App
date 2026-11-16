@@ -58,19 +58,21 @@ const browser=spawn(browserPath,['--headless=new','--disable-gpu','--no-first-ru
 let ws;const wait=ms=>new Promise(r=>setTimeout(r,ms));
 const timeout=setTimeout(()=>{browser.kill();console.error('Offline browser smoke timed out');process.exit(2)},60000);timeout.unref();
 try{
- let port;for(let i=0;i<80;i++){if(existsSync(join(browserProfile,'DevToolsActivePort'))){port=readFileSync(join(browserProfile,'DevToolsActivePort'),'utf8').split('\n')[0];break;}await wait(100);}assert.ok(port,'Chromium debugging endpoint must start');
+ let port;for(let i=0;i<80;i++){try{port=readFileSync(join(browserProfile,'DevToolsActivePort'),'utf8').split('\n')[0];if(/^\d+$/.test(port))break;}catch(error){if(!['ENOENT','EBUSY','EACCES'].includes(error.code))throw error;}await wait(100);}assert.ok(/^\d+$/.test(port||''),'Chromium debugging endpoint must start');
  const tabs=await(await fetch('http://127.0.0.1:'+port+'/json/list',{signal:AbortSignal.timeout(5000)})).json();
  ws=new WebSocket(tabs.find(t=>t.type==='page').webSocketDebuggerUrl);await new Promise((r,j)=>{ws.onopen=r;ws.onerror=j;setTimeout(()=>j(Error('Debug socket timeout')),5000).unref()});
  let sequence=0;const pending=new Map();
  const command=(method,params={})=>new Promise((resolve,reject)=>{const id=++sequence,timer=setTimeout(()=>{pending.delete(id);reject(Error('CDP timeout: '+method))},8000);pending.set(id,{resolve:v=>{clearTimeout(timer);resolve(v)},reject:e=>{clearTimeout(timer);reject(e)}});ws.send(JSON.stringify({id,method,params}));});
  ws.onmessage=e=>{const m=JSON.parse(e.data);if(m.id){const p=pending.get(m.id);pending.delete(m.id);m.error?p?.reject(Error(JSON.stringify(m.error))):p?.resolve(m.result);}else if(m.method==='Runtime.exceptionThrown')fixtures.exceptions.push(m.params.exceptionDetails);else if(m.method==='Fetch.requestPaused'){const r=m.params,u=new URL(r.request.url);if(u.hostname!=='127.0.0.1'){fixtures.blocked.push(r.request.url);command('Fetch.failRequest',{requestId:r.requestId,errorReason:'BlockedByClient'}).catch(()=>{});}else command('Fetch.continueRequest',{requestId:r.requestId}).catch(()=>{});}};
  const evaluate=async expression=>{const r=await command('Runtime.evaluate',{expression,returnByValue:true,awaitPromise:true});if(r.exceptionDetails)throw Error(JSON.stringify(r.exceptionDetails));return r.result.value;};
+ const waitFor=async(expression,message)=>{const deadline=Date.now()+10000;while(Date.now()<deadline){if(await evaluate(expression))return;await wait(100);}throw Error(message);};
+ const navigate=async url=>{const mark='leaving-'+Date.now();await evaluate(`document.documentElement.dataset.offlineNavigation=${JSON.stringify(mark)}`);await command('Page.navigate',{url});await waitFor(`document.documentElement?.dataset.offlineNavigation!==${JSON.stringify(mark)}&&document.readyState==='complete'`,'New document must finish loading');};
  await command('Runtime.enable');await command('Page.enable');await command('Network.enable');
  await command('Network.setBlockedURLs',{urls:['https://*']});await command('Fetch.enable',{patterns:[{urlPattern:'*'}]});
  await command('Page.addScriptToEvaluateOnNewDocument',{source:"try{localStorage.setItem('mishwar-permissions-onboarded-v2','true')}catch{}"});
  for(const [name,width,height]of[['desktop',1440,1000],['mobile',390,844],['short-mobile',390,640]]){
   await command('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:width<600});
-  await command('Page.navigate',{url:origin});await wait(650);
+  await navigate(origin);await waitFor("window.MishwarAccountContext?.snapshot().status==='ready'&&document.querySelectorAll('.launch-home-tools button').length===4",name+' home and account must finish rendering');
   const home=await evaluate("({width:innerWidth,scroll:document.documentElement.scrollWidth,buttons:[...document.querySelectorAll('.launch-home-tools button')].map(e=>{const r=e.getBoundingClientRect();return {label:e.textContent,clickable:document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)?.closest('button')===e}})})");
   assert.equal(home.scroll,home.width);assert.equal(home.buttons.length,4);assert.ok(home.buttons.every(b=>b.clickable));
   fixtures.results.push({name,home});
@@ -78,7 +80,7 @@ try{
   const shot=await command('Page.captureScreenshot',{format:'png'});writeFileSync(join(artifact,name+'.png'),Buffer.from(shot.data,'base64'));
  }
  // Authentication is simulated only by this loopback server. No real account is created.
- fixtures.owner='a';await command('Page.navigate',{url:origin});await wait(750);
+ fixtures.owner='a';await navigate(origin);await waitFor("document.querySelector('#panel')?.innerText.includes('a-offline-trip'.slice(0,8))",'Account A trip must finish restoring');
  assert.ok(await evaluate("document.querySelector('#panel').innerText.includes('a-offline-trip'.slice(0,8))"),'Account A trip is restored');
  await evaluate('showAccount()');await wait(50);await evaluate("document.querySelector('#rider-logout').click()");await wait(500);
  assert.equal(await evaluate('window.mishwarTripActive'),false);
@@ -88,13 +90,14 @@ try{
  assert.equal(await evaluate('window.mishwarTripActive'),false);
  assert.equal(await evaluate("document.body.innerText.includes('a private pickup')"),false);
  fixtures.results.push({name:'account-switch',passed:true});
- await command('Page.navigate',{url:origin+'/track.html#'+'a'.repeat(64)});await wait(500);
+ await navigate(origin+'/track.html#'+'a'.repeat(64));await waitFor("!!document.querySelector('.leaflet-marker-icon')",'Shared trip markers must render');
  await evaluate("document.querySelectorAll('.leaflet-marker-icon').forEach(e=>e.dispatchEvent(new MouseEvent('mouseover',{bubbles:true})))");await wait(150);
  assert.equal(await evaluate('window.offlineAuditXss===true'),false);
  assert.ok(await evaluate("document.querySelector('.leaflet-tooltip')?.textContent.includes('<img')"),'Untrusted tooltip content is visible as text');
  fixtures.results.push({name:'shared-tooltip-text-only',passed:true});
- if(pwaRequired){await command('Page.navigate',{url:origin});await wait(750);const registration=await evaluate('navigator.serviceWorker.getRegistration().then(r=>({active:!!r?.active}))');assert.equal(registration.active,true);fixtures.results.push({name:'service-worker-active',passed:true});}
- const allowed=pwaRequired?new Set(['/favicon.ico']):new Set(['/favicon.ico','/auto-verification.js','/vendor/images/marker-icon.png','/vendor/images/marker-icon-2x.png','/vendor/images/marker-shadow.png']);
+ if(pwaRequired){await navigate(origin);await waitFor("navigator.serviceWorker.getRegistration().then(r=>!!r?.active)",'Published service worker must become active');fixtures.results.push({name:'service-worker-active',passed:true});}
+ // R15 remains a known asset gap in the basic smoke; --pwa requires every image.
+ const allowed=pwaRequired?new Set(['/favicon.ico']):new Set(['/favicon.ico','/vendor/images/marker-icon.png','/vendor/images/marker-icon-2x.png','/vendor/images/marker-shadow.png']);
  const missing=[...new Set(fixtures.missing)].filter(x=>!allowed.has(x));
  assert.deepEqual(missing,[],'No unintended missing local assets');assert.deepEqual(fixtures.exceptions,[],'No uncaught JavaScript exceptions');
  console.log(JSON.stringify({passed:true,artifact,results:fixtures.results,missing:[...new Set(fixtures.missing)]},null,2));

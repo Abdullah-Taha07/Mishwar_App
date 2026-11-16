@@ -11,7 +11,7 @@ const response=(data,status=200)=>({ok:status>=200&&status<300,status,json:async
 const trip=(id='trip-A')=>({id,status:'riding',driver_id:'captain-A',pickup:{name:'Private pickup '+id,lat:24.7,lng:46.6},destination:{name:'Private destination '+id,lat:24.71,lng:46.61},fare_halalas:2400,discount_halalas:0,method:'cash',payment_status:'cash_due'});
 const live=(owner,ride=null)=>({accountKey:owner,verified:!!owner,trip:ride,recentTrip:null,wallet:{balance:owner===A?43210:0,entries:[]},payments:{cash:true,wallet:true,card:false,applepay:false},ratings:{average:4.5,receivedCount:1}});
 
-function harness({owner=A,ride=trip(),auth=true,extra=[]}={}){
+function harness({owner=A,ride=trip(),auth=true,extra=[],htmlOrder=false}={}){
   const listeners=new Map(),elements=new Map(),calls=[],events=[],notices=[],storage=new Map(),intervals=[];
   const node=selector=>{
     if(elements.has(selector))return elements.get(selector);
@@ -32,12 +32,31 @@ function harness({owner=A,ride=trip(),auth=true,extra=[]}={}){
   };
   sandbox.window=sandbox;
   vm.createContext(sandbox);
-  vm.runInContext(file('account-context.js'),sandbox,{filename:'account-context.js'});
-  vm.runInContext(file('live-booking.js'),sandbox,{filename:'live-booking.js'});
-  for(const name of extra)vm.runInContext(file(name),sandbox,{filename:name});
-  if(auth)vm.runInContext(file('rider-auth.js'),sandbox,{filename:'rider-auth.js'});
+  if(htmlOrder){
+    // Follow the real entry point: manually supplying the context hid a broken boot.
+    const required=['account-context.js','live-booking.js','rider-auth.js'];
+    const scripts=[...file('index.html').matchAll(/<script\b[^>]*\bsrc="([^"]+)"[^>]*>/g)]
+      .map(match=>new URL(match[1],'https://offline.test').pathname.slice(1))
+      .filter(name=>required.includes(name));
+    assert.equal(scripts.length,required.length,'entry point must include each account bootstrap script');
+    for(const name of scripts)vm.runInContext(file(name),sandbox,{filename:name});
+  }else{
+    vm.runInContext(file('account-context.js'),sandbox,{filename:'account-context.js'});
+    vm.runInContext(file('live-booking.js'),sandbox,{filename:'live-booking.js'});
+    for(const name of extra)vm.runInContext(file(name),sandbox,{filename:name});
+    if(auth)vm.runInContext(file('rider-auth.js'),sandbox,{filename:'rider-auth.js'});
+  }
   return {c:sandbox,state,calls,events,notices,storage,elements,node,intervals,listeners,load:name=>vm.runInContext(file(name),sandbox,{filename:name}),async click(attribute){const button={dataset:{},hasAttribute:key=>key===attribute};const event={target:{closest:()=>button}};await Promise.all((listeners.get('document:click')||[]).map(fn=>fn(event)))},async change(next){state.owner=next;const context=sandbox.MishwarAccountContext,ticket=context.beginAuthRead();context.applyAuth(next?{authenticated:true,accountKey:next,phoneVerified:true}:{authenticated:false,accountKey:null},ticket);context.notifyAuth();await flush()}};
 }
+
+test('HTML bootstrap initializes account ownership and restores its signed-in trip',async()=>{
+  const h=harness({htmlOrder:true});
+  await flush();
+  assert.equal(h.c.MishwarAccountContext.snapshot().accountKey,A);
+  assert.equal(h.c.mishwarTripActive,true);
+  assert.ok(h.calls.some(call=>call.body?.action==='live_session'));
+  assert.match(h.node('#panel').innerHTML,/trip-A/);
+});
 
 test('bootstrap waits for account ownership and restores the signed-in current trip',async()=>{
   const h=harness({auth:false});
