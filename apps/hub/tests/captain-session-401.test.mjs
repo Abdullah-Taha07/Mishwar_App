@@ -36,6 +36,6 @@ test('a 401 stops subsequent network calls in the client, without a reload loop'
 });
 test('background avoids unauthorized subscription calls when captain session is absent/inactive',()=>{
  const code=read('public/app-background.js');
- assert.match(code,/fetch\('\/api\/auth\/session'/);
+ assert.match(code,/['"]\/api\/auth\/session['"]/);
  assert.match(code,/!session.authenticated\|\|!session.phoneVerified\|\|session.application\?\.status!=='active'/);
 });

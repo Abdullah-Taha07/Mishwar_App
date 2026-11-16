@@ -84,8 +84,14 @@ try{
   await navigate(origin);await waitFor("window.MishwarAccountContext?.snapshot().status==='ready'&&document.querySelectorAll('.launch-home-tools button').length===4",name+' home and account must finish rendering');
   const home=await evaluate("({width:innerWidth,scroll:document.documentElement.scrollWidth,buttons:[...document.querySelectorAll('.launch-home-tools button')].map(e=>{const r=e.getBoundingClientRect();return {label:e.textContent,clickable:document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)?.closest('button')===e}})})");
   assert.equal(home.scroll,home.width);assert.equal(home.buttons.length,4);assert.ok(home.buttons.every(b=>b.clickable));
+  const background=await evaluate("(()=>{const button=document.querySelector('#background-notifications-button'),rect=button?.getBoundingClientRect();return {visible:!!rect&&rect.width>0&&rect.height>0&&getComputedStyle(button).display!=='none',clickable:!!rect&&document.elementFromPoint(rect.x+rect.width/2,rect.y+rect.height/2)?.closest('button')===button}})()");
+  assert.equal(background.visible,true,name+' background activation entry must be visible');assert.equal(background.clickable,true,name+' background activation entry must be clickable');
   fixtures.results.push({name,home});
   await evaluate('showHelp()');await wait(50);assert.ok(await evaluate("document.querySelector('#modal').open"));await evaluate("document.querySelector('#modal').close();showSettings()");await wait(50);assert.ok(await evaluate("document.querySelector('#modal').open"));await evaluate("document.querySelector('#modal').close();window.MishwarLang.set('en')");await wait(50);assert.equal(await evaluate('document.documentElement.dir'),'ltr');await evaluate("window.MishwarLang.set('ar')");assert.equal(await evaluate('document.documentElement.dir'),'rtl');
+  await evaluate("document.querySelector('#modal').close();document.querySelector('#background-notifications-button').click()");
+  await waitFor("!!document.querySelector('.background-notifications-dialog[open]')",'Guest activation must explain that sign-in is required');
+  assert.equal(await evaluate("document.querySelector('#background-notifications-button').disabled"),false);
+  await evaluate("document.querySelector('.background-notifications-dialog').close()");
   const shot=await command('Page.captureScreenshot',{format:'png'});writeFileSync(join(artifact,name+'.png'),Buffer.from(shot.data,'base64'));
  }
  // Authentication is simulated only by this loopback server. No real account is created.
