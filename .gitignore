@@ -9,3 +9,14 @@ build/
 local.properties
 *.keystore
 *.jks
+.local-backups/
+.local-verification/
+**/mishwar-db-backup-*.sql
+**/mishwar-db-backup-*.sql.*
+**/persistence-probe-*.sql*
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+artifacts/rider-repairs-2026-11-15/
+mishwar-backup-before-otp-test.sql
+.wrangler/
