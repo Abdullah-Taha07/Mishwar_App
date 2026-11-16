@@ -9,7 +9,8 @@
     "test": "node scripts/run.mjs build && node scripts/run.mjs test",
     "build": "node scripts/run.mjs build",
     "audit:source": "node scripts/release-audit.mjs",
-    "test:source": "node scripts/run.mjs test"
+    "test:source": "node scripts/run.mjs test",
+    "test:ops": "node --test scripts/tests/*.test.mjs"
   },
   "devDependencies": {
     "esbuild": "^0.28.2"
