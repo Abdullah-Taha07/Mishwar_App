@@ -28,7 +28,9 @@ function fixture(t) {
 
 test('Vercel and Worker publish the same rendered service worker and omit private artifacts', async t => {
   const f = fixture(t);
-  const privateFiles = ['rider-auth.js.backup', '.env', '.env.production', 'private.bak.js', 'backup/leak.js', '.hidden/leak.js', 'database.sql'];
+  const privateFiles = ['rider-auth.js.backup', '.env', '.env.production', 'private.bak.js', 'backup/leak.js', '.hidden/leak.js', 'database.sql',
+    'rider-auth.js.backup-esbuild.js', 'rider-auth.js.before-otp.js', 'app.old.js', 'app.orig.js', 'app.save.js', 'app~.js',
+    'backup-2026/leak.js', 'env.json', 'production.env.js', 'secrets.json', 'credentials.json', 'secret-config.js'];
   for (const file of privateFiles) {
     mkdirSync(dirname(join(f.root, 'public', file)), {recursive: true});
     writeFileSync(join(f.root, 'public', file), 'private fixture: must never publish');

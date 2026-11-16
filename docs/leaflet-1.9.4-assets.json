@@ -1,0 +1,46 @@
+{
+  "package": "leaflet",
+  "version": "1.9.4",
+  "source": "https://registry.npmjs.org/leaflet/-/leaflet-1.9.4.tgz",
+  "upstream": "https://github.com/Leaflet/Leaflet/tree/v1.9.4/dist/images",
+  "integrity": "sha512-nxS1ynzJOmOlHp+iL3FyWqK89GtNL8U8rvlMOsQdTTssxZwCXh8N2NB3GDQOL+YR3XnWyZAxwQixURb+FA74PA==",
+  "license": "BSD-2-Clause; apps/rider/public/vendor/LEAFLET-LICENSE.txt",
+  "verification": "Archive integrity verified; installed JS, CSS and license match this package after LF/CRLF normalization. Images copied byte for byte.",
+  "files": [
+    {
+      "name": "layers.png",
+      "bytes": 696,
+      "width": 26,
+      "height": 26,
+      "sha256": "1dbbe9d028e292f36fcba8f8b3a28d5e8932754fc2215b9ac69e4cdecf5107c6"
+    },
+    {
+      "name": "layers-2x.png",
+      "bytes": 1259,
+      "width": 52,
+      "height": 52,
+      "sha256": "066daca850d8ffbef007af00b06eac0015728dee279c51f3cb6c716df7c42edf"
+    },
+    {
+      "name": "marker-icon.png",
+      "bytes": 1466,
+      "width": 25,
+      "height": 41,
+      "sha256": "574c3a5cca85f4114085b6841596d62f00d7c892c7b03f28cbfa301deb1dc437"
+    },
+    {
+      "name": "marker-icon-2x.png",
+      "bytes": 2464,
+      "width": 50,
+      "height": 82,
+      "sha256": "00179c4c1ee830d3a108412ae0d294f55776cfeb085c60129a39aa6fc4ae2528"
+    },
+    {
+      "name": "marker-shadow.png",
+      "bytes": 618,
+      "width": 41,
+      "height": 41,
+      "sha256": "264f5c640339f042dd729062cfc04c17f8ea0f29882b538e3848ed8f10edb4da"
+    }
+  ]
+}

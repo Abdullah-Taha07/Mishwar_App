@@ -4,5 +4,22 @@ self.addEventListener('activate',event=>event.waitUntil(caches.keys().then(keys=
 self.addEventListener('fetch',event=>{const url=new URL(event.request.url);if(event.request.method!=='GET'||url.origin!==self.location.origin||url.pathname==='/version.json'||!SHELL.includes(url.pathname))return;event.respondWith(caches.open(CACHE).then(async cache=>{const cached=await cache.match(url.pathname);if(cached)return cached;return fetch(event.request)}))});
 
 self.addEventListener('message',event=>{if(event.data?.type==='ACTIVATE_UPDATE')self.skipWaiting()});
-self.addEventListener('push',event=>event.waitUntil((async()=>{let rows=[];try{const r=await fetch('/api/background',{credentials:'include',cache:'no-store'});if(r.ok&&r.headers.get('content-type')?.includes('application/json'))rows=(await r.json()).notifications||[]}catch{}if((await self.clients.matchAll({type:'window'})).some(c=>c.visibilityState==='visible')){for(const client of await self.clients.matchAll({type:'window'}))client.postMessage({type:'REFRESH_TRIP'});if(rows.length)await fetch('/api/background',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({action:'ack',ids:rows.map(x=>x.id)})}).catch(()=>{});return}if(!rows.length)await self.registration.showNotification('مشوار',{body:'لديك تحديث. افتح التطبيق للاطلاع عليه.',icon:'/icon-192.png',silent:false,lang:'ar',dir:'rtl',tag:'mishwar-update',data:{url:'/'}});else{for(const item of rows.slice(0,3))await self.registration.showNotification(item.title,{body:item.body,icon:'/icon-192.png',silent:false,vibrate:[200,100,200],lang:'ar',dir:'rtl',tag:'mishwar-'+item.id,data:{url:item.url},requireInteraction:true});await fetch('/api/background',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({action:'ack',ids:rows.map(x=>x.id)})}).catch(()=>{})}})()));
+self.addEventListener('push',event=>event.waitUntil((async()=>{
+ const windows=await self.clients.matchAll({type:'window',includeUncontrolled:true});
+ for(const client of windows)client.postMessage({type:'REFRESH_TRIP'});
+ // Refreshing an open page does not mean that its user has seen the inbox.
+ if(windows.some(client=>client.visibilityState==='visible'))return;
+ let rows=[];
+ try{const response=await fetch('/api/background',{credentials:'include',cache:'no-store'});if(response.ok&&response.headers.get('content-type')?.includes('application/json')){const data=await response.json();if(Array.isArray(data.notifications))rows=data.notifications}}catch{}
+ if(!rows.length){await self.registration.showNotification('مشوار',{body:'لديك تحديث. افتح التطبيق للاطلاع عليه.',icon:'/icon-192.png',silent:false,vibrate:[200,100,200],lang:'ar',dir:'rtl',tag:'mishwar-update',data:{url:'/'}});return}
+ const displayed=[];
+ for(const item of rows.slice(0,3)){
+  try{
+   await self.registration.showNotification(item.title,{body:item.body,icon:'/icon-192.png',silent:false,vibrate:[200,100,200],lang:'ar',dir:'rtl',tag:'mishwar-'+item.id,data:{url:item.url},requireInteraction:true});
+   if(typeof item.id==='string'&&item.id)displayed.push(item.id);
+  }catch{}
+ }
+ // Failed displays and rows beyond the display limit must remain unread.
+ if(displayed.length)await fetch('/api/background',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({action:'ack',ids:displayed})}).catch(()=>{});
+})()));
 self.addEventListener('notificationclick',event=>{event.notification.close();event.waitUntil((async()=>{const url=new URL(event.notification.data?.url||'/',self.location.origin);if(url.origin!==self.location.origin)return;const list=await self.clients.matchAll({type:'window',includeUncontrolled:true});for(const client of list)if(new URL(client.url).origin===url.origin){await client.navigate(url.href);return client.focus()}return self.clients.openWindow(url.href)})())});

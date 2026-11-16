@@ -16,7 +16,7 @@ const textTypes = new Set(['.html', '.js', '.css', '.svg', '.json', '.webmanifes
 const generated = new Set(['sw.js', 'version.json']);
 // Publish only known web assets. Backups, environment files and hidden directories
 // stay in the checkout and cannot become static responses on either hosting target.
-const privateName = name => name.startsWith('.') || /(?:\.(?:backup|bak|old|orig|save)|~)(?:\.|$)/i.test(name) || /^(?:backups?|node_modules)$/i.test(name);
+const privateName = name => name.startsWith('.') || /(?:^|[._-])(?:backups?|bak|old|orig|save|before|env|secrets?|credentials?)(?:[._-]|$)|~(?:\.|$)/i.test(name) || /^node_modules$/i.test(name);
 function files(directory, prefix = '') {
   const result = [];
   for (const entry of readdirSync(join(root, directory, prefix), {withFileTypes: true}).sort((a, b) => a.name < b.name ? -1 : a.name > b.name ? 1 : 0)) {

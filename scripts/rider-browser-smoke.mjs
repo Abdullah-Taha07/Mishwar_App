@@ -9,7 +9,7 @@ const root=resolve(process.argv[2]||'apps/rider/public');
 const pwaRequired=process.argv.includes('--pwa');
 const artifact=resolve('artifacts/rider-repairs-2026-11-15/browser-'+Date.now());
 mkdirSync(artifact,{recursive:true});
-const fixtures={owner:null,chat:[],requests:[],missing:[],blocked:[],exceptions:[],results:[]};
+const fixtures={owner:null,chat:[],requests:[],missing:[],blocked:[],exceptions:[],results:[],notifications:[],notificationAcks:[],sharedFailures:0,pauseLive:false,liveReleases:[],liveResponses:0};
 const keys={a:'a'.repeat(64),b:'b'.repeat(64)};
 const point=(name,lat=24.7,lng=46.6)=>({name,lat,lng,area:'Offline fixture'});
 const profile=owner=>({name:owner==='a'?'Rider Alpha':'Rider Beta',phone:owner==='a'?'+966500000001':'+966500000002',email:owner+'@example.test'});
@@ -27,9 +27,18 @@ const server=createServer(async(req,res)=>{
   else if(path==='/api/auth/session')data={authenticated:!!fixtures.owner,phoneVerified:!!fixtures.owner,accountKey:fixtures.owner?keys[fixtures.owner]:null,profile:fixtures.owner?profile(fixtures.owner):null};
   else if(path==='/api/map-config')data={searchConfigured:false};
   else if(path==='/api/service-status')data={features:[]};
-  else if(path==='/api/background')data={configured:false,notifications:[]};
-  else if(path==='/api/shared-trip')data={status:'riding',pickup:point('<img src="/offline-xss-probe" onerror="window.offlineAuditXss=true">'),destination:point('Offline destination',24.71,46.61),driver:'Offline Captain',location:null};
-  else if(body.action==='live_session'||body.action==='live_watch')data=session(fixtures.owner);
+  else if(path==='/api/background'){
+   if(body.action==='ack'){fixtures.notificationAcks.push({owner:fixtures.owner,ids:body.ids});data={ok:true};}
+   else data={configured:false,notifications:fixtures.notifications};
+  }
+  else if(path==='/api/shared-trip'){
+   if(fixtures.sharedFailures>0){fixtures.sharedFailures--;res.statusCode=503;data={error:'Transient offline fixture'};}
+   else data={status:'riding',pickup:point('<img src="/offline-xss-probe" onerror="window.offlineAuditXss=true">'),destination:point('Offline destination',24.71,46.61),driver:'Offline Captain',location:null};
+  }
+  else if(body.action==='live_session'||body.action==='live_watch'){
+   if(fixtures.pauseLive)await new Promise(resolve=>fixtures.liveReleases.push(resolve));
+   data=session(fixtures.owner);fixtures.liveResponses++;
+  }
   else if(body.action==='live_capabilities')data={features:[]};
   else if(body.action==='live_realtime_token'){res.statusCode=503;data={error:'Offline provider is intentionally disabled'};}
   else if(body.action==='live_reservations')data={schedulerConfigured:false,items:[]};
@@ -82,6 +91,46 @@ try{
  // Authentication is simulated only by this loopback server. No real account is created.
  fixtures.owner='a';await navigate(origin);await waitFor("document.querySelector('#panel')?.innerText.includes('a-offline-trip'.slice(0,8))",'Account A trip must finish restoring');
  assert.ok(await evaluate("document.querySelector('#panel').innerText.includes('a-offline-trip'.slice(0,8))"),'Account A trip is restored');
+ // Real layout matters: a short phone cannot expose every card at once.
+ fixtures.notifications=Array.from({length:5},(_,i)=>({id:'offline-notification-'+i,title:'إشعار اختبار '+(i+1),body:'رسالة محلية للتحقق من ظهور الإشعار قبل تأكيد قراءته. '.repeat(3)}));
+ const localUnreadBefore=await evaluate("document.querySelector('#notification-count').hidden?0:Number(document.querySelector('#notification-count').textContent)");
+ assert.ok(localUnreadBefore>0,'The restored trip must create a local unread update');
+ await evaluate("document.querySelector('#notifications-button').click()");
+ await waitFor("document.querySelectorAll('[data-notification-id]').length===5",'Server notifications must finish rendering');
+ for(let i=0;i<50&&!fixtures.notificationAcks.length;i++)await wait(100);
+ assert.ok(fixtures.notificationAcks.length,'A painted visible notification must be acknowledged');
+ const exposed=await evaluate("(()=>{const body=document.querySelector('#modal .dialog-body'),bounds=body.getBoundingClientRect();return [...document.querySelectorAll('[data-notification-id]')].filter(e=>{const r=e.getBoundingClientRect();return r.top>=Math.max(bounds.top,0)&&r.bottom<=Math.min(bounds.bottom,innerHeight)}).map(e=>e.dataset.notificationId)})()");
+ const acknowledged=[...new Set(fixtures.notificationAcks.flatMap(row=>row.ids))];
+ assert.ok(acknowledged.length>0&&acknowledged.length<fixtures.notifications.length,'Offscreen notifications must remain unread');
+ assert.ok(acknowledged.every(id=>exposed.includes(id)),'Only cards actually exposed in the dialog viewport may be acknowledged');
+ await evaluate("(()=>{const body=document.querySelector('#modal .dialog-body');body.scrollTop=body.scrollHeight})()");
+ for(let i=0;i<50&&!fixtures.notificationAcks.some(row=>row.ids.includes('offline-notification-4'));i++)await wait(100);
+ assert.ok(fixtures.notificationAcks.some(row=>row.ids.includes('offline-notification-4')),'Scrolling must acknowledge newly displayed cards');
+ assert.equal(await evaluate("document.querySelector('#notification-count').hidden?0:Number(document.querySelector('#notification-count').textContent)"),localUnreadBefore,'Showing unrelated server notices must not clear an unseen local trip update');
+ await evaluate("document.querySelector('#modal').close()");
+ const closedCount=fixtures.notificationAcks.length;await wait(100);
+ assert.equal(fixtures.notificationAcks.length,closedCount,'Closing the notification view must stop display acknowledgements');
+ fixtures.results.push({name:'notifications-visible-only',passed:true,shown:exposed.length,acknowledged:acknowledged.length,total:fixtures.notifications.length});
+ fixtures.notifications=[];
+ await evaluate("document.querySelector('#notifications-button').click()");
+ await waitFor("document.querySelectorAll('[data-notification-id]').length>0&&document.querySelector('#notification-count').hidden",'Showing the local trip update must clear its own unread badge');
+ assert.equal(fixtures.notificationAcks.length,closedCount,'Local updates must not be acknowledged as server notification IDs');
+ await evaluate("document.querySelector('#modal').close()");
+ fixtures.results.push({name:'notifications-local-badge-ownership',passed:true});
+ // Age a real rendered marker while every subsequent live response is withheld.
+ fixtures.pauseLive=true;
+ const completedBeforeAging=fixtures.liveResponses;
+ await evaluate("window.offlineOriginalDateNow=Date.now;Date.now=()=>window.offlineOriginalDateNow()+120001");
+ try{
+  await waitFor("document.querySelector('.captain-location-state')?.textContent.includes('آخر موقع')&&!!document.querySelector('.captain-car-marker.location-stale')",'The existing GPS sample must become stale without a new response');
+  assert.equal(fixtures.liveResponses,completedBeforeAging,'Staleness must be computed locally');
+ }finally{
+  await evaluate('Date.now=window.offlineOriginalDateNow;delete window.offlineOriginalDateNow');
+  fixtures.pauseLive=false;for(const release of fixtures.liveReleases.splice(0))release();
+ }
+ await evaluate('window.refreshMishwarTrip()');
+ await waitFor("document.querySelector('.captain-location-state')?.textContent==='موقع الكابتن المباشر'",'A fresh response must restore live GPS state');
+ fixtures.results.push({name:'gps-local-expiry-and-recovery',passed:true});
  await evaluate('showAccount()');await wait(50);await evaluate("document.querySelector('#rider-logout').click()");await wait(500);
  assert.equal(await evaluate('window.mishwarTripActive'),false);
  assert.equal(await evaluate("document.body.innerText.includes('a private pickup')"),false);
@@ -90,14 +139,22 @@ try{
  assert.equal(await evaluate('window.mishwarTripActive'),false);
  assert.equal(await evaluate("document.body.innerText.includes('a private pickup')"),false);
  fixtures.results.push({name:'account-switch',passed:true});
- await navigate(origin+'/track.html#'+'a'.repeat(64));await waitFor("!!document.querySelector('.leaflet-marker-icon')",'Shared trip markers must render');
+ fixtures.sharedFailures=1;
+ const sharedCallsBefore=fixtures.requests.filter(row=>row.path==='/api/shared-trip').length;
+ await navigate(origin+'/track.html#'+'a'.repeat(64));await waitFor("!!document.querySelector('.leaflet-marker-icon')",'Shared trip markers must recover after a temporary HTTP failure');
+ assert.ok(fixtures.requests.filter(row=>row.path==='/api/shared-trip').length-sharedCallsBefore>=2,'A temporary shared tracking error must be retried');
+ fixtures.results.push({name:'shared-tracking-transient-recovery',passed:true});
  await evaluate("document.querySelectorAll('.leaflet-marker-icon').forEach(e=>e.dispatchEvent(new MouseEvent('mouseover',{bubbles:true})))");await wait(150);
  assert.equal(await evaluate('window.offlineAuditXss===true'),false);
  assert.ok(await evaluate("document.querySelector('.leaflet-tooltip')?.textContent.includes('<img')"),'Untrusted tooltip content is visible as text');
  fixtures.results.push({name:'shared-tooltip-text-only',passed:true});
- if(pwaRequired){await navigate(origin);await waitFor("navigator.serviceWorker.getRegistration().then(r=>!!r?.active)",'Published service worker must become active');fixtures.results.push({name:'service-worker-active',passed:true});}
- // R15 remains a known asset gap in the basic smoke; --pwa requires every image.
- const allowed=pwaRequired?new Set(['/favicon.ico']):new Set(['/favicon.ico','/vendor/images/marker-icon.png','/vendor/images/marker-icon-2x.png','/vendor/images/marker-shadow.png']);
+ if(pwaRequired){
+  const images=await evaluate("Promise.all(['layers.png','layers-2x.png','marker-icon.png','marker-icon-2x.png','marker-shadow.png'].map(async name=>{const image=new Image();image.src='/vendor/images/'+name;await image.decode();return {name,width:image.naturalWidth,height:image.naturalHeight}}))");
+  assert.deepEqual(images,[{name:'layers.png',width:26,height:26},{name:'layers-2x.png',width:52,height:52},{name:'marker-icon.png',width:25,height:41},{name:'marker-icon-2x.png',width:50,height:82},{name:'marker-shadow.png',width:41,height:41}]);
+  fixtures.results.push({name:'leaflet-official-images',passed:true,images});
+  await navigate(origin);await waitFor("navigator.serviceWorker.getRegistration().then(r=>!!r?.active)",'Published service worker must become active');fixtures.results.push({name:'service-worker-active',passed:true});
+ }
+ const allowed=new Set(['/favicon.ico']);
  const missing=[...new Set(fixtures.missing)].filter(x=>!allowed.has(x));
  assert.deepEqual(missing,[],'No unintended missing local assets');assert.deepEqual(fixtures.exceptions,[],'No uncaught JavaScript exceptions');
  console.log(JSON.stringify({passed:true,artifact,results:fixtures.results,missing:[...new Set(fixtures.missing)]},null,2));

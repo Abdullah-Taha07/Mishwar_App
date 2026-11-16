@@ -16,11 +16,10 @@ test('captain boot has a visible failure fallback and session fetch is bounded',
   assert.match(read('public/captain-auth.js'), /AbortSignal\.timeout\(12000\)/);
   assert.match(read('public/onboarding.js'), /captainBootRunning/);
 });
-test('Vercel build generates a versioned service worker from a persistent template', () => {
-  const build = read('scripts/build.mjs');
+test('Vercel deploys sanitized assets with a persistent versioned service worker template', () => {
+  const vercel = JSON.parse(read('vercel.json'));
   const template = read('scripts/sw.template.js');
-  assert.match(build, /writeFileSync\('public\/sw\.js',sw\)/);
-  assert.match(build, /hash\.update\(readFileSync\('scripts\/sw\.template\.js'\)\)/);
+  assert.equal(vercel.outputDirectory, 'dist/public');
   assert.match(template, /const BUILD='__MISHWAR_VERSION__'/);
   assert.match(template, /const SHELL=__MISHWAR_ASSETS__/);
   assert.match(template, /cache:'no-store'/);
