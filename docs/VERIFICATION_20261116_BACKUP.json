@@ -1,6 +1,8 @@
 {
   "date": "2026-11-16",
   "sourceBase": "a4fa59a4abbddbafe02d9d62b5f831bacca84ad7",
+  "previousFullSuiteVerifiedHead": "9e9b46025bf8cf92b8c682c1fdd2d29abe9eabd6",
+  "previousSuitesRepeatedDuringSecurityResume": false,
   "full": {
     "tests": [
       207,
@@ -79,10 +81,19 @@
   },
   "productionChanges": false,
   "wranglerLocal": {
-    "verified": false,
-    "completedAttempt": "isolated-local-restore-failed-EPIPE",
-    "escalatedRetry": "not-completed",
-    "meaning": "runtime-evidence-pending; not evidence of corrupt SQL"
+    "verified": true,
+    "scope": "separate-local-config-fake-database-UUID-no-cloud-credentials",
+    "previousFailure": "EPIPE",
+    "restoredTables": 84,
+    "originalRowsPreserved": 351,
+    "localMigrationMetadataRowsAdded": 2,
+    "integrity": "ok",
+    "foreignKeyViolations": 0,
+    "sourceUnchanged": true,
+    "actualWorkerLocalHealthAndSchemaSmoke": "passed",
+    "workerSmokeCheckedAt": "2026-11-16T18:23:11.750Z",
+    "testServerStoppedAndPortClosed": true,
+    "evidence": ".local-verification/WRANGLER_ISOLATED_RESULT.json"
   },
   "externalR09Delivery": false,
   "r09LivePreflight": {
@@ -99,5 +110,28 @@
     "privateArtifactOrRecipientOrCredentialPatternFindings": 0,
     "scope": "changed-and-added-source-only; heuristic; does-not-clear-public-history"
   },
-  "privateArtifactsRemainOnDisk": true
+  "privateArtifactsRemainOnDisk": true,
+  "privacyResume": {
+    "localFixCommit": "e0bb6599864f12f37c46c633ed39698b379959ac",
+    "focusedNewTests": {"passed": 8, "failed": 0, "skipped": 0},
+    "affectedBuilds": {"hub": "v-bfe170b52961", "rider": "v-9f3fcb38024f"},
+    "affectedArtifactsValidEsm": true,
+    "contactRemovedFromActiveSourceAndRebuiltOutputs": true,
+    "oldCodeBackupUntrackedAndPreservedLocally": true,
+    "originalFourCommitsUnchanged": true,
+    "pushed": false,
+    "reason": "owner-requested-local-exclusion-fix-without-upload"
+  },
+  "historyAudit": {
+    "publicCommits": 59,
+    "uniqueBlobs": 689,
+    "archiveEntriesScanned": 54,
+    "confirmedReusableServiceKeys": 0,
+    "publicSqlPersonalDataAndPasswordHashes": "confirmed-exposure-unresolved",
+    "historicalSqliteCopies": "empty-tables-read-with-WAL-SHM",
+    "historyRewritten": false,
+    "productionCredentialsOrSessionsChanged": false,
+    "report": "PUBLIC_HISTORY_SECURITY_REVIEW_AR.md"
+  },
+  "productionWritePause": "no-go-global-freeze-and-drain-not-implemented-or-tested"
 }

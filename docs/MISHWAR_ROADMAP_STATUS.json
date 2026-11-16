@@ -14,6 +14,18 @@
     "operations_tests": {"passed": 19, "total": 19, "status": "passed"},
     "production_released": false
   },
+  "security_resume": {
+    "original_four_head": "9e9b46025bf8cf92b8c682c1fdd2d29abe9eabd6",
+    "original_four_unchanged": true,
+    "local_privacy_fix": "e0bb6599864f12f37c46c633ed39698b379959ac",
+    "new_focused_tests_passed": 8,
+    "previous_404_tests_repeated": false,
+    "all_pushes_held": true,
+    "hold_reason": "owner_requested_contact_exclusion_fix_locally_without_upload",
+    "public_history_personal_data_exposure": "confirmed_unresolved",
+    "confirmed_reusable_service_key_found": false,
+    "production_changes": false
+  },
   "remote_observed": {
     "github_main": "961c32284492e5957555e6f744e6696447d33b07",
     "review_ahead_of_main": 6,
@@ -34,8 +46,10 @@
     "rows": 351,
     "copies_on_independent_disks": false,
     "actual_copy_local_migration_rehearsal": "passed_with_data_sequences_relations_preserved",
-    "wrangler_local_restore": "EPIPE_runtime_check_not_completed",
-    "production_migrations_applied_by_session": false
+    "wrangler_local_restore": "passed_separate_fake_uuid_local_only_state_and_no_cloud_credentials",
+    "actual_worker_local_health_and_schema": "passed_test_server_stopped",
+    "production_migrations_applied_by_session": false,
+    "write_pause_gate": "not_implemented_production_no_go"
   },
   "official_phases": [
     {"id":1,"title":"إغلاق R01–R29","status":"local_complete_external_R09_pending"},
