@@ -31,16 +31,22 @@ export async function publicPhoneOtp(env, role, body, session) {
     if(!inc.meta?.changes)return reply({error:'انتهت المحاولات. اطلب رمزًا جديدًا'},429);
     if(!await verifyAuthenticaOtp(env,phone,code))return reply({error:'الرمز غير صحيح أو انتهت صلاحيته'},400);
     const at=now();
+    // Provider I/O can outlive the challenge or the login session. Recheck all
+    // ownership conditions inside the atomic batch, and consume last so every
+    // effect uses the same still-unused proof. A second consumer has no effects.
+    const eligible=`EXISTS (SELECT 1 FROM public_phone_otp p JOIN public_accounts a ON a.actor=p.actor AND a.role=p.role AND a.phone=p.phone JOIN public_sessions s ON s.token_hash=p.session_hash AND s.actor=p.actor AND s.role=p.role WHERE p.id=? AND p.role=? AND p.actor=? AND p.phone=? AND p.session_hash=? AND p.consumed_at IS NULL AND p.expires_at>? AND s.expires_at>?)${role==='rider'?' AND NOT EXISTS (SELECT 1 FROM rider_phone_accounts WHERE phone=? AND actor<>?)':''}`;
+    const proof=[challenge.id,role,actor,phone,sessionHash,at,at,...(role==='rider'?[phone,actor]:[])];
     const ops=[
-      env.DB.prepare('UPDATE public_phone_otp SET consumed_at=? WHERE id=? AND consumed_at IS NULL').bind(at,challenge.id),
-      env.DB.prepare('UPDATE public_accounts SET phone_verified_at=?,verification_method=? WHERE role=? AND actor=? AND phone=? AND phone_verified_at IS NULL').bind(at,'authentica_sms',role,actor,phone)
+      env.DB.prepare(`UPDATE public_accounts SET phone_verified_at=?,verification_method=? WHERE role=? AND actor=? AND phone=? AND phone_verified_at IS NULL AND ${eligible}`).bind(at,'authentica_sms',role,actor,phone,...proof)
     ];
     if(role==='rider'){
       const prior=await env.DB.prepare('SELECT actor FROM rider_phone_accounts WHERE phone=?').bind(phone).first();
       if(prior && prior.actor!==actor)return reply({error:'الرقم مرتبط بحساب راكب آخر. تواصل مع الإدارة'},409);
-      ops.push(env.DB.prepare('INSERT INTO rider_phone_accounts(phone,actor,verified_at) VALUES(?,?,?) ON CONFLICT(phone) DO NOTHING').bind(phone,actor,at));
+      ops.push(env.DB.prepare(`INSERT INTO rider_phone_accounts(phone,actor,verified_at) SELECT ?,?,? WHERE ${eligible} ON CONFLICT(phone) DO NOTHING`).bind(phone,actor,at,...proof));
     }
-    await env.DB.batch(ops);
+    ops.push(env.DB.prepare(`UPDATE public_phone_otp SET consumed_at=? WHERE id=? AND ${eligible}`).bind(at,challenge.id,...proof));
+    const results=await env.DB.batch(ops);
+    if(!results.at(-1)?.meta?.changes)return reply({error:'الرمز مستخدم أو منتهي الصلاحية. سجّل الدخول واطلب رمزًا جديدًا'},400);
     return reply({ok:true,phoneVerified:true});
   }
   return reply({error:'عملية غير معروفة'},400);
