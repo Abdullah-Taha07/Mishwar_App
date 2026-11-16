@@ -1,0 +1,237 @@
+{
+  "date": "2026-11-17",
+  "review": "local-and-read-only-production-no-deployment",
+  "sourceCommit": "9220249",
+  "repositoryVisibility": "public-unchanged",
+  "schema": {
+    "checkedAt": "2026-11-16T22:03:16.523Z",
+    "scope": "read-only-production-schema-and-aggregate-counts",
+    "pending": [
+      "0022_email_token_identity.sql",
+      "0023_account_support_requests.sql",
+      "0024_maintenance_write_fence.sql"
+    ],
+    "appliedThrough": "0021_staff_security.sql",
+    "maintenanceTablesFound": [],
+    "missingRequiredTables": [],
+    "migrationLedgerSchemaDrift": [],
+    "schemaDrift": [],
+    "extraObjects": [
+      {
+        "type": "table",
+        "name": "_cf_KV",
+        "table": "_cf_KV"
+      },
+      {
+        "type": "table",
+        "name": "d1_migrations",
+        "table": "d1_migrations"
+      }
+    ],
+    "targetDependencies": [],
+    "targetObjects": [],
+    "customTargetObjects": [],
+    "targetViews": [],
+    "foreignKeyViolations": 0,
+    "tableCounts": [
+      {
+        "table_name": "email_auth_tokens",
+        "row_count": 0
+      },
+      {
+        "table_name": "service_cases",
+        "row_count": 0
+      },
+      {
+        "table_name": "case_messages",
+        "row_count": 0
+      },
+      {
+        "table_name": "trip_messages",
+        "row_count": 0
+      },
+      {
+        "table_name": "trips",
+        "row_count": 5
+      },
+      {
+        "table_name": "payment_intents",
+        "row_count": 0
+      },
+      {
+        "table_name": "driver_payment_intents",
+        "row_count": 0
+      },
+      {
+        "table_name": "refund_requests",
+        "row_count": 0
+      },
+      {
+        "table_name": "withdrawal_requests",
+        "row_count": 0
+      },
+      {
+        "table_name": "reservations",
+        "row_count": 0
+      }
+    ],
+    "business": {
+      "liveTrips": 0,
+      "pendingRiderPayments": 0,
+      "pendingCaptainPayments": 0,
+      "pendingRefunds": 0,
+      "pendingWithdrawals": 0,
+      "pendingReservations": 0
+    },
+    "migrationsSha256": {
+      "0022_email_token_identity.sql": "b68b30b1174d12805eb6bd1d2b504ee5d2d1dc086ae768d4117396797255fae1",
+      "0023_account_support_requests.sql": "4b7a105eeb8c923edea4c43b90a91231fa9ca5426c7db4644584cc534f44028c",
+      "0024_maintenance_write_fence.sql": "c7c3f0113b960ce7a43b3fa611fc688e622d47933c6db460c37bad8b74eb55fd"
+    },
+    "currentWorkerVersion": [
+      {
+        "id": "80ed737e-c348-4f7d-b79f-5b69db99c736",
+        "percentage": 100
+      }
+    ],
+    "productionChanged": false,
+    "backupExported": false,
+    "structurallyBlocked": false,
+    "literalPreservingSchemaDrift": []
+  },
+  "tests": {
+    "checkedAt": "2026-11-16T22:15:50.867Z",
+    "project": {
+      "tests": [
+        244,
+        157,
+        21
+      ],
+      "pass": [
+        244,
+        157,
+        21
+      ],
+      "fail": [
+        0,
+        0,
+        0
+      ],
+      "skipped": [
+        0,
+        0,
+        0
+      ],
+      "built": [
+        "Built Worker and Vercel static output with 45 safe assets (v-82950d3f0f37)",
+        "Built Worker and Vercel static output with 63 safe assets (v-9f3fcb38024f)",
+        "Built administration Worker"
+      ],
+      "failureNames": []
+    },
+    "operations": {
+      "tests": [
+        19
+      ],
+      "pass": [
+        19
+      ],
+      "fail": [
+        0
+      ],
+      "skipped": [
+        0
+      ],
+      "built": [],
+      "failureNames": []
+    },
+    "security": {
+      "tests": [
+        7
+      ],
+      "pass": [
+        7
+      ],
+      "fail": [
+        0
+      ],
+      "skipped": [
+        0
+      ],
+      "built": [],
+      "failureNames": []
+    }
+  },
+  "migration": {
+    "passed": true,
+    "scope": "strictly-local-0024-on-copy-of-successful-0022-0023-state",
+    "steps": [
+      {
+        "label": "01-apply-0024",
+        "exitCode": 0,
+        "processError": null,
+        "codes": [],
+        "expectedSuccess": true
+      },
+      {
+        "label": "02-atomic-rollback-probe",
+        "exitCode": 1,
+        "processError": null,
+        "codes": [
+          "SQLITE_ERROR"
+        ],
+        "expectedSuccess": false
+      }
+    ],
+    "migrationSha256": "c7c3f0113b960ce7a43b3fa611fc688e622d47933c6db460c37bad8b74eb55fd",
+    "originalTablesCompared": 84,
+    "originalRowsCompared": 353,
+    "businessDataPreserved": true,
+    "sequencesPreservedExceptMigrationMetadata": true,
+    "addedMigrationRows": 1,
+    "newMaintenanceTables": 5,
+    "verifiedMaintenanceTriggers": 3,
+    "initialMode": "open",
+    "initialEpoch": 1,
+    "foreignKeyViolations": 0,
+    "integrity": "ok",
+    "failedMigrationRolledBackAllSchemaAndData": true,
+    "previous0022And0023NotRerun": true,
+    "sourceSqlUnchanged": true,
+    "productionConfigUsed": false,
+    "cloudCredentialsRemoved": true,
+    "checkedAt": "2026-11-16T22:04:32.674Z"
+  },
+  "worker": {
+    "passed": true,
+    "checkedAt": "2026-11-16T22:15:50.015Z",
+    "scope": "built-Worker-local-D1-R2-fake-UUID-only",
+    "d1ReportedChangesWithAuditTrigger": 2,
+    "openAnonymousSession": true,
+    "openDashboardAndAdminRedirects": true,
+    "missingAsset404DuringOpenAndFrozen": true,
+    "frozenDynamicRoutes503": 7,
+    "readOnlyHealthAndMaintenance503": true,
+    "noFrozenBusinessOrMetricsChanges": true,
+    "staleEpochRejected": true,
+    "validatingBlocksNormalRequests": true,
+    "reopenedAtEpoch": 3,
+    "productionConfigUsed": false,
+    "providerCredentialsRemoved": true,
+    "probeRoutesOnlyInPrivateWrapper": true
+  },
+  "productionMigrationsApplied": false,
+  "workerDeployed": false,
+  "gitPushed": false,
+  "freshProductionExportPerformed": false,
+  "totalTests": 448,
+  "releaseDecision": "conditional-no-direct-production-release",
+  "remainingGates": [
+    "fresh-approved-backup-window-and-independent-restore",
+    "old-Worker-ingress-and-Cron-hold-with-drain",
+    "approved-production-package-and-rollback",
+    "published-three-app-integration",
+    "external-R09-and-provider-configuration",
+    "public-history-cleanup-and-account-ownership-review"
+  ]
+}

@@ -1,17 +1,21 @@
 {
   "project": "Mishwar",
-  "as_of": "2026-11-16",
+  "as_of": "2026-11-17",
   "baseline": {
     "local_end_to_end_ride": "reported_passed",
     "integration_merge": "fresh_review_checkout_original_snapshot_preserved",
     "source_base_commit": "a4fa59a4abbddbafe02d9d62b5f831bacca84ad7",
     "review_branch": "review/codex-backup-readiness-20261116",
     "builds": "passed_three_apps_this_session",
-    "automated_captain_tests": {"passed": 207, "total": 207, "status": "passed"},
+    "automated_captain_tests": {"passed": 244, "total": 244, "status": "passed"},
     "automated_rider_tests": {"passed": 157, "total": 157, "status": "passed"},
     "automated_admin_tests": {"passed": 21, "total": 21, "status": "passed"},
     "edge_pwa": "passed_local_simulation",
     "operations_tests": {"passed": 19, "total": 19, "status": "passed"},
+    "security_tests": {"passed": 7, "total": 7, "status": "passed"},
+    "current_total_tests": 448,
+    "current_source_commit": "9220249",
+    "current_evidence": "D1_FINAL_REVIEW_20261117.json",
     "production_released": false
   },
   "security_resume": {
@@ -31,7 +35,12 @@
     "review_ahead_of_main": 6,
     "vercel_statuses": "success_three_apps_at_source_base",
     "worker_version": "80ed737e-c348-4f7d-b79f-5b69db99c736",
-    "d1_pending": ["0022_email_token_identity.sql", "0023_account_support_requests.sql"],
+    "d1_pending": ["0022_email_token_identity.sql", "0023_account_support_requests.sql", "0024_maintenance_write_fence.sql"],
+    "d1_schema_checked_at": "2026-11-16T22:03:16.523Z",
+    "d1_schema_ledger_drift": false,
+    "d1_foreign_key_violations": 0,
+    "maintenance_tables_present": 0,
+    "repository_visibility": "public_unchanged",
     "authentica_binding_names_present": true,
     "resend_and_email_from_binding_names_present": false,
     "real_sms_email_delivery_verified": false
@@ -49,7 +58,8 @@
     "wrangler_local_restore": "passed_separate_fake_uuid_local_only_state_and_no_cloud_credentials",
     "actual_worker_local_health_and_schema": "passed_test_server_stopped",
     "production_migrations_applied_by_session": false,
-    "write_pause_gate": "not_implemented_production_no_go"
+    "write_pause_gate": "implemented_and_tested_locally_old_production_worker_not_guarded_bootstrap_hold_required",
+    "fresh_release_backup": "not_exported_new_approved_maintenance_window_required"
   },
   "official_phases": [
     {"id":1,"title":"إغلاق R01–R29","status":"local_complete_external_R09_pending"},
