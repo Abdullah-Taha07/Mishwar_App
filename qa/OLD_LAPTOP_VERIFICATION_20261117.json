@@ -1,0 +1,59 @@
+{
+  "format": "mishwar-isolated-old-laptop-review-v1",
+  "checkedAt": "2026-11-17T19:05:57.889Z",
+  "source": {
+    "verifiedCleanBase": "4016df6e50e8a642f9848397afa89690b8d45751",
+    "requestedOtherDeviceSnapshot": "96eae54135fc1484585a63d5f01fb98f44f6c5ab",
+    "recoveredRequestedSnapshot": false,
+    "scannedRepositories": 16,
+    "scannedGitBundles": 2,
+    "newerFunctionalCodeIdentified": false
+  },
+  "tests": {
+    "hub": 244,
+    "rider": 157,
+    "admin": 21,
+    "operations": 19,
+    "security": 7,
+    "total": 448,
+    "passed": 448,
+    "failed": 0,
+    "skipped": 0,
+    "sourceAudit": 19
+  },
+  "build": {
+    "hub": true,
+    "rider": true,
+    "admin": true,
+    "worker": true,
+    "hubVersion": "v-82950d3f0f37",
+    "riderVersion": "v-9f3fcb38024f",
+    "hubWorkerSha256": "786473f6eb6f5657229e6503df65859396459b17c4b1b1b74a5b38c48a14edd6"
+  },
+  "localWorker": {
+    "passed": true,
+    "productionConfigUsed": false,
+    "newD1MigrationsRun": false,
+    "providerCredentialsRemoved": true,
+    "frozenRoutesBlocked": 7,
+    "healthReadyFalseWhenFrozen": true,
+    "noFrozenBusinessOrMetricsChanges": true,
+    "staleEpochRejected": true,
+    "reopened": true
+  },
+  "deployment": {
+    "vercelGitDeploymentDisabledInAllThreeLocalConfigs": true,
+    "providerSettingsVerified": false,
+    "cloudflareBuildsReadStatus": 403,
+    "cloudflarePagesReadStatus": 400,
+    "allLinkedWorkersVerified": false,
+    "decision": "DO_NOT_PUSH",
+    "pushed": false,
+    "productionDeployed": false
+  },
+  "limits": {
+    "liveThreeAppIntegrationVerified": false,
+    "missingSnapshotRestored": false,
+    "oldPublicBranchesRewritten": false
+  }
+}
