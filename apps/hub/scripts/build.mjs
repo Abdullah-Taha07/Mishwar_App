@@ -62,7 +62,7 @@ for (const file of [...sourceFiles, 'sw.js', 'version.json']) {
   mkdirSync(resolve(destination, '..'), {recursive: true});
   writeFileSync(destination, bytes);
   // Unlike the rider bundle, captain downloads were served by both targets.
-  assets['/' + file] = {type: types[extname(file).toLowerCase()], data: bytes.toString('base64')};
+  if (!file.startsWith('downloads/') && extname(file).toLowerCase() !== '.apk') assets['/' + file] = {type: types[extname(file).toLowerCase()], data: bytes.toString('base64')};
 }
 writeFileSync(join(output, '.openai/hosting.json'), readFileSync(join(root, '.openai/hosting.json')));
 const {build} = await import('esbuild');
