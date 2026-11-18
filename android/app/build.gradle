@@ -1,6 +1,6 @@
 plugins { id 'com.android.application' }
 android { namespace 'com.abdallataha.mishwar'; compileSdk 36
-defaultConfig { applicationId 'com.abdallataha.mishwar'; minSdk 24; targetSdk 36; versionCode 3; versionName '0.3.0' }
+defaultConfig { applicationId 'com.abdallataha.mishwar'; minSdk 24; targetSdk 36; versionCode 4; versionName '0.4.0' }
 flavorDimensions 'role'
 productFlavors {
 rider { dimension 'role'; applicationIdSuffix '.rider'; resValue 'string','app_name','مشوار'; resValue 'string','launch_url','https://mishwar-rider.vercel.app/' }
