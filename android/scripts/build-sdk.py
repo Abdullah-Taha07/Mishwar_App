@@ -16,11 +16,11 @@ for role,(name,host) in roles.items():
  d=work/role
  if d.exists():shutil.rmtree(d)
  (d/'res/values').mkdir(parents=True);(d/'res/drawable').mkdir();(d/'classes').mkdir();(d/'dex').mkdir()
- shutil.copyfile(root/'app/src/main/res/drawable/ic_launcher.png',d/'res/drawable/ic_launcher.png');shutil.copyfile(root/'app/src/main/res/values/colors.xml',d/'res/values/colors.xml')
+ role_icon=root/'app/src'/role/'res/drawable/ic_launcher.png';shutil.copyfile(role_icon if role_icon.exists() else root/'app/src/main/res/drawable/ic_launcher.png',d/'res/drawable/ic_launcher.png');shutil.copyfile(root/'app/src/main/res/values/colors.xml',d/'res/values/colors.xml')
  (d/'res/values/strings.xml').write_text('<resources><string name="app_name">'+escape(name)+'</string><string name="launch_url">https://'+host+'/</string></resources>')
  manifest=(root/'app/src/main/AndroidManifest.xml').read_text().replace('<manifest ', '<manifest package="com.abdallataha.mishwar.'+role+'" ',1);(d/'AndroidManifest.xml').write_text(manifest.replace('${applicationId}','com.abdallataha.mishwar.'+role))
  run([tools/'aapt2','compile','--dir',d/'res','-o',d/'compiled.zip'])
- run([tools/'aapt2','link','-I',jar,'--manifest',d/'AndroidManifest.xml','--java',d/'gen','--custom-package','com.abdallataha.mishwar','--min-sdk-version','24','--target-sdk-version','36','--version-code','4','--version-name','0.4.0','-o',d/'base.apk',d/'compiled.zip'])
+ run([tools/'aapt2','link','-I',jar,'--manifest',d/'AndroidManifest.xml','--java',d/'gen','--custom-package','com.abdallataha.mishwar','--min-sdk-version','24','--target-sdk-version','36','--version-code','5','--version-name','0.5.0','-o',d/'base.apk',d/'compiled.zip'])
  sources=list((root/'app/src/main/java').rglob('*.java'))+list((d/'gen').rglob('*.java'));run(['javac','-source','8','-target','8','-Xlint:-options','-cp',jar,'-d',d/'classes',*sources]);run([tools/'d8','--release','--min-api','24','--lib',jar,'--output',d/'dex',*list((d/'classes').rglob('*.class'))])
  with zipfile.ZipFile(d/'base.apk','a') as z:z.write(d/'dex/classes.dex','classes.dex')
  run([tools/'zipalign','-f','-p','4',d/'base.apk',d/'aligned.apk']);target=out/('app-'+role+'-debug.apk');run([tools/'apksigner','sign','--ks',key,'--ks-key-alias','androiddebugkey','--ks-pass','pass:android','--key-pass','pass:android','--out',target,d/'aligned.apk']);run([tools/'apksigner','verify','--verbose',target]);run([tools/'zipalign','-c','-p','4',target])

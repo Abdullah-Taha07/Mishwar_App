@@ -94,7 +94,7 @@ public class MainActivity extends Activity {
     settings.setSupportMultipleWindows(false);
     settings.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
     settings.setMediaPlaybackRequiresUserGesture(true);
-    settings.setUserAgentString(settings.getUserAgentString() + " MishwarAndroid/0.4.0");
+    settings.setUserAgentString(settings.getUserAgentString() + " MishwarAndroid/0.5.0");
     CookieManager.getInstance().setAcceptCookie(true);
     CookieManager.getInstance().setAcceptThirdPartyCookies(web, false);
 
