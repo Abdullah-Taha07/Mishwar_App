@@ -11,6 +11,66 @@ const response=(data,status=200)=>({ok:status>=200&&status<300,status,json:async
 const trip=(id='trip-A')=>({id,status:'riding',driver_id:'captain-A',pickup:{name:'Private pickup '+id,lat:24.7,lng:46.6},destination:{name:'Private destination '+id,lat:24.71,lng:46.61},fare_halalas:2400,discount_halalas:0,method:'cash',payment_status:'cash_due'});
 const live=(owner,ride=null)=>({accountKey:owner,verified:!!owner,trip:ride,recentTrip:null,wallet:{balance:owner===A?43210:0,entries:[]},payments:{cash:true,wallet:true,card:false,applepay:false},ratings:{average:4.5,receivedCount:1}});
 
+test('RIDER-007 rejects stale GPS before pricing and booking while manual pickup remains usable',async()=>{
+  const h=harness({ride:null,extra:['rider-location.js']});await flush();
+  h.c.pickupPoint={lat:24.7,lng:46.6,name:'Synthetic GPS',source:'gps',accuracy:10,observedAt:Date.now()-31000};
+  h.c.state.destination={lat:24.71,lng:46.61,name:'Synthetic destination'};
+  const quotes=()=>h.calls.filter(x=>['live_quote','estimate'].includes(x.body?.action));
+  assert.equal(await h.c.getMishwarBookingQuote(),null);assert.equal(quotes().length,0);
+  h.c.pickupPoint={...h.c.pickupPoint,observedAt:Date.now()};
+  assert.ok(await h.c.getMishwarBookingQuote());assert.equal(quotes().length,1);
+  h.c.pickupPoint.observedAt=Date.now()-31000;
+  await h.c.requestLocalRide();
+  assert.equal(h.calls.some(x=>['live_book','live_payment_init'].includes(x.body?.action)),false);
+  assert.match(h.notices.at(-1),/الموقع قديم/);
+  h.c.pickupPoint={...h.c.pickupPoint,source:'manual'};
+  assert.ok(await h.c.getMishwarBookingQuote());assert.equal(quotes().length,1,'confirming the same coordinates manually may reuse their unexpired quote');
+  await h.c.requestLocalRide();assert.equal(h.calls.filter(x=>x.body?.action==='live_book').length,1);
+});
+
+test('RIDER-007 invalid accuracy and future samples never leave the pricing boundary',async()=>{
+  const h=harness({ride:null,extra:['rider-location.js']});await flush();
+  h.c.state.destination={lat:24.71,lng:46.61,name:'Synthetic destination'};
+  for(const patch of [{accuracy:NaN},{accuracy:151},{observedAt:Date.now()+6000}]){
+    h.c.pickupPoint={lat:24.7,lng:46.6,name:'GPS',source:'gps',accuracy:10,observedAt:Date.now(),...patch};
+    assert.equal(await h.c.getMishwarBookingQuote(),null);
+  }
+  assert.equal(h.calls.some(x=>['live_quote','estimate','live_book'].includes(x.body?.action)),false);
+});
+
+test('RIDER-007 fresh stationary measurements reuse pricing, and a stopped tracker blocks GPS',async()=>{
+  const h=harness({ride:null,extra:['rider-location.js']});await flush();
+  h.c.pickupPoint={lat:24.7,lng:46.6,name:'GPS',source:'gps',accuracy:10,observedAt:Date.now()-100};
+  h.c.state.destination={lat:24.71,lng:46.61,name:'Synthetic destination'};
+  assert.ok(await h.c.getMishwarBookingQuote());
+  h.c.pickupPoint={...h.c.pickupPoint,accuracy:8,observedAt:Date.now()};
+  assert.ok(await h.c.getMishwarBookingQuote());
+  assert.equal(h.calls.filter(x=>x.body?.action==='live_quote').length,1,'measurement metadata does not change the trip or fare');
+  h.c.isMishwarGpsPickupCurrent=()=>false;
+  assert.equal(await h.c.getMishwarBookingQuote(),null);
+  await h.c.requestLocalRide();assert.equal(h.calls.some(x=>x.body?.action==='live_book'),false);
+});
+
+test('RIDER-007 clearing pickup invalidates an already displayed GPS quote',async()=>{
+  const h=harness({ride:null,extra:['rider-location.js']});await flush();
+  h.c.pickupPoint={lat:24.7,lng:46.6,name:'GPS',source:'gps',accuracy:10,observedAt:Date.now()};
+  h.c.state.destination={lat:24.71,lng:46.61,name:'Destination'};
+  assert.ok(await h.c.getMishwarBookingQuote());h.c.pickupPoint=null;
+  assert.equal(await h.c.getMishwarBookingQuote(),null);
+  await h.c.requestLocalRide();assert.equal(h.calls.some(x=>x.body?.action==='live_book'),false);
+});
+
+test('RIDER-007 rebooking and retry reserve the rider-selected pickup from GPS updates',async()=>{
+  for(const route of ['history','retry']){
+    const h=harness({ride:{...trip(),status:'cancelled'}});await flush();let stopped=0;h.c.carArt=()=>'';
+    h.c.beginMishwarManualPickup=()=>{stopped++};
+    if(route==='history')h.c.prepareRiderRebook({...trip(),status:'completed'});
+    else await h.click('data-live-retry');
+    assert.equal(stopped,1,route+' must stop pending automatic location work');
+    assert.equal(h.c.pickupPoint.source,'manual');assert.equal(h.c.pickupPoint.lat,24.7);
+  }
+});
+
 function harness({owner=A,ride=trip(),auth=true,extra=[],htmlOrder=false}={}){
   const listeners=new Map(),elements=new Map(),calls=[],events=[],notices=[],storage=new Map(),intervals=[];
   const node=selector=>{

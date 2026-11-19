@@ -1,5 +1,18 @@
 (()=>{
   const messages=Object.freeze({
+    'حدد نقطة الانطلاق أو استخدم موقعك الحالي':'Choose your pickup or use your current location',
+    'جارٍ تحديد موقع حديث ودقيق…':'Getting a fresh, accurate location…',
+    'الموقع متصل':'Location connected',
+    'انطلاق محدد يدويًا':'Pickup selected manually',
+    'إذن الموقع مرفوض. غيّره من إعدادات المتصفح أو اختر الانطلاق يدويًا.':'Location permission denied. Change it in browser settings or choose your pickup manually.',
+    'الموقع قديم. حدّث موقعك أو اختر الانطلاق يدويًا.':'Your location is outdated. Refresh it or choose your pickup manually.',
+    'متابعة الموقع متوقفة':'Location updates stopped',
+    'الموقع غير مدعوم هنا. اختر الانطلاق يدويًا.':'Location is not supported here. Choose your pickup manually.',
+    'الموقع يحتاج اتصالًا آمنًا. اختر الانطلاق يدويًا.':'Location requires a secure connection. Choose your pickup manually.',
+    'تعذر تحديد الموقع. أعد المحاولة أو اختر الانطلاق يدويًا.':'Could not get your location. Try again or choose your pickup manually.',
+    'انتهت مهلة تحديد الموقع. أعد المحاولة أو اختر الانطلاق يدويًا.':'The location request timed out. Try again or choose your pickup manually.',
+    'الموقع غير دقيق أو غير صالح. أعد المحاولة أو اختر الانطلاق يدويًا.':'The location is inaccurate or invalid. Try again or choose your pickup manually.',
+    'الموقع قديم أو غير دقيق. حدّث موقعك أو اختر الانطلاق يدويًا.':'Your location is outdated or inaccurate. Refresh it or choose your pickup manually.',
     "جارٍ التحميل…":"Loading…",
     'تغير الحساب أثناء الطلب.':'The account changed during this request.',
     'تغير الحساب':'Account changed',

@@ -48,7 +48,7 @@ searchSheet.addEventListener('click',e=>{
  const b=e.target.closest('button');if(!b)return;e.preventDefault();e.stopPropagation();
  const context=window.MishwarAccountContext;if(context&&searchOwnerTicket&&!context.isCurrent(searchOwnerTicket)){closeAddressEditor();return}
  if(b.hasAttribute('data-search-close')){closeAddressEditor();if(searchReturn?.matches('[data-address]'))$('#panel>.primary')?.focus({preventScroll:true});else if(searchReturn?.isConnected)searchReturn.focus({preventScroll:true});return}
- if(b.dataset.searchClear){const input=$('#search-'+b.dataset.searchClear);input.value='';selectSearchField(b.dataset.searchClear);return}
+ if(b.dataset.searchClear){const input=$('#search-'+b.dataset.searchClear);input.value='';if(b.dataset.searchClear==='pickup'){window.beginMishwarManualPickup?.();pickupPoint=null;syncMapPoints()}else state.destination=null;selectSearchField(b.dataset.searchClear);return}
  if(b.hasAttribute('data-search-map')){const target=editor.target;startMapPick(target);return}
  if(b.hasAttribute('data-search-location')){locatePickup();return}
  if(b.hasAttribute('data-search-note')){closeAddressEditor();modal('ملاحظة للوصول',`<p class="feature-intro">مثال: أمام البوابة الرئيسية أو بجوار المدخل الشمالي.</p><form id="arrival-note"><label for="arrival-text">الملاحظة</label><textarea id="arrival-text" maxlength="200" rows="3">${esc(searchNote)}</textarea><button class="primary" type="submit">حفظ الملاحظة</button></form>`);$('#arrival-note').onsubmit=ev=>{ev.preventDefault();searchNote=$('#arrival-text').value.trim();$('#modal').close();toast('ستصل الملاحظة للكابتن عند تأكيد الطلب')};return}
