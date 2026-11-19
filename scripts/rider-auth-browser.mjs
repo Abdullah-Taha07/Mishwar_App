@@ -165,7 +165,7 @@ try{
  });
  await attempt('RIDER-004 real UI logs out and removes private account',async()=>{
   await until("!!document.querySelector('#rider-logout')",'Logout control not visible');await click('#rider-logout');
-  await until("window.MishwarAccountContext.snapshot().authenticated===false",'Logout left account authenticated',16000);
+  await until("(window.MishwarAccountContext.snapshot().status==='ready'&&window.MishwarAccountContext.snapshot().authenticated===false)",'Logout left account authenticated',16000);
   assert.equal(env.db.prepare('SELECT count(*) AS n FROM public_sessions').get().n,0);
   assert.equal(await evaluate('window.__authTestDocument'),documentMark,'Logout must not reload');
  });
@@ -179,7 +179,7 @@ try{
  await attempt('RIDER-003 recovery UI is reachable without replaying actions',async()=>{
   // Logout before testing recovery; recovery must start as a guest action.
   await until("!!document.querySelector('#rider-logout')",'Logout not shown before recovery');await click('#rider-logout');
-  await until("window.MishwarAccountContext.snapshot().authenticated===false",'Second logout failed');
+  await until("(window.MishwarAccountContext.snapshot().status==='ready'&&window.MishwarAccountContext.snapshot().authenticated===false)",'Second logout failed');
   await openAccount();await until("!!document.querySelector('[data-account-recovery]')",'Recovery launch not shown');
   await click('[data-account-recovery]');await until("!!document.querySelector('#start-recovery')",'Recovery screen missing');
   await type('#start-recovery [name=phone]',phone);await click('#start-recovery button');

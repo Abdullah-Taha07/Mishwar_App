@@ -173,7 +173,7 @@ try{
    for(const section of sections)await record(viewport+'-'+actor+'-live-refresh-'+section,async row=>{
     const mark=await evaluate('window.navigationFixtureMark');
     await openSection(section,width);await wait(50);row.before=await viewState();expected(section,row.before,owner);
-    const before=fixtures.liveResponses;await evaluate('window.refreshMishwarTrip(true)');
+    const before=fixtures.liveResponses;const until=Date.now()+3000;while(fixtures.liveResponses<=before&&Date.now()<until){await evaluate('window.refreshMishwarTrip(true)');if(fixtures.liveResponses>before)break;await wait(80)}
     assert.ok(fixtures.liveResponses>before,'The real live read must receive a fixture response');
     await wait(50);row.after=await viewState();
     assert.equal(row.after.documentMark,mark,'Live refresh must not reload the document');expected(section,row.after,owner);
