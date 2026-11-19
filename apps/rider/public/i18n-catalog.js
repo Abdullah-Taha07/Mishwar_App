@@ -1,5 +1,17 @@
 (()=>{
   const messages=Object.freeze({
+    'خدمة المسارات التجارية بانتظار التفعيل':'Commercial routing is awaiting configuration.',
+    'الحجز ينتظر مسارًا تجاريًا موثوقًا. أعد حساب السعر.':'Booking requires a trusted commercial route. Recalculate the fare.',
+    'انتهت مهلة البحث عن الأماكن. أعد المحاولة.':'Place search timed out. Please try again.',
+    'تعذر البحث لدى مزود الأماكن. أعد المحاولة.':'Place search is unavailable. Please try again.',
+    'بيانات البحث غير صحيحة':'Invalid search request.',
+    'بيانات زمن الازدحام غير صحيحة. أعد حساب المسار.':'Traffic delay data is invalid. Recalculate the route.',
+    'بيانات المسار التجاري ناقصة':'The commercial route response is incomplete.',
+    'البحث: TomTom · بيانات TomTom':'Search: TomTom · TomTom data',
+    'البحث: Photon · بيانات OpenStreetMap':'Search: Photon · OpenStreetMap data',
+    'تعذر تحميل خريطة TomTom. نعرض خريطة OpenStreetMap بدلًا منها.':'Could not load the TomTom map. Showing OpenStreetMap instead.',
+    'تعذر تحميل بعض أجزاء خريطة OpenStreetMap. تحقق من الإنترنت.':'Some OpenStreetMap tiles could not be loaded. Check your connection.',
+    'تغير مصدر البحث. أعد المحاولة.':'The search provider changed. Please try again.',
     'حدد نقطة الانطلاق أو استخدم موقعك الحالي':'Choose your pickup or use your current location',
     'جارٍ تحديد موقع حديث ودقيق…':'Getting a fresh, accurate location…',
     'الموقع متصل':'Location connected',
