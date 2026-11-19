@@ -1,5 +1,6 @@
 (()=>{
   const messages=Object.freeze({
+    "جارٍ التحميل…":"Loading…",
     'تغير الحساب أثناء الطلب.':'The account changed during this request.',
     'تغير الحساب':'Account changed',
     'تعذر التحقق من هوية الحساب. أعد المحاولة.':'Your account could not be verified. Please try again.',
