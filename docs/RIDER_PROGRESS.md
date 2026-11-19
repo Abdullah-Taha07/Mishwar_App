@@ -73,3 +73,14 @@
 - سجل الفحص الكامل: محفوظ محليًا في مجلد النسخة الاحتياطية المذكور في PowerShell وليس على GitHub.
 - التالي: اختبارات تفاعل شاشات الحساب الحقيقية في Edge مع Worker/SQLite المحليين، ثم فحص تزامن وتحديد حصص OTP وGPS. لا تزعم جاهزية الإنتاج أو وصول SMS الحقيقية.
 - بعد الحفظ تحقق من Commit GitHub عبر تاريخ الفرع؛ لم يتم نشر أي نسخة إنتاجية.
+
+
+### RIDER-005 - REAL BROWSER AUTH
+
+- Checkpoint: 2026-11-19 16:22:19 (local development workstation).
+- PASS: Edge/Chromium real pointer clicks and form submissions against rider gateway plus shared Worker auth and migration-backed in-memory SQLite.
+- Covered: guest login, registration, synthetic Authentica OTP, logout, re-login, pending recovery and accurate CDP main-frame navigation/document marker checks. PWA precache GET / is NOT a user-facing reload.
+- Production connections blocked. Test uses fake phone/email/password and fake SMS provider; production behavior NOT verified.
+- Evidence: C:\Users\abdul\AppData\Local\Temp\Mishwar_RIDER_005_PWA_Fix_20261119_162133 (local only).
+- Next: complete more varied owner/account browser scenarios, verify OTP quota concurrency and GPS policy, then route/pricing/booking checks.
+- All source modifications saved to dev/mishwar-shared only; no main or deployment.

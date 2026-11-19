@@ -37,3 +37,5 @@
 لكل إصلاح صغير: اختبر، راجع ملفات الخطوة والأسرار، حدّث السجل، Commit محدد، افحص البعيد، Push إلى dev/mishwar-shared، ثم أكد SHA. إذا فشلت خطوة فاحتفظ بها محليًا ووثق سبب التعثر. لا يُعد النجاح المحلي نجاحًا إنتاجيًا أو ميدانيًا.
 
 أضيف اختبار: apps/rider/tests/rider-auth-bridge-integration.test.mjs. إصلاح حقل phoneVerified والخروج في apps/hub/worker/rider-auth.js. جميع الاختبارات في SQLite ذاكرة ومحاكاة SMS؛ لا تُنشئ حسابات على الإنتاج.
+
+RIDER-005 CHECKPOINT (2026-11-19 16:22:19): isolated real Edge auth browser tests and full validation PASS. SW pre-cache GET / distinguished from actual browser document navigation. Test script: scripts/rider-auth-browser.mjs. Next: OTP quota concurrency, GPS policy, additional account scenarios. SHA: see git log -- scripts/rider-auth-browser.mjs. Production not deployed.
