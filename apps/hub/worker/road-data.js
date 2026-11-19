@@ -17,7 +17,7 @@ export async function boundedRoadJson(url,options={},timeoutMs=8000,env={}){
  const controller=new AbortController();let timer;
  const deadline=new Promise((_,reject)=>{timer=setTimeout(()=>{const error=Error('انتهت مهلة خدمة الطريق. أعد المحاولة.');error.name='TimeoutError';reject(error);controller.abort()},timeoutMs)});
  const work=(async()=>{
-  const response=await maintenanceFetch(env,url,{...options,redirect:'error',signal:controller.signal});
+  const response=await maintenanceFetch(env,url,{...options,redirect:'manual',signal:controller.signal});
   if(!response.ok)throw Error('تعذر جلب مسار قيادة موثوق. أعد المحاولة.');
   return response.json();
  })();
