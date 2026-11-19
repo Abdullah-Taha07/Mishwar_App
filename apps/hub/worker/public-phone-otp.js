@@ -11,6 +11,13 @@ export async function publicPhoneOtp(env, role, body, session) {
     // Cooldown is checked before the hourly counter: a premature retry must not consume a send quota.
     const old=await env.DB.prepare('SELECT created_at FROM public_phone_otp WHERE role=? AND actor=? AND consumed_at IS NULL ORDER BY created_at DESC LIMIT 1').bind(role,actor).first();
     if(old && Date.now()-Date.parse(old.created_at)<60000)return reply({error:'انتظر دقيقة قبل طلب رمز جديد',retryAfter:Math.ceil((60000-(Date.now()-Date.parse(old.created_at)))/1000)},429);
+    // Reserve a per-phone, per-role send lease atomically before calling the SMS provider.
+    // Without it, two concurrent requests both see no challenge and send two SMS codes.
+    // Keep the lease for 60 seconds even if the provider outcome is uncertain.
+    const leaseKey=`otp:send-lease:${role}:${await tokenHash(phone)}`;
+    const leaseStart=Date.now(),leaseExpiry=leaseStart+60000;
+    const reserved=await env.DB.prepare('INSERT INTO access_rate_limits(bucket,n) VALUES(?,?) ON CONFLICT(bucket) DO UPDATE SET n=excluded.n WHERE n<=? RETURNING n').bind(leaseKey,leaseExpiry,leaseStart).first();
+    if(!reserved)return reply({error:'هناك رمز تحقق قيد الإرسال. انتظر دقيقة ثم أعد المحاولة.',retryAfter:60},429);
     const bucket=`otp:${await tokenHash(phone)}:${Math.floor(Date.now()/3600000)}`;
     const limit=await env.DB.prepare('INSERT INTO access_rate_limits(bucket,n) VALUES(?,1) ON CONFLICT(bucket) DO UPDATE SET n=n+1 RETURNING n').bind(bucket).first();
     if(limit.n>3)return reply({error:'تجاوزت الحد المسموح لإرسال الرموز. حاول بعد ساعة'},429);

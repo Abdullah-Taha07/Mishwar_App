@@ -39,3 +39,5 @@
 أضيف اختبار: apps/rider/tests/rider-auth-bridge-integration.test.mjs. إصلاح حقل phoneVerified والخروج في apps/hub/worker/rider-auth.js. جميع الاختبارات في SQLite ذاكرة ومحاكاة SMS؛ لا تُنشئ حسابات على الإنتاج.
 
 RIDER-005 CHECKPOINT (2026-11-19 16:22:19): isolated real Edge auth browser tests and full validation PASS. SW pre-cache GET / distinguished from actual browser document navigation. Test script: scripts/rider-auth-browser.mjs. Next: OTP quota concurrency, GPS policy, additional account scenarios. SHA: see git log -- scripts/rider-auth-browser.mjs. Production not deployed.
+
+RIDER-006 (2026-11-19 16:42:26): OTP send-lease concurrency and R09 quota regression PASS locally, saved only after confirmed GitHub push. Next GPS, TomTom route/pricing and booking. Logs: C:\Users\abdul\AppData\Local\Temp\Mishwar_RIDER_006_Resume_20261119_164139.

@@ -129,7 +129,7 @@ test('R09 resend cooldown does not use the hourly send quota', async t => {
   assert.equal((await call('phone-otp-start')).status, 200);
   for (let n = 0; n < 4; n++) assert.equal((await call('phone-otp-start')).status, 429);
   assert.equal(calls.length, 1);
-  assert.equal(env.db.prepare("SELECT n FROM access_rate_limits WHERE bucket LIKE 'otp:%'").get().n, 1);
+  assert.equal(env.db.prepare("SELECT n FROM access_rate_limits WHERE bucket LIKE 'otp:%' AND bucket NOT LIKE 'otp:send-lease:%'").get().n, 1);
 });
 
 test('R09 failed email delivery removes its link and reveals no provider body', async t => {

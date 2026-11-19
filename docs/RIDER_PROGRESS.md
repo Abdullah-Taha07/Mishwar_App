@@ -84,3 +84,15 @@
 - Evidence: C:\Users\abdul\AppData\Local\Temp\Mishwar_RIDER_005_PWA_Fix_20261119_162133 (local only).
 - Next: complete more varied owner/account browser scenarios, verify OTP quota concurrency and GPS policy, then route/pricing/booking checks.
 - All source modifications saved to dev/mishwar-shared only; no main or deployment.
+
+
+### RIDER-006 - ATOMIC OTP SEND LEASE
+
+- Checkpoint: 2026-11-19 16:42:26 (local development device time).
+- PASS: atomic per-role/per-phone send lease prevents duplicate simultaneous Authentica requests and preserves the normal hourly SMS quota.
+- Fixed R09 legacy assertion: hourly quota query explicitly excludes otp:send-lease rows (which carry expiration timestamps).
+- All targeted SMS tests, full project tests, real Edge auth browser, operations, security and source audit passed locally.
+- Files: apps/hub/worker/public-phone-otp.js; apps/hub/tests/rider-otp-concurrency.test.mjs; apps/hub/tests/r09-otp-email.test.mjs.
+- Logs and backups (local only): C:\Users\abdul\AppData\Local\Temp\Mishwar_RIDER_006_Resume_20261119_164139.
+- Next: GPS permission accuracy/freshness checks; TomTom route/pricing; booking flow. Real SMS and production behavior not yet verified.
+- GitHub milestone is confirmed only by verifying pushed SHA in the script. No main or production deployment.
