@@ -254,6 +254,32 @@ test('late history cannot repaint account A trips or ratings after switching to 
   assert.notEqual(h.c.mishwarRiderRatings?.receivedCount,99);
 });
 
+test('RIDER-012 history connection errors offer retry without misreporting authentication failure',async()=>{
+  const h=harness();await flush();for(const id of ['journey-result','journey-more','journey-error','journey-retry'])h.node('#'+id);h.load('rider-history.js');
+  let attempts=0;h.state.handler=(_,body)=>body?.action==='live_history'?(++attempts===1?response({error:'Offline history fixture'},503):response({trips:[trip('history-after-retry')],nextOffset:null,ratings:{receivedCount:0}})):undefined;
+  await h.c.showTrips();assert.doesNotMatch(h.node('#journey-result').innerHTML,/data-register-rider/);assert.equal(h.node('#journey-retry').hidden,false);
+  assert.match(h.node('#journey-error').textContent,/Offline history fixture/);await h.node('#journey-retry').onclick();
+  assert.equal(attempts,2);assert.match(h.node('#journey-result').innerHTML,/history-after-retry/);assert.equal(h.node('#journey-retry').hidden,true);
+});
+
+test('RIDER-012 failed history pagination preserves loaded trips and retries the same page',async()=>{
+  const h=harness();await flush();for(const id of ['journey-result','journey-more','journey-error','journey-retry'])h.node('#'+id);h.load('rider-history.js');
+  const offsets=[];let pages=0;h.state.handler=(_,body)=>{
+    if(body?.action!=='live_history')return;offsets.push(body.offset);pages++;
+    return pages===1?response({trips:[trip('history-first-page')],nextOffset:50,ratings:{receivedCount:0}}):pages===2?response({error:'Pagination fixture failure'},500):response({trips:[trip('history-second-page')],nextOffset:null,ratings:{receivedCount:0}});
+  };
+  await h.c.showTrips();const first=h.node('#journey-result').innerHTML;await h.node('#journey-more').onclick();
+  assert.equal(h.node('#journey-result').innerHTML,first);assert.equal(h.node('#journey-retry').hidden,false);
+  await h.node('#journey-retry').onclick();assert.deepEqual(offsets,[0,50,50]);
+  assert.match(h.node('#journey-result').innerHTML,/history-first-page/);assert.match(h.node('#journey-result').innerHTML,/history-second-page/);assert.equal(h.node('#journey-more').hidden,true);
+});
+
+test('RIDER-012 explicit history authentication failure is distinct from a server error',async()=>{
+  const h=harness();await flush();for(const id of ['journey-result','journey-more','journey-error','journey-retry'])h.node('#'+id);h.load('rider-history.js');
+  h.state.handler=(_,body)=>body?.action==='live_history'?response({error:'Session expired fixture'},401):undefined;
+  await h.c.showTrips();assert.match(h.node('#journey-result').innerHTML,/data-register-rider/);assert.equal(h.node('#journey-retry').hidden,true);
+});
+
 test('old realtime credentials cannot create an account A channel after switching to B',async()=>{
   const h=harness();await flush();const pending=deferred();let first=true,constructed=0;
   h.c.Ably={Realtime:class{constructor(){constructed++}}};
@@ -269,6 +295,102 @@ test('payment UI initialization arriving late does not mount a form under a diff
   await h.click('data-live-topup');const request=form.pay({amount:1000,method:'card'});await h.change(B);
   pending.resolve(response({id:'intent-A',amount:1000,method:'card'}));await request;
   assert.equal(initialized,0);assert.equal(h.storage.has('mishwar-checkout:'+B),false);
+});
+
+test('RIDER-012 rapid card starts share one initialization',async()=>{
+  const h=harness({ride:null});await flush();let form,initialized=0;const pending=deferred();
+  h.c.walletFundingForm=()=>'';h.c.bindWalletFunding=(_,options)=>form=options;h.c.Moyasar={init(){initialized++}};
+  h.state.handler=(_,body)=>body?.action==='live_payment_init'?pending.promise:undefined;
+  await h.click('data-live-topup');const first=form.pay({amount:1000,method:'card'}),second=form.pay({amount:1000,method:'card'});
+  await flush();assert.equal(h.calls.filter(x=>x.body?.action==='live_payment_init').length,1);
+  pending.resolve(response({id:'intent-single-start',amount:1000,method:'card'}));await Promise.all([first,second]);
+  assert.equal(initialized,1);assert.equal(JSON.parse(h.storage.get('mishwar-checkout:'+A)).id,'intent-single-start');
+});
+
+test('RIDER-012 failed payment initialization releases its lock for an explicit retry',async()=>{
+  const h=harness({ride:null});await flush();let form,initialized=0,attempts=0;
+  h.c.walletFundingForm=()=>'';h.c.bindWalletFunding=(_,options)=>form=options;h.c.Moyasar={init(){initialized++}};
+  h.state.handler=(_,body)=>body?.action==='live_payment_init'?(++attempts===1?response({error:'Offline fixture initialization failure'},503):response({id:'intent-retry',amount:1000,method:'card'})):undefined;
+  await h.click('data-live-topup');await form.pay({amount:1000,method:'card'});
+  assert.equal(initialized,0);assert.match(h.notices.at(-1),/initialization failure/);
+  await form.pay({amount:1000,method:'card'});assert.equal(attempts,2);assert.equal(initialized,1);
+});
+
+test('RIDER-012 payment library loading shows progress until the provider form is initialized',async()=>{
+  const h=harness({ride:null});await flush();let form,initialized=0;const appended=[],attributes=new Map(),loading={removed:false,remove(){this.removed=true}};
+  const paymentForm=h.node('.mysr-form');paymentForm.querySelector=selector=>selector==='[data-payment-loading]'?loading:null;paymentForm.setAttribute=(key,value)=>attributes.set(key,value);
+  h.c.document.head={append:element=>appended.push(element)};h.c.document.createElement=tag=>({tagName:tag,remove(){}});
+  h.c.walletFundingForm=()=>'';h.c.bindWalletFunding=(_,options)=>form=options;
+  h.state.handler=(_,body)=>body?.action==='live_payment_init'?response({id:'intent-library-load',amount:1000,method:'card'}):undefined;
+  await h.click('data-live-topup');const pending=form.pay({amount:1000,method:'card'});await flush();
+  assert.match(h.node('#modal-content').innerHTML,/data-payment-loading role="status"/);assert.match(h.node('#modal-content').innerHTML,/جارٍ تجهيز نموذج الدفع/);assert.equal(initialized,0);
+  const script=appended.find(element=>element.tagName==='script');assert.equal(typeof script.onload,'function');
+  h.c.Moyasar={init(){initialized++}};script.onload();await pending;
+  assert.equal(initialized,1);assert.equal(loading.removed,true);assert.equal(attributes.get('aria-busy'),'false');
+});
+
+test('RIDER-012 a stalled payment library ends with an inline error and releases initialization',async()=>{
+  const h=harness({ride:null});await flush();let form;const timers=[],attributes=new Map(),appended=[];
+  const paymentForm=h.node('.mysr-form');paymentForm.setAttribute=(key,value)=>attributes.set(key,value);
+  h.c.document.head={append:element=>appended.push(element)};h.c.document.createElement=tag=>({tagName:tag,removed:false,remove(){this.removed=true}});
+  h.c.setTimeout=(fn,ms)=>{timers.push({fn,ms});return timers.length};
+  h.c.walletFundingForm=()=>'';h.c.bindWalletFunding=(_,options)=>form=options;
+  h.state.handler=(_,body)=>body?.action==='live_payment_init'?response({id:'intent-library-timeout',amount:1000,method:'card'}):undefined;
+  await h.click('data-live-topup');const pending=form.pay({amount:1000,method:'card'});await flush();
+  const timer=timers.find(timer=>timer.ms===15000);assert.ok(timer);timer.fn();await pending;
+  assert.match(paymentForm.innerHTML,/role="alert"/);assert.match(paymentForm.innerHTML,/تعذر تحميل نموذج الدفع/);assert.equal(attributes.get('aria-busy'),'false');
+  assert.equal(appended.find(element=>element.tagName==='script').removed,true);
+  h.c.Moyasar={init(){}};await form.pay({amount:1000,method:'card'});assert.equal(h.calls.filter(x=>x.body?.action==='live_payment_init').length,2);
+});
+
+test('RIDER-012 an old payment completion cannot unlock the next account initialization',async()=>{
+  const h=harness({ride:null});await flush();let form,initialized=0,attempts=0;const old=deferred(),fresh=deferred();
+  h.c.walletFundingForm=()=>'';h.c.bindWalletFunding=(_,options)=>form=options;h.c.Moyasar={init(){initialized++}};
+  h.state.handler=(_,body)=>body?.action==='live_payment_init'?(++attempts===1?old.promise:fresh.promise):undefined;
+  await h.click('data-live-topup');const oldRequest=form.pay({amount:1000,method:'card'});await h.change(B);
+  await h.click('data-live-topup');const freshForm=form,freshRequest=form.pay({amount:2000,method:'card'});
+  old.resolve(response({id:'old-account-intent',amount:1000,method:'card'}));await oldRequest;
+  await freshForm.pay({amount:2000,method:'card'});assert.equal(attempts,2);assert.equal(initialized,0);
+  fresh.resolve(response({id:'new-account-intent',amount:2000,method:'card'}));await freshRequest;
+  assert.equal(initialized,1);assert.equal(JSON.parse(h.storage.get('mishwar-checkout:'+B)).id,'new-account-intent');
+});
+
+test('RIDER-012 payment recovery keeps the quote selected before initialization began',async()=>{
+  const h=harness({ride:null});await flush();const pending=deferred();let quotes=0;
+  h.c.carArt=()=>'';h.c.Moyasar={init(){}};
+  h.c.pickupPoint={name:'Pickup',lat:24.7,lng:46.6};h.c.state.destination={name:'Destination',lat:24.71,lng:46.61};h.c.state.stage='select';
+  h.state.handler=(_,body)=>{
+    if(body?.action==='live_quote')return response({id:'selected-quote-'+(++quotes),payable:2400,expiresAt:'2030-01-01T00:00:00Z',offers:[],route:null});
+    if(body?.action==='live_payment_init')return pending.promise;
+  };
+  await h.c.getMishwarBookingQuote();const selected={dataset:{method:'card'},hasAttribute:()=>false};
+  await Promise.all((h.listeners.get('document:click')||[]).map(fn=>fn({target:{closest:()=>selected}})));
+  const payment=h.c.requestLocalRide();assert.match(h.node('#panel').innerHTML,/data-action="book" aria-busy="true"/);
+  h.c.pickupPoint={name:'Updated GPS',lat:24.72,lng:46.62};await h.c.getMishwarBookingQuote();
+  pending.resolve(response({id:'intent-original-quote',amount:2400,method:'card'}));await payment;
+  const saved=JSON.parse(h.storage.get('mishwar-checkout:'+A));assert.equal(saved.quote.id,'selected-quote-1');
+  assert.equal(h.calls.find(x=>x.body?.action==='live_payment_init').body.quoteId,'selected-quote-1');
+});
+
+test('RIDER-012 refreshing the same route clears its previous category prices until the response arrives',async()=>{
+  const h=harness({ride:null});await flush();h.c.carArt=()=>'';h.c.state.stage='select';
+  h.c.pickupPoint={name:'Pickup',lat:24.7,lng:46.6};h.c.state.destination={name:'Destination',lat:24.71,lng:46.61};
+  const price=(amount)=>({id:'quote-refresh',payable:amount,expiresAt:'2030-01-01T00:00:00Z',offers:[{category:'economy',payable:amount}],route:null});
+  h.state.handler=(_,body)=>body?.action==='live_quote'?response(price(1400)):undefined;
+  await h.c.getMishwarBookingQuote();assert.match(h.node('#panel').innerHTML,/14\.00/);
+  const pending=deferred();h.state.handler=(_,body)=>body?.action==='live_quote'?pending.promise:undefined;
+  h.c.resetMishwarQuote();assert.doesNotMatch(h.node('#panel').innerHTML,/14\.00/);assert.match(h.node('#panel').innerHTML,/aria-busy="true"/);
+  pending.resolve(response(price(1600)));await flush();assert.match(h.node('#panel').innerHTML,/16\.00/);
+});
+
+test('RIDER-012 an expired GPS sample clears old category amounts as well as disabling booking',async()=>{
+  const h=harness({ride:null,extra:['rider-location.js']});await flush();h.c.carArt=()=>'';h.c.state.stage='select';
+  h.c.pickupPoint={name:'GPS pickup',lat:24.7,lng:46.6,source:'gps',accuracy:10,observedAt:Date.now()};h.c.state.destination={name:'Destination',lat:24.71,lng:46.61};
+  h.state.handler=(_,body)=>body?.action==='live_quote'?response({id:'quote-gps',payable:1400,expiresAt:'2030-01-01T00:00:00Z',offers:[{category:'economy',payable:1400}],route:null}):undefined;
+  await h.c.getMishwarBookingQuote();assert.match(h.node('#panel').innerHTML,/14\.00/);
+  h.c.pickupPoint.observedAt=Date.now()-31000;h.c.render();
+  assert.doesNotMatch(h.node('#panel').innerHTML,/14\.00/);assert.match(h.node('#panel').innerHTML,/غير متاح/);
+  assert.equal(h.calls.filter(x=>x.body?.action==='live_quote').length,1);
 });
 
 test('a completed old payment preserves its provider reference without verifying or booking as B',async()=>{

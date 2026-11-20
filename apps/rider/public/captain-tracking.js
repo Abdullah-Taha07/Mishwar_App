@@ -1,6 +1,9 @@
 (()=>{
   let marker=null,control=null,frame=0,ageTimer=null,sample=null,trip='',follow=true,rotation=0,dragBound=false,awaitingLocation=false;
   const freshFor=120000,radians=n=>n*Math.PI/180;
+  const motionPreference=typeof matchMedia==='function'?matchMedia('(prefers-reduced-motion: reduce)'):null;
+  const reducedMotion=()=>motionPreference?.matches===true||typeof document!=='undefined'&&document.body?.classList?.contains?.('no-animation')===true;
+  const panMotion=duration=>reducedMotion()?{animate:false}:{animate:true,duration};
   const online=()=>typeof navigator==='undefined'||navigator.onLine!==false;
   const validLocation=p=>validPoint(p)&&Math.abs(p.lat)<=90&&Math.abs(p.lng)<=180;
   const fresh=p=>validLocation(p)&&p.fresh===true&&!awaitingLocation&&Number.isFinite(Date.parse(p.at))&&Date.parse(p.at)<=Date.now()+5000&&Date.now()-Date.parse(p.at)<freshFor&&online();
@@ -40,18 +43,19 @@
         const el=L.DomUtil.create('div','captain-map-control');
         el.innerHTML='<button class="captain-follow following" type="button" aria-label="متابعة موقع الكابتن" aria-pressed="true">⌖</button><span class="captain-location-state"></span>';
         L.DomEvent.disableClickPropagation(el);L.DomEvent.disableScrollPropagation(el);
-        el.querySelector('button').onclick=()=>{follow=true;paint();if(fresh(sample))liveMap.panTo(marker.getLatLng(),{animate:true,duration:.7})};
+        el.querySelector('button').onclick=()=>{follow=true;paint();if(fresh(sample))liveMap.panTo(marker.getLatLng(),panMotion(.7))};
         return el;
       };
       control.addTo(liveMap);
       if(!dragBound){liveMap.on('dragstart',()=>{if(marker){follow=false;paint()}});dragBound=true}
       const created=marker;
-      requestAnimationFrame(()=>{
+      const fitCurrentTrip=()=>{
         if(marker!==created||trip!==identity)return;
         liveMap.invalidateSize();
         const bounds=[t.pickup,t.destination,...(fresh(sample)?[sample]:[])].filter(validPoint).map(p=>[p.lat,p.lng]);
-        if(bounds.length)liveMap.fitBounds(bounds,{paddingTopLeft:[35,60],paddingBottomRight:[35,Math.min(230,liveMap.getSize().y*.35)],maxZoom:15});
-      });
+        if(bounds.length)liveMap.fitBounds(bounds,{paddingTopLeft:[35,60],paddingBottomRight:[35,Math.min(230,liveMap.getSize().y*.35)],maxZoom:15,...(reducedMotion()?{animate:false}:{})});
+      };
+      if(reducedMotion())fitCurrentTrip();else requestAnimationFrame(fitCurrentTrip);
     }
     startAging();paint();if(same)return;
     const from=marker.getLatLng();
@@ -61,10 +65,13 @@
     }
     cancelAnimationFrame(frame);
     const start=performance.now(),moving=marker,at=sample.at;
-    function animate(now){if(marker!==moving||trip!==identity||sample?.at!==at||!fresh(sample))return;const f=(now-start)/1000,p=lerp(from,loc,f);moving.setLatLng([p.lat,p.lng]);if(f<1)frame=requestAnimationFrame(animate)}
-    if(fresh(sample))frame=requestAnimationFrame(animate);else marker.setLatLng([loc.lat,loc.lng]);
-    if(follow&&fresh(sample))liveMap.panInside([loc.lat,loc.lng],{paddingTopLeft:[40,65],paddingBottomRight:[40,Math.min(240,liveMap.getSize().y*.4)],animate:true,duration:.8});
+    function animate(now){if(marker!==moving||trip!==identity||sample?.at!==at||!fresh(sample)||reducedMotion())return;const f=(now-start)/1000,p=lerp(from,loc,f);moving.setLatLng([p.lat,p.lng]);if(f<1)frame=requestAnimationFrame(animate)}
+    if(fresh(sample)&&!reducedMotion())frame=requestAnimationFrame(animate);else marker.setLatLng([loc.lat,loc.lng]);
+    if(follow&&fresh(sample))liveMap.panInside([loc.lat,loc.lng],{paddingTopLeft:[40,65],paddingBottomRight:[40,Math.min(240,liveMap.getSize().y*.4)],...panMotion(.8)});
   }
+  const motionChanged=()=>{if(!reducedMotion())return;cancelAnimationFrame(frame);frame=0;if(typeof liveMap!=='undefined')liveMap?.stop?.();if(marker&&fresh(sample))marker.setLatLng([sample.lat,sample.lng]);if(marker)paint()};
+  if(motionPreference?.addEventListener)motionPreference.addEventListener('change',motionChanged);else motionPreference?.addListener?.(motionChanged);
+  window.addEventListener('mishwar-motion-changed',motionChanged);
   window.MishwarTracking={update,clear,markStale,bearing,interpolate:lerp};
   window.addEventListener('mishwar-trip-updated',e=>update(e.detail));
   window.addEventListener('mishwar-account-reset',clear);

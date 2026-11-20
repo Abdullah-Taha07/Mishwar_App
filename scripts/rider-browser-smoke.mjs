@@ -164,6 +164,11 @@ try{
  assert.ok(localUnreadBefore>0,'The restored trip must create a local unread update');
  await evaluate("document.querySelector('#notifications-button').click()");
  await waitFor("document.querySelectorAll('[data-notification-id]').length===5",'Server notifications must finish rendering');
+ // The inner scrollport must fit inside the actual dialog content box. A body
+ // taller than its clipped parent makes the last notice impossible to read even
+ // at maximum scrollTop; do not bypass the visible-only acknowledgement guard.
+ fixtures.notificationBounds=await evaluate("(()=>{const modal=document.querySelector('#modal'),body=modal.querySelector('.dialog-body'),m=modal.getBoundingClientRect(),b=body.getBoundingClientRect(),s=getComputedStyle(modal),top=m.top+parseFloat(s.borderTopWidth)+parseFloat(s.paddingTop),bottom=m.bottom-parseFloat(s.borderBottomWidth)-parseFloat(s.paddingBottom);return {bodyTop:b.top,bodyBottom:b.bottom,contentTop:top,contentBottom:bottom,viewportHeight:innerHeight,fits:b.top>=Math.max(0,top)-1&&b.bottom<=Math.min(innerHeight,bottom)+1}})()");
+ assert.equal(fixtures.notificationBounds.fits,true,'Notification scrollport must fit inside its dialog and viewport: '+JSON.stringify(fixtures.notificationBounds));
  for(let i=0;i<50&&!fixtures.notificationAcks.length;i++)await wait(100);
  assert.ok(fixtures.notificationAcks.length,'A painted visible notification must be acknowledged');
  const exposed=await evaluate("(()=>{const body=document.querySelector('#modal .dialog-body'),bounds=body.getBoundingClientRect();return [...document.querySelectorAll('[data-notification-id]')].filter(e=>{const r=e.getBoundingClientRect();return r.top>=Math.max(bounds.top,0)&&r.bottom<=Math.min(bounds.bottom,innerHeight)}).map(e=>e.dataset.notificationId)})()");

@@ -64,5 +64,5 @@ const observer=new MutationObserver(()=>{if(!queued){queued=true;queueMicrotask(
 window.MishwarLang={get:()=>lang,t:source=>lang==='en'?translate(source):source,set(value){lang=value==='en'?'en':'ar';try{localStorage.setItem('mishwar-language',lang)}catch{}update();window.dispatchEvent(new CustomEvent('mishwar-language-changed',{detail:lang}))}};
 const languageButton=document.createElement('button');languageButton.id='mishwar-language';languageButton.type='button';languageButton.dataset.noTranslate='';languageButton.className='mishwar-language';
 languageButton.onclick=()=>window.MishwarLang.set(lang==='en'?'ar':'en');
-(document.querySelector('.driver-shell header')||document.body).append(languageButton);update();
+(document.querySelector('.driver-shell header')||document.querySelector('.topbar')||document.body).append(languageButton);update();
 })();
