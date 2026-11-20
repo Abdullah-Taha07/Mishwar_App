@@ -11,7 +11,7 @@ function harness(role){
  const state={owner:'A',handler:null,dialog:null};
  const on=(key,fn)=>{if(!events.has(key))events.set(key,[]);events.get(key).push(fn)};
  const off=(key,fn)=>{events.set(key,(events.get(key)||[]).filter(x=>x!==fn))};
- function node(){const value={value:'',textContent:'',innerHTML:'',disabled:false,isConnected:true,dataset:{},scrollHeight:0,scrollTop:0,addEventListener:(name,fn)=>on(value.key+':'+name,fn),removeEventListener:(name,fn)=>off(value.key+':'+name,fn),key:'node'+(++nextId)};return value}
+ function node(){const attributes=new Map();const value={value:'',textContent:'',innerHTML:'',disabled:false,isConnected:true,dataset:{},scrollHeight:0,scrollTop:0,setAttribute:(name,text)=>attributes.set(name,String(text)),getAttribute:name=>attributes.get(name)??null,addEventListener:(name,fn)=>on(value.key+':'+name,fn),removeEventListener:(name,fn)=>off(value.key+':'+name,fn),key:'node'+(++nextId)};return value}
  function dialog(){
   const d=node(),fields={body:node(),kind:node(),description:node()},button=node(),error=node(),log=node(),back=node(),body=node();d.open=false;
   const form=node();Object.assign(form,fields);form.querySelector=selector=>selector==='button'?button:null;form.reset=()=>{fields.body.value='';fields.description.value=''};
@@ -36,6 +36,13 @@ function harness(role){
  const launch=async(type='chat',tripId='trip-A')=>{const button={dataset:{launch:type,tripId}};for(const fn of events.get('document:click')||[])fn({target:{closest:selector=>selector==='[data-launch]'?button:null},preventDefault(){}});await flush();return state.dialog};
  return {c,state,requests,storage,timers,launch,async openCase(){await c.MishwarLaunch.cases();state.dialog.caseButton.onclick();await flush();return state.dialog},async type(input,value){input.value=value;for(const fn of events.get(input.key+':input')||[])fn();for(const fn of events.get(input.parentForm?.key+':input')||[])fn();await flush()},async submit(d){await d.form.onsubmit({preventDefault(){},target:d.form});await flush()},async reset(owner){state.owner=owner;c.data.captain.id=owner;for(const fn of events.get(role==='rider'?'mishwar-account-reset':'mishwar-captain-auth-required')||[])fn();await flush()}};
 }
+
+test('rider launch dialog names its open conversation with the rendered heading',async()=>{
+ const h=harness('rider'),d=await h.launch();
+ assert.equal(d.open,true);
+ assert.equal(d.getAttribute('aria-labelledby'),'launch-dialog-title');
+ assert.match(d.innerHTML,/<h2 id="launch-dialog-title">محادثة المشوار<\/h2>/);
+});
 
 for(const role of ['rider','captain']){
  test(role+' send is not discarded while a chat poll is pending and late poll cannot duplicate or erase messages',async()=>{

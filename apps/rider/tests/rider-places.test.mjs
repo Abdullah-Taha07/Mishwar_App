@@ -75,3 +75,19 @@ test('Escape cancels a pending address save rather than attaching it to the next
   const h=harness();h.open();h.click('Search');h.escape();h.c.choose(point('A different destination'));
   assert.equal(h.data.has(h.key(A)),false);assert.equal(h.choices.at(-1).name,'A different destination');
 });
+
+test('RIDER-007 a late map address cannot strip freshness from a newer GPS fix at the same coordinates',async()=>{
+  const h=harness(),pending=deferred();h.c.reverseAddress=()=>pending.promise;
+  h.c.onMishwarMapTap({lat:24.7,lng:46.6});
+  const measured={...point('New GPS fix'),source:'gps',accuracy:10,observedAt:Date.now()};h.c.pickupPoint=measured;
+  pending.resolve({...point('Late manual address'),lat:0,lng:0});await pending.promise;await Promise.resolve();
+  assert.equal(h.c.pickupPoint,measured);assert.equal(h.c.pickupPoint.source,'gps');
+});
+
+test('RIDER-007 resolving a current manual map point changes labels without replacing its source or coordinates',async()=>{
+  const h=harness(),pending=deferred();h.c.reverseAddress=()=>pending.promise;
+  h.c.setPickup=value=>{h.c.pickupPoint={...value,source:'manual'}};
+  h.c.onMishwarMapTap({lat:24.7,lng:46.6});
+  pending.resolve({...point('Resolved manual address'),lat:0,lng:0,resolved:true});await pending.promise;await Promise.resolve();
+  assert.equal(h.c.pickupPoint.source,'manual');assert.equal(h.c.pickupPoint.lat,24.7);assert.equal(h.c.pickupPoint.lng,46.6);assert.equal(h.c.pickupPoint.name,'Resolved manual address');
+});

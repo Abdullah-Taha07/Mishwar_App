@@ -7,7 +7,7 @@
   const snapshot=()=>({...state});
   const emit=(name,detail={})=>window.dispatchEvent(new CustomEvent(name,{detail:{...snapshot(),...detail}}));
   function advance(){state.generation++;authSequence++;for(const controller of reads)controller.abort();reads.clear()}
-  function reset(reason,previous){window.mishwarRiderVerified=false;emit('mishwar-account-reset',{reason,previousAccountKey:previous.accountKey,bootstrap:previous.status==='unknown'})}
+  function reset(reason,previous){window.mishwarRiderVerified=false;const detail={reason,previousAccountKey:previous.accountKey,bootstrap:previous.status==='unknown'};emit('mishwar-account-will-reset',detail);emit('mishwar-account-reset',detail)}
   function invalidate(reason='session-changed'){
     const previous=snapshot();advance();state={status:'unknown',accountKey:null,authenticated:false,verified:false,generation:state.generation};
     reset(reason,previous);emit('mishwar-account-invalidated',{reason});

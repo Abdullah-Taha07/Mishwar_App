@@ -1,0 +1,61 @@
+# استئناف تطوير راكب مشوار — RIDER-012
+
+**الحالة المعتمدة — 20 نوفمبر 2026:** العمل في `D:\Mishwar_App\rider-012-readiness-20261120`، فرع `work/rider-012-readiness-20261120`، من أساس `4ad7dda0b5159375e510e7bced73ce2d03b7b108`. وجهة Push الوحيدة `dev/mishwar-shared` دون Force Push، وبعد مقارنة SHA وإثبات منع أي نشر تلقائي. لا تستخدم المسارات القديمة في السجل أدناه بوصفها مساحة العمل الحالية.
+
+اقرأ [التقرير النهائي](RIDER012_FINAL_READINESS_AR.md) و[جدول الفجوات23](RIDER012_GAP_ANALYSIS_AR.md) و[نظام الواجهة](RIDER_DESIGN_SYSTEM_AR.md). اجتاز القبول المحلي اختبارات التطبيقات557/557 والتشغيل19 والأمان7 وتدقيق المصدر19، والمتصفح النهائي64/64 مع فحوص الوصول المحددة. لا تُعد الاختبارات الناجحة بلا تغيير أو إخفاق جديد. الصور والأدلة الخاصة في `.local-verification/rider-012-browser/after-accepted` و`comparison.html`.
+
+آخر SHA مؤكد قبل حفظ RIDER-012 هو الأساس أعلاه. SHA إصلاح المرحلة يُستخرج من `git log -- docs/RIDER012_FINAL_READINESS_AR.md` ويُطابق مع GitHub؛ وجود التقرير ليس إثبات Push. تحقق من إيصال الرفع الخاص وحالة الفرع أولًا، ولا تُعد معاملات الحجز أو الدفع بسبب الاستئناف.
+
+المتبقي قبل القبول التجاري: عزل Preview أثناء التشغيل، خدمات SMS/البريد/الخرائط/الدفع والإشعارات، وأجهزة Android/iPhone/Safari حقيقية ورحلة مستقلة عبر التطبيقات الثلاثة. قرار الإطلاق **NOT READY**. لا تغيّر D1/R2 أو أسرارًا، ولا تنشر معاينة أو إنتاجًا أو تُفعّل النشر التلقائي دون موافقة محددة.
+
+ابدأ بـgit status وHEAD ومقارنة الفرع البعيد دون إسقاط أي عمل. راجع تعديلات SW/version وموارد previews المحفوظة ولا تستبدلها بالنسخ القديمة. لا main أو إعادة تاريخ أو حذف نسخ احتياطية. `apps/hub/worker` هو الخادم المشترك؛ الأولوية للراكب.
+
+## سجل تعليمات سابق محفوظ — تاريخي
+
+النص الآتي توثيق المراحل السابقة، وتعلو عليه الحالة المعتمدة أعلاه عند اختلاف المسار أو الخطوة التالية.
+
+# استئناف تطوير تطبيق راكب مشوار
+
+**آخر خطوة — 19 نوفمبر 2026:** RIDER-007 في `D:\Mishwar_App\rider-development-20261119`، الفرع `work/rider-007-location-20261119` من أحدث `dev/mishwar-shared` عند `d3c3b9a`. راجع [تقرير GPS](RIDER_007_LOCATION_AR.md) وسجل Git قبل أي عمل. لا تعِد الفحوصات الناجحة دون تغيير يستدعيها. إذا لم يثبت رفع Commit المرحلة إلى فرع المشاركة، فأغلق شرط الرفع أولًا ثم ابدأ RIDER-008. لا تلمس تعديلات مساحات العمل الأخرى، ولا main أو الإنتاج.
+
+آخر تحديث: 2026-11-19 15:57:39 (وقت جهاز التطوير).
+
+المشروع منظومة نقل Monorepo؛ الأولوية الحالية إصلاح وظائف الراكب واختبارها بدءًا بالتنقل، ثم الحساب، ثم الخرائط والتسعير والحجز وبقية الوظائف. ممنوع توسيع واجهات السائق أو الإدارة. `apps/hub` تطبيق السائق ويحتوي كذلك الخادم المركزي `apps/hub/worker`؛ عدّل خدماته المشتركة اللازمة للراكب فقط، ولا تنقل الخادم.
+
+المجلد المعتمد: `D:\Mishwar_App\cloud-review-workspace`. الفرع المحلي `review/mishwar-clean-cloud-20261119` يرتبط بالسحابي `origin/dev/mishwar-shared`. لا تبدأ من مجلد أو تاريخ قديم.
+
+عند فتح جلسة:
+
+1. اقرأ هذا الملف و[RIDER_PROGRESS.md](RIDER_PROGRESS.md) أولًا.
+2. افحص الفرع و`git status` وHEAD والتغييرات غير المحفوظة.
+3. تحقق من SHA البعيد عبر `git ls-remote origin refs/heads/dev/mishwar-shared`؛ قارن دون استبدال العمل المحلي. إذا تقدم البعيد فتوقف لمراجعة الفروق قبل Push.
+4. ارجع إلى آخر مرحلة مثبتة في سجل التقدم وتاريخ Git، ولا تعِد إجراءات الحجز أو الدفع أو الاسترداد بسبب الانقطاع.
+
+آخر مرحلة اختُبرت محليًا: **RIDER-002/003: اختبارات تكامل المصادقة وSQLite مع RIDER-004 (إصلاح الخروج)**. عُد إلى تاريخ Git لمعرفة SHA.
+
+العمل الحالي والخطوة التالية: **اختبار واجهات التسجيل والدخول والاستعادة بالنقر الفعلي مع Worker/SQLite المحليين، ثم معالجة OTP وGPS**.
+
+الملفات ذات العلاقة في آخر خطوة:
+
+- `apps/rider/public/account-context.js`
+- `apps/rider/public/navigation-ui.js`
+- `apps/rider/public/live-booking.js`
+- `apps/rider/public/i18n-catalog.js`
+- `apps/rider/tests/account-isolation.test.mjs`
+- `scripts/rider-navigation-browser.mjs`
+- `docs/RIDER_PROGRESS.md`
+- `docs/RIDER_RESUME.md`
+
+اختبارات مطلوبة حسب التغيير: الاختبارات الموجهة ثم `npm.cmd test` من الجذر، `npm.cmd run audit:source`، `npm.cmd run test:ops`، `npm.cmd run test:security`، واختبار المتصفح الحقيقي `node scripts/rider-browser-smoke.mjs apps/rider/dist/public --pwa` واختبار التنقل إن وُجد. امنع اتصالات المزودين أثناء الاختبارات باستخدام `scripts/offline-fetch-guard.mjs`؛ لا تستخدمه مع مشغل المتصفح المحلي الذي يحتاج loopback ويمنع المصادر الخارجية بنفسه.
+
+البناء يولد `sw.js` و`version.json`؛ كانت نسختا الكابتن معدلتين قبل هذه الجلسة. لا تحذفها أو تدرجها عشوائيًا. راجعها واستبعد أي تغيير مولد غير لازم. الأدلة المحلية داخل `.local-verification` و`artifacts/rider-repairs-2026-11-15` مستبعدة من Git؛ سجل النتائج الضرورية في وثائق المرحلة.
+
+الممنوع: تعديل أو دمج main؛ force push؛ reset --hard/clean؛ حذف النسخ القديمة أو الاحتياطية؛ رفع أسرار/بيانات خاصة/ملفات مولدة دون مراجعة؛ نشر Vercel/Cloudflare أو تفعيل النشر التلقائي أو ترحيل D1 الإنتاجية أو مسح R2 أو تغيير مالي حقيقي دون موافقة. لا تعد تشغيل المعاملات لتجربة الاستئناف.
+
+لكل إصلاح صغير: اختبر، راجع ملفات الخطوة والأسرار، حدّث السجل، Commit محدد، افحص البعيد، Push إلى dev/mishwar-shared، ثم أكد SHA. إذا فشلت خطوة فاحتفظ بها محليًا ووثق سبب التعثر. لا يُعد النجاح المحلي نجاحًا إنتاجيًا أو ميدانيًا.
+
+أضيف اختبار: apps/rider/tests/rider-auth-bridge-integration.test.mjs. إصلاح حقل phoneVerified والخروج في apps/hub/worker/rider-auth.js. جميع الاختبارات في SQLite ذاكرة ومحاكاة SMS؛ لا تُنشئ حسابات على الإنتاج.
+
+RIDER-005 CHECKPOINT (2026-11-19 16:22:19): isolated real Edge auth browser tests and full validation PASS. SW pre-cache GET / distinguished from actual browser document navigation. Test script: scripts/rider-auth-browser.mjs. Next: OTP quota concurrency, GPS policy, additional account scenarios. SHA: see git log -- scripts/rider-auth-browser.mjs. Production not deployed.
+
+RIDER-006 (2026-11-19 16:42:26): OTP send-lease concurrency and R09 quota regression PASS locally, saved only after confirmed GitHub push. Next GPS, TomTom route/pricing and booking. Logs: C:\Users\abdul\AppData\Local\Temp\Mishwar_RIDER_006_Resume_20261119_164139.

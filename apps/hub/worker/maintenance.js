@@ -151,11 +151,23 @@ export async function acquireMaintenanceScope(env,ctx,kind='request'){
 /** Provider I/O is buffered before acknowledging completion; a timeout leaves
  * a durable unknown outcome for mutating requests. Direct unit handlers may
  * omit a scope, but production entrypoints always supply it. */
+async function strictProviderFetch(input,options){
+  // Cloudflare rejects redirect:'error'. Preserve its deny-redirect semantics
+  // using manual mode, and never follow a provider Location header.
+  const denyRedirect=options.redirect==='error';
+  const response=await fetch(input,denyRedirect?{...options,redirect:'manual'}:options);
+  if(denyRedirect&&(response.redirected||response.type==='opaqueredirect'||(response.status>=300&&response.status<400))){
+    try{await response.body?.cancel?.()}catch{}
+    throw Object.assign(new Error('External provider redirect rejected'),{code:'EXTERNAL_PROVIDER_REDIRECT'});
+  }
+  return response;
+}
+
 export async function maintenanceFetch(env,input,options={}){
-  const scope=env.__maintenance;if(!scope)return fetch(input,options);
+  const scope=env.__maintenance;if(!scope)return strictProviderFetch(input,options);
   const method=String(options.method||(input instanceof Request?input.method:'GET')).toUpperCase();
   return scope.effect('provider.'+method,async()=>{
-    const response=await fetch(input,options),reader=response.body?.getReader(),chunks=[];let size=0;
+    const response=await strictProviderFetch(input,options),reader=response.body?.getReader(),chunks=[];let size=0;
     if(reader)for(;;){const item=await reader.read();if(item.done)break;size+=item.value.byteLength;if(size>4*1024*1024){await reader.cancel();throw stopped()}chunks.push(item.value)}
     const body=new Uint8Array(size);let offset=0;for(const chunk of chunks){body.set(chunk,offset);offset+=chunk.byteLength}
     if(!['GET','HEAD','OPTIONS'].includes(method)&&(response.status>=500||response.status===408))throw Object.assign(new Error('تعذر تأكيد نتيجة الطلب لدى المزود. راجع الحالة قبل إعادة المحاولة.'),{code:'EXTERNAL_OUTCOME_UNKNOWN'});

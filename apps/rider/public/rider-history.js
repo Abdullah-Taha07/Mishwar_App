@@ -5,8 +5,49 @@ const states={matching:'بانتظار كابتن',arriving:'الكابتن في
 const stars=value=>`<span class="trip-stars" role="img" aria-label="${value?value.score+' من 5':'لم يرد تقييم بعد'}" dir="ltr">${[1,2,3,4,5].map(n=>'<span class="'+(n<=(value?.score||0)?'filled':'')+'">★</span>').join('')}</span>`;
 const rating=(title,value)=>`<div class="journey-rating"><span>${title}</span><b>${stars(value)}</b>${value?.comment?`<p data-no-translate>${esc(value.comment)}</p>`:''}</div>`;
 function card(t){const at=new Date(t.created_at),date=at.toLocaleDateString(window.MishwarLang?.get()==='en'?'en-SA':'ar-SA',{day:'numeric',month:'short',year:'numeric'}),time=at.toLocaleTimeString(window.MishwarLang?.get()==='en'?'en-SA':'ar-SA',{hour:'2-digit',minute:'2-digit'});return `<details class="journey-card" data-journey="${esc(t.id)}"><summary><div class="journey-top"><span class="journey-status ${t.status}">${states[t.status]||esc(t.status)}</span><time datetime="${esc(t.created_at)}" data-localized-date>${date} · ${time}</time></div><div class="journey-route"><span class="journey-route-icon">◉<i></i>▪</span><div><span data-no-translate>${esc(t.pickup.name)}</span><h3 data-no-translate>${esc(t.destination.name)}</h3></div><span class="journey-arrow">⌄</span></div><div class="journey-bottom"><span>${categories[t.category]||'اقتصادية'} · ${payments[t.method]||'الدفع غير محدد'}</span><strong dir="ltr">${cash(t.fare_halalas-t.discount_halalas)}</strong></div>${t.status==='completed'?`<div class="journey-score"><span>تقييم الكابتن لك</span>${stars(t.ratings?.byCaptain)}</div>`:''}</summary><section class="journey-details"><div class="journey-driver"><span>♙</span><div><b><span data-no-translate>${esc(t.driver_name||'')}</span>${t.driver_name?'':'لم يسند لكابتن'}</b><small data-no-translate>${esc([t.driver_make,t.driver_model,t.driver_plate].filter(Boolean).join(' · '))}</small></div></div><dl><div><dt>رقم المشوار</dt><dd dir="ltr">${esc(t.id.slice(0,8).toUpperCase())}</dd></div><div><dt>أجرة المشوار</dt><dd dir="ltr">${cash(t.fare_halalas)}</dd></div>${t.discount_halalas?`<div><dt>الخصم</dt><dd>${cash(t.discount_halalas)}</dd></div>`:''}${t.route?`<div><dt>المسافة والمدة</dt><dd>${(t.route.distanceMeters/1000).toFixed(1)} كم · ${Math.ceil(t.route.durationSeconds/60)} دقيقة</dd></div>`:''}</dl>${t.cancellation?`<p class="journey-cancel">سبب الإلغاء: ${esc(window.cancellationLabel(t.cancellation.reason))}${t.cancellation.detail?' · <span data-no-translate>'+esc(t.cancellation.detail)+'</span>':''}</p>`:''}${t.status==='completed'?`<div class="journey-ratings">${rating('تقييم الكابتن لك',t.ratings?.byCaptain)}${rating('تقييمك للكابتن',t.ratings?.byRider)}</div>`:''}<div class="journey-actions">${t.status==='completed'?`<button class="secondary" data-launch="receipt" data-trip-id="${esc(t.id)}">الإيصال</button>`:''}<button class="secondary" data-launch="case" data-trip-id="${esc(t.id)}">الدعم والمفقودات</button><button class="secondary" data-trip-feedback="${esc(t.id)}" data-rating-available="${t.status==='completed'}">${t.status==='completed'?(t.ratings?.byRider?'تعديل تقييمي أو المساعدة':'قيّم المشوار'):'مساعدة المشوار'}</button>${['completed','cancelled'].includes(t.status)?`<button class="primary" data-journey-rebook="${esc(t.id)}">اطلبه مجددًا</button>`:''}</div></section></details>`}
-showTrips=async function(){const token=++generation;let all=[],filter='all',next=null,loading=false;sectionModal('رحلاتي',`<section class="journey-page"><div class="journey-toolbar"><nav aria-label="تصفية الرحلات" class="journey-filters">${[['all','الكل'],['completed','مكتملة'],['cancelled','ملغاة']].map(([id,title])=>`<button type="button" data-history-filter="${id}" aria-pressed="${id==='all'}">${title}</button>`).join('')}</nav></div><div id="journey-result" aria-live="polite"><p class="journey-loading">جارٍ تحميل مشاويرك…</p></div><button id="journey-more" class="secondary" hidden>تحميل مشاوير أقدم</button></section>`);const modal=$('#modal');modal.classList.add('rider-history-page','journey-dialog');modal.addEventListener('close',()=>{generation++;modal.classList.remove('rider-history-page','journey-dialog')},{once:true});window.paintRiderRatings();
-function draw(){const box=$('#journey-result');if(!box)return;const open=[...box.querySelectorAll('details[open]')].map(el=>el.dataset.journey);const rows=all.filter(t=>(filter==='all'||t.status===filter));box.innerHTML=rows.map(card).join('')||'<div class="journey-empty"><span>◷</span><h3>لا توجد مشاوير هنا بعد</h3><p>ستظهر رحلاتك وتقييماتك بعد أول مشوار.</p></div>';for(const id of open)box.querySelector(`[data-journey="${CSS.escape(id)}"]`)?.setAttribute('open','');for(const b of box.querySelectorAll('[data-journey-rebook]'))b.onclick=()=>window.prepareRiderRebook(all.find(t=>t.id===b.dataset.journeyRebook));const more=$('#journey-more');more.hidden=next===null;more.disabled=loading;}
-async function load(offset=0){if(loading)return;loading=true;try{if(!window.mishwarRiderVerified)throw Error('سجّل الدخول ووثّق رقمك لعرض رحلاتك وتقييماتك.');const result=await window.mishwarRiderApi({action:'live_history',offset});if(token!==generation||!modal.open)return;all=[...new Map([...all,...result.trips].map(t=>[t.id,t])).values()];next=result.nextOffset;window.setRiderRatings(result.ratings);draw()}catch(err){const box=$('#journey-result');if(token===generation&&box&&!window.MishwarAccountContext.ignored(err))box.innerHTML=`<div class="journey-empty"><span>◷</span><h3>${esc(err.message)}</h3><button class="primary" data-register-rider>تسجيل / دخول</button></div>`}finally{loading=false;if(token===generation){const b=$('#journey-more');if(b)b.disabled=false}}}
-for(const b of modal.querySelectorAll('[data-history-filter]'))b.onclick=()=>{filter=b.dataset.historyFilter;for(const x of modal.querySelectorAll('[data-history-filter]'))x.setAttribute('aria-pressed',String(x===b));draw()};$('#journey-more').onclick=()=>load(next);await load();};
+showTrips=async function(){
+ const token=++generation;let all=[],filter='all',next=null,loading=false,failedOffset=null,loginRequired=false;
+ sectionModal('رحلاتي',`<section class="journey-page"><div class="journey-toolbar"><nav aria-label="تصفية الرحلات" class="journey-filters">${[['all','الكل'],['completed','مكتملة'],['cancelled','ملغاة']].map(([id,title])=>`<button type="button" data-history-filter="${id}" aria-pressed="${id==='all'}">${title}</button>`).join('')}</nav></div><div id="journey-result" aria-live="polite"><p class="journey-loading">جارٍ تحميل مشاويرك…</p></div><p id="journey-error" role="alert" hidden></p><button id="journey-retry" class="secondary" hidden>إعادة المحاولة</button><button id="journey-more" class="secondary" hidden>تحميل مشاوير أقدم</button></section>`);
+ const modal=$('#modal');modal.classList.add('rider-history-page','journey-dialog');
+ modal.addEventListener('close',()=>{generation++;modal.classList.remove('rider-history-page','journey-dialog')},{once:true});window.paintRiderRatings();
+ function controls(){
+  const more=$('#journey-more'),retry=$('#journey-retry');
+  if(more){more.hidden=next===null||failedOffset!==null||loginRequired;more.disabled=loading;more.setAttribute('aria-busy',String(loading))}
+  if(retry){retry.hidden=failedOffset===null||loginRequired;retry.disabled=loading;retry.setAttribute('aria-busy',String(loading))}
+ }
+ function draw(){
+  const box=$('#journey-result');if(!box)return;
+  const open=[...box.querySelectorAll('details[open]')].map(el=>el.dataset.journey),scrollTop=box.scrollTop;
+  const rows=all.filter(t=>filter==='all'||t.status===filter);
+  box.innerHTML=rows.map(card).join('')||'<div class="journey-empty"><span>◷</span><h3>لا توجد مشاوير هنا بعد</h3><p>ستظهر رحلاتك وتقييماتك بعد أول مشوار.</p></div>';
+  for(const id of open)box.querySelector(`[data-journey="${CSS.escape(id)}"]`)?.setAttribute('open','');
+  box.scrollTop=scrollTop;
+  for(const b of box.querySelectorAll('[data-journey-rebook]'))b.onclick=()=>window.prepareRiderRebook(all.find(t=>t.id===b.dataset.journeyRebook));
+  controls();
+ }
+ async function load(offset=0){
+  if(loading)return;loading=true;loginRequired=false;const error=$('#journey-error');if(error){error.hidden=true;error.textContent=''}controls();
+  try{
+   if(!window.mishwarRiderVerified){const error=Error('سجّل الدخول ووثّق رقمك لعرض رحلاتك وتقييماتك.');error.status=401;throw error}
+   const result=await window.mishwarRiderApi({action:'live_history',offset});
+   if(token!==generation||!modal.open)return;
+   all=[...new Map([...all,...result.trips].map(t=>[t.id,t])).values()];next=result.nextOffset;failedOffset=null;
+   window.setRiderRatings(result.ratings);draw();
+  }catch(err){
+   const box=$('#journey-result');if(token!==generation||!modal.open||!box||window.MishwarAccountContext.ignored(err))return;
+   const account=window.MishwarAccountContext.snapshot();loginRequired=err.status===401||account.status==='ready'&&!account.verified;
+   if(loginRequired){
+    if(!all.length)box.innerHTML=`<div class="journey-empty"><span>◷</span><h3>${esc(err.message)}</h3><button class="primary" data-register-rider>تسجيل / دخول</button></div>`;
+   }else{
+    failedOffset=offset;
+    if(!all.length)box.innerHTML='<div class="journey-empty"><span>◷</span><h3>تعذر تحميل المشاوير</h3></div>';
+    if(error){error.textContent=err.message||'تعذر الاتصال بالخادم. أعد المحاولة.';error.hidden=false}
+   }
+  }finally{loading=false;if(token===generation&&modal.open)controls()}
+ }
+ for(const b of modal.querySelectorAll('[data-history-filter]'))b.onclick=()=>{filter=b.dataset.historyFilter;for(const x of modal.querySelectorAll('[data-history-filter]'))x.setAttribute('aria-pressed',String(x===b));draw()};
+ const retry=$('#journey-retry');if(retry)retry.onclick=()=>load(failedOffset??0);
+ const more=$('#journey-more');if(more)more.onclick=()=>load(next);
+ await load();
+};
 })();

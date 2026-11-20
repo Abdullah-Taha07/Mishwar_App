@@ -59,10 +59,12 @@
     const selected={lat:point.lat,lng:point.lng,name:target==='pickup'?'نقطة الانطلاق على الخريطة':'الوجهة على الخريطة'};
     if(target==='pickup'){state.destination=null;setPickup(selected);mapStep='destination';setStage('select');window.dispatchEvent(new CustomEvent('mishwar-sheet-height',{detail:44}))}
     else{choose(selected);mapStep='pickup';window.dispatchEvent(new CustomEvent('mishwar-sheet-height',{detail:92}))}
+    const selectedPoint=target==='pickup'?pickupPoint:state.destination;
     reverseAddress(selected).then(named=>{
       if(!context.isCurrent(ticket))return;
-      if(target==='pickup'&&pickupPoint?.lat===selected.lat&&pickupPoint?.lng===selected.lng){pickupPoint={...named};render()}
-      else if(target==='destination'&&state.destination?.lat===selected.lat&&state.destination?.lng===selected.lng){state.destination={...named};render()}
+      const labels={name:named.name,area:named.area,resolved:named.resolved};
+      if(target==='pickup'&&pickupPoint===selectedPoint){pickupPoint={...pickupPoint,...labels};render()}
+      else if(target==='destination'&&state.destination===selectedPoint){state.destination={...state.destination,...labels};render()}
     }).catch(()=>{});
   };
   const oldShowTrips=showTrips;
