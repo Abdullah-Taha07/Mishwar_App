@@ -27,8 +27,9 @@ const cookieOf = response => String(response.headers.get('set-cookie') || '').sp
 const normalizedPhone = phone => '+966' + phone.slice(1);
 const pointValid = point => Number.isFinite(point.lat) && Number.isFinite(point.lng) && point.lat >= 23.8 && point.lat <= 25.5 && point.lng >= 45.5 && point.lng <= 48;
 
-export async function startJourneyServer({publicRoot = 'apps/rider/dist/public'} = {}) {
+export async function startJourneyServer({publicRoot = 'apps/rider/dist/public', tomtomFixture = null} = {}) {
   assert.equal(activeServer, false, 'Close the previous local journey server first');
+  assert.ok(tomtomFixture === null || typeof tomtomFixture === 'function', 'TomTom fixture must be a provider-boundary function');
   const root = realpathSync(resolve(publicRoot));
   assert.ok(existsSync(join(root, 'index.html')), 'Supply an existing rider public build; this helper does not build');
   activeServer = true;
@@ -87,6 +88,17 @@ export async function startJourneyServer({publicRoot = 'apps/rider/dist/public'}
     if (url.origin === 'https://api.tomtom.com') {
       assert.ok(scope?.state, 'Fake map provider must belong to a local fixture');
       assert.equal(url.searchParams.get('key'), MAP_KEY);
+      if (tomtomFixture) {
+        const operation = url.pathname.startsWith('/search/2/search/') ? 'search' : url.pathname.startsWith('/search/2/reverseGeocode/') ? 'reverse' : url.pathname.startsWith('/routing/1/calculateRoute/') ? 'route' : null;
+        assert.ok(operation, 'The optional fixture only handles the known TomTom search/reverse/route boundary');
+        assert.equal(request.method, 'GET', 'TomTom acceptance fixture only permits existing GET adapters');
+        audit.providerRequests.push({...label(), provider: 'TomTom', operation, mocked: true, customFixture: true});
+        // The hook sees the actual adapter request. Never put its key, headers,
+        // or URL in audit artifacts. Other providers still hit the deny guard.
+        const reply = await tomtomFixture({request, url, body: null, operation, scenarioId: scope.state.fixture.scenarioId});
+        assert.ok(reply instanceof Response, 'The optional TomTom fixture must return a local Response');
+        return reply;
+      }
       if (url.pathname.startsWith('/search/2/search/')) {
         const query = decodeURIComponent(url.pathname.slice('/search/2/search/'.length).replace(/\.json$/, ''));
         const point = /انطلاق|pickup/i.test(query) ? PICKUP : DESTINATION;
@@ -129,12 +141,22 @@ export async function startJourneyServer({publicRoot = 'apps/rider/dist/public'}
         let raw = ''; for await (const chunk of request) {raw += chunk; if (Buffer.byteLength(raw) > 20000) throw Error('Oversized local API request');}
         let body = {}; try {body = raw ? JSON.parse(raw) : {};} catch {}
         const row = {scenarioId: state.fixture.scenarioId, phase: 'browser', path: url.pathname, action: body.action || null, method: request.method, status: null};
+        if (tomtomFixture && ['live_quote', 'estimate'].includes(body.action)) {
+          const coordinates = point => point ? {lat: point.lat, lng: point.lng} : null;
+          row.routeInputs = {pickup: coordinates(body.pickup), destination: coordinates(body.destination), category: body.category || 'economy'};
+        }
         audit.requests.push(row);
         const reply = await context.run({state, phase: 'browser'}, () => riderGateway.fetch(new Request(origin + request.url, {
           method: request.method, headers: request.headers, ...(['GET', 'HEAD'].includes(request.method) ? {} : {body: raw}),
         }), {HUB_URL: HUB_ORIGIN, HUB_SERVICE_KEY: state.env.RIDER_SERVICE_KEY}, {trustedClientIp: TRUSTED_IP}));
         row.status = reply.status;
         const bytes = Buffer.from(await reply.arrayBuffer());
+        if (tomtomFixture && row.routeInputs) {
+          try {
+            const data = JSON.parse(bytes.toString('utf8')), route = data.route || data;
+            if (reply.ok) row.routeMetrics = {distanceMeters: route.distanceMeters, durationSeconds: route.durationSeconds, trafficDelaySeconds: route.trafficDelaySeconds, trafficAware: route.trafficAware, provider: route.provider, fare: data.fare, payable: data.payable};
+          } catch {}
+        }
         response.writeHead(reply.status, Object.fromEntries(reply.headers)); response.end(bytes); return;
       }
       if (!['GET', 'HEAD'].includes(request.method)) {response.writeHead(405); response.end(); return;}

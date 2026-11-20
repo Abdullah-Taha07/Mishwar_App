@@ -48,6 +48,7 @@ function harness({searchUI=true}={}){
   L:{map:()=>map,TileLayer,tileLayer:(url,options)=>new TileLayer(url,options),divIcon:options=>options,
    marker:()=>({addTo(){return this},bindTooltip(){return this},remove(){},setLatLng(){return this}})},
   state:{stage:'home',destination:null},render(){},getDemoFare:()=>({}),choose(){},locations(){},icon:()=>'',esc:value=>String(value??''),toast(){},
+  resetMishwarQuote(){sandbox.quoteResets=(sandbox.quoteResets||0)+1},beginMishwarManualPickup(){sandbox.manualChoices=(sandbox.manualChoices||0)+1},
   read:(key,fallback)=>fallback,localStorage:{setItem(){}},save(){},showSearch(){},
  };
  sandbox.window=sandbox;vm.createContext(sandbox);vm.runInContext(policySource,sandbox);vm.runInContext(mapsSource,sandbox);
@@ -56,6 +57,7 @@ function harness({searchUI=true}={}){
  return {c:sandbox,map,tiles,node,calls,timers,evaluate,editor:evaluate('editor'),
   route(fn){route=fn},async configure(value){config.resolve(json(value));await flush()},
   async search(query='coffee'){const editor=evaluate('editor');editor.target='destination';editor.query=query;await sandbox.runAddressSearch(query,editor.sequence)},
+  input(target,value){const input=node('#search-'+target);input.value=value;input.dataset.searchAddress=target;input.matches=selector=>selector==='[data-search-address]';node('#search-sheet').handlers.get('input')({target:input})},
  };
 }
 
@@ -67,6 +69,13 @@ test('RIDER-008 configured search does not reuse cached Photon results for the s
  const calls=h.calls.filter(c=>c.url.pathname!=='/api/map-config');assert.equal(calls.length,2);
  assert.equal(calls[0].url.hostname,'photon.komoot.io');assert.equal(calls[1].url.pathname,'/api/places');
  assert.ok(h.evaluate("[...geoCache.keys()].every(key=>key.startsWith(location.origin+'/api/places|'))"));
+});
+
+test('RIDER-014 valid numeric building numbers survive normalization without coercing malformed address fields',async()=>{
+ const h=harness();
+ h.route(()=>json({features:[{geometry:{type:'Point',coordinates:[46.675,24.713]},properties:{street:'شارع التجربة',housenumber:12,city:'Riyadh',country:'Saudi Arabia'}}]}));
+ await h.search('عنوان التجربة');
+ assert.equal(h.editor.results[0].name,'شارع التجربة 12');
 });
 
 test('RIDER-008 reverse labels are cached by provider and preserve the GPS measurement',async()=>{
@@ -141,4 +150,107 @@ test('RIDER-008 a later commercial tile failure restores OSM and preserves other
  assert.equal(h.node('#map-load-error').hidden,true);
  commercial.fire('tileerror');assert.equal(h.map.hasLayer(base),true);assert.equal(h.map.hasLayer(marker),true);assert.equal(h.node('#map-load-error').hidden,false);
  base.fire('tileerror');assert.match(h.node('#map-load-error').textContent,/OpenStreetMap/);assert.equal(h.node('#map-load-error').hidden,false);
+});
+
+test('RIDER-014 repeated search submission keeps the newest request even when an older response arrives last',async()=>{
+ const h=harness(),old=deferred(),latest=deferred();let n=0;h.route(()=>++n===1?old.promise:latest.promise);
+ const first=h.search('مستشفى الاختبار');await flush();const second=h.search('مستشفى الاختبار');await flush();
+ latest.resolve(json(places('Newest hospital')));await second;
+ old.resolve(json(places('Old hospital')));await first;
+ assert.equal(h.editor.results[0].name,'Newest hospital');
+ assert.equal(h.evaluate("[...geoCache.values()].flat().some(p=>p.name==='Old hospital')"),false);
+});
+
+test('RIDER-014 changing the query discards an old response from both the view and cache',async()=>{
+ const h=harness(),old=deferred();h.route(()=>old.promise);
+ const pending=h.search('old query');await flush();h.c.scheduleAddressSearch('new query');
+ old.resolve(json(places('Old private query')));await pending;
+ assert.equal(h.editor.results.length,0);
+ assert.equal(h.evaluate('geoCache.size'),0);
+});
+
+test('RIDER-014 cancellation covers a deferred JSON body and does not cache its late value',async()=>{
+ const h=harness(),body=deferred();h.route(()=>({ok:true,json:()=>body.promise}));
+ const pending=h.search('old body');await flush();h.c.stopAddressSearch();
+ body.resolve(places('Ignored late body'));await pending;
+ assert.equal(h.evaluate('geoCache.size'),0);
+});
+
+for(const query of ['','x',' '])test('RIDER-014 empty or short Enter never starts provider search: '+JSON.stringify(query),async()=>{
+ const h=harness();await h.search(query);
+ assert.equal(h.calls.filter(call=>call.url.pathname!=='/api/map-config').length,0);
+ assert.equal(h.editor.results.length,0);
+ assert.equal(h.editor.loading,false);
+});
+
+test('RIDER-014 a malformed feature does not discard other valid provider results',async()=>{
+ const h=harness();h.route(()=>json({features:[null,{geometry:{type:'Point',coordinates:['46.6',24.7]},properties:{name:'Invalid numeric string'}},...places('Valid result').features]}));
+ await h.search('Valid');assert.equal(h.editor.results.length,1);assert.equal(h.editor.results[0].name,'Valid result');assert.equal(h.editor.error,'');
+});
+
+test('RIDER-014 invalid and out-of-service coordinates never become selectable suggestions',async()=>{
+ const h=harness();h.node('#search-sheet').hidden=false;h.route(()=>json({features:[
+  {geometry:{type:'Point',coordinates:[46.6,NaN]},properties:{name:'NaN'}},
+  {geometry:{type:'Point',coordinates:[181,24.7]},properties:{name:'Outside world'}},
+  {geometry:{type:'Point',coordinates:[46.6,30]},properties:{name:'Outside service'}},
+ ]}));await h.search('invalid');assert.equal(h.editor.results.length,0);assert.equal(h.editor.visibleResults.length,0);
+});
+
+test('RIDER-014 invalid reverse coordinates do not become resolved labels or cache entries',async()=>{
+ const h=harness(),point={lat:24.7,lng:46.6,source:'manual'};
+ h.route(()=>json({features:[{geometry:{type:'Point',coordinates:[181,24.7]},properties:{name:'Invalid address'}}]}));
+ const named=await h.c.reverseAddress(point);
+ assert.equal(named.resolved,false);assert.equal(named.lat,point.lat);assert.equal(named.lng,point.lng);assert.equal(named.source,'manual');
+ assert.equal(h.evaluate('reverseCache.size'),0);
+});
+
+test('RIDER-014 same-name results at distinct nearby coordinates remain separately selectable',async()=>{
+ const h=harness();h.node('#search-sheet').hidden=false;
+ h.route(()=>json({features:[
+  {geometry:{type:'Point',coordinates:[46.6001,24.7001]},properties:{name:'Two entrances'}},
+  {geometry:{type:'Point',coordinates:[46.6004,24.7004]},properties:{name:'Two entrances'}},
+ ]}));await h.search('Two entrances');assert.equal(h.editor.visibleResults.length,2);
+});
+
+for(const target of ['pickup','destination'])test('RIDER-014 editing '+target+' invalidates only that endpoint and immediately resets the quote',()=>{
+ const h=harness();h.evaluate("pickupPoint={name:'Pickup',lat:24.7,lng:46.6};state.destination={name:'Destination',lat:24.71,lng:46.61};editor.target='"+target+"'");
+ h.input(target,'Changed location');
+ assert.equal(h.evaluate(target==='pickup'?'pickupPoint':'state.destination'),null);
+ assert.ok(h.evaluate(target==='pickup'?'state.destination':'pickupPoint'));
+ assert.equal(h.c.quoteResets,1);
+ if(target==='pickup')assert.equal(h.c.manualChoices,1);
+});
+
+test('RIDER-014 account reset prevents old searches and reverse lookups from repopulating memory caches',async()=>{
+ const h=harness(),search=deferred(),reverse=deferred();h.route(url=>url.pathname.includes('reverse')?reverse.promise:search.promise);
+ const pendingSearch=h.search('Private address'),pendingReverse=h.c.reverseAddress({lat:24.7,lng:46.6});await flush();
+ h.c.dispatchEvent(new h.c.Event('mishwar-account-reset'));
+ search.resolve(json(places('Previous account search')));reverse.resolve(json(places('Previous account reverse')));
+ await Promise.all([pendingSearch,pendingReverse]);
+ assert.equal(h.evaluate('geoCache.size'),0);assert.equal(h.evaluate('reverseCache.size'),0);assert.equal(h.editor.results.length,0);
+});
+
+test('RIDER-014 network failure releases loading and an explicit retry can return a valid result',async()=>{
+ const h=harness();h.route(()=>Promise.reject(Error('offline local fixture')));await h.search('retry');
+ assert.equal(h.editor.loading,false);assert.match(h.editor.error,/تعذر/);assert.equal(h.editor.results.length,0);
+ h.route(()=>json(places('Recovered result')));await h.search('retry');assert.equal(h.editor.results[0].name,'Recovered result');assert.equal(h.editor.error,'');
+});
+
+test('RIDER-014 a timed-out noncooperative provider cannot keep search loading indefinitely',async()=>{
+ const h=harness(),hung=deferred();h.route(()=>hung.promise);const pending=h.search('timeout');await flush();
+ let completed=false;void pending.then(()=>{completed=true});
+ for(const [id,timer]of [...h.timers])if(timer.delay===10000){h.timers.delete(id);timer.fn()}
+ await flush();assert.equal(completed,true);assert.equal(h.editor.loading,false);assert.match(h.editor.error,/تعذر/);
+ hung.resolve(json(places('Too late')));await pending;assert.equal(h.evaluate('geoCache.size'),0);
+});
+
+test('RIDER-014 empty provider results remain a recoverable empty state without a fabricated coordinate',async()=>{
+ const h=harness();h.route(()=>json({features:[]}));await h.search('unknown place');
+ assert.equal(h.editor.loading,false);assert.equal(h.editor.error,'');assert.equal(h.editor.results.length,0);
+ h.node('#search-sheet').hidden=false;h.c.drawSuggestions();assert.match(h.node('#search-results-list').innerHTML,/جرّب اسمًا/);
+});
+
+test('RIDER-014 manual Arabic and English place searches work without any browser geolocation',async()=>{
+ const h=harness();assert.equal(h.c.navigator.geolocation,undefined);
+ for(const query of ['شارع الاختبار','Synthetic District']){await h.search(query);assert.equal(h.editor.results.length,1);const call=h.calls.at(-1);assert.equal(call.url.searchParams.get('lat'),'24.7136');assert.equal(call.url.searchParams.get('lon'),'46.6753')}
 });

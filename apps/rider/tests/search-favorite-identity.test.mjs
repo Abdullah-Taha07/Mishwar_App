@@ -115,3 +115,17 @@ test('RIDER-014.001 preserves the existing favorite tolerance when both coordina
   h.favorite(0);
   assert.deepEqual(h.saved(), []);
 });
+
+test('RIDER-014 recent selections preserve same-name branches at a different longitude',()=>{
+ const h=harness();h.c.rememberAddress(A);h.c.rememberAddress(B);
+ assert.deepEqual(Array.from(h.c.recentAddresses(),point=>point.lng).sort(),[A.lng,B.lng]);
+});
+
+test('RIDER-014 recent selections still deduplicate the same nearby point on both axes',()=>{
+ const h=harness();h.c.rememberAddress(A);h.c.rememberAddress({...A,lat:A.lat+.0004,lng:A.lng+.0004});
+ assert.equal(h.c.recentAddresses().length,1);
+});
+
+test('RIDER-014 invalid recent coordinates are rejected instead of being serialized to storage',()=>{
+ const h=harness();assert.equal(h.c.rememberAddress({...A,lat:NaN}),false);assert.equal(h.c.recentAddresses().length,0);
+});
