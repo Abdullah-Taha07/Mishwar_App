@@ -380,7 +380,7 @@ html[data-theme="dark"] .topbar :is(#mishwar-language,#notifications-button,#bac
 .auth-mode-tabs { background: var(--mw-surface-soft); border-color: var(--mw-border); }
 .auth-mode-tabs .selected { background: var(--mw-surface); color: var(--mw-accent-ink); }
 #modal:has(.premium-account) { background: var(--mw-surface); color: var(--mw-text); }
-#modal .secondary:not(.danger), .dialog-language { background: var(--mw-surface-soft); color: var(--mw-accent-ink); border: 1px solid var(--mw-border); }
+#modal .secondary:not(.danger), #modal .account-refresh, .dialog-language { background: var(--mw-surface-soft); color: var(--mw-accent-ink); border: 1px solid var(--mw-border); }
 #modal .verified-note { background: var(--mw-surface-accent); color: var(--mw-success); border: 1px solid var(--mw-border); border-radius: 14px; padding: 12px; }
 .notifications-list { display: grid; gap: 10px; }
 .notifications-list article { border: 1px solid var(--mw-border); border-radius: 18px; padding: 16px; background: var(--mw-surface-soft); }
