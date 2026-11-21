@@ -109,6 +109,14 @@ function harness({owner=A,ride=trip(),auth=true,extra=[],htmlOrder=false}={}){
   return {c:sandbox,state,calls,events,notices,storage,elements,node,intervals,listeners,load:name=>vm.runInContext(file(name),sandbox,{filename:name}),async click(attribute){const button={dataset:{},hasAttribute:key=>key===attribute};const event={target:{closest:()=>button}};await Promise.all((listeners.get('document:click')||[]).map(fn=>fn(event)))},async change(next){state.owner=next;const context=sandbox.MishwarAccountContext,ticket=context.beginAuthRead();context.applyAuth(next?{authenticated:true,accountKey:next,phoneVerified:true}:{authenticated:false,accountKey:null},ticket);context.notifyAuth();await flush()}};
 }
 
+test('MAIN privacy reset removes the old drawer identity synchronously even while its close animation is pending',async()=>{
+  const h=harness();await flush();
+  const drawer=h.node('#drawer'),content=h.node('#drawer-content');drawer.open=true;content.textContent='Private old owner identity';
+  drawer.close=()=>{}; // A real animated close can keep its content painted until the next frame.
+  h.c.MishwarAccountContext.beginTransition('switch-owner');
+  assert.equal(content.textContent,'','An account transition must not rely on a closing animation to hide private identity');
+});
+
 test('HTML bootstrap initializes account ownership and restores its signed-in trip',async()=>{
   const h=harness({htmlOrder:true});
   await flush();
