@@ -28,7 +28,7 @@ export async function commercialRoad(env, points) {
   if (typeof env.TOMTOM_API_KEY !== 'string' || !env.TOMTOM_API_KEY.trim()) throw Error('خدمة المسارات التجارية بانتظار التفعيل');
   const coords = points.map(point => point.lat + ',' + point.lng).join(':');
   const url = new URL('https://api.tomtom.com/routing/1/calculateRoute/' + coords + '/json');
-  url.search = new URLSearchParams({key: env.TOMTOM_API_KEY, traffic: 'true', travelMode: 'car', routeType: 'fastest', departAt: 'now', computeTravelTimeFor: 'all', language: 'ar-SA'});
+  url.search = new URLSearchParams({key: env.TOMTOM_API_KEY, traffic: 'true', travelMode: 'car', routeType: 'fastest', departAt: 'now', computeTravelTimeFor: 'all', language: 'ar'});
   const body = await boundedRoadJson(url, {}, 10000, env), route = body?.routes?.[0];
   if (!route || !Number.isFinite(route.summary?.lengthInMeters) || !Number.isFinite(route.summary?.travelTimeInSeconds)) throw Error('بيانات المسار التجاري ناقصة');
   if (!Array.isArray(route.legs) || !route.legs.length || route.legs.some(leg => !Array.isArray(leg?.points) || leg.points.length < 2)) throw Error('إحداثيات الطريق غير صحيحة. أعد حساب المسار.');
@@ -96,7 +96,7 @@ export async function commercialPlaces(request, env) {
     const rate = await env.DB.prepare('INSERT INTO access_rate_limits VALUES(?,1) ON CONFLICT(bucket) DO UPDATE SET n=n+1 RETURNING n').bind(bucket).first();
     if (rate.n > 50) return json({error: 'طلبات كثيرة'}, 429);
     const url = new URL(reverse ? 'https://api.tomtom.com/search/2/reverseGeocode/' + lat + ',' + lng + '.json' : 'https://api.tomtom.com/search/2/search/' + encodeURIComponent(query) + '.json');
-    url.search = new URLSearchParams({key: env.TOMTOM_API_KEY, language: 'ar-SA', countrySet: 'SA', lat: String(lat), lon: String(lng), radius: '50000', limit: '30'});
+    url.search = new URLSearchParams({key: env.TOMTOM_API_KEY, language: 'ar', countrySet: 'SA', lat: String(lat), lon: String(lng), radius: '50000', limit: '30'});
     const data = await boundedRoadJson(url, {}, 8000, env), rows = reverse ? data?.addresses : data?.results;
     if (!Array.isArray(rows)) throw Error('PLACE_RESPONSE_SHAPE');
     return json({provider: 'TomTom', features: rows.map(item => feature(item, reverse)).filter(Boolean)});
