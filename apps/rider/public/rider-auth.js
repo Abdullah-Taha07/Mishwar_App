@@ -1,10 +1,73 @@
 (()=>{let account=null,authMutation=false;const accountContext=window.MishwarAccountContext;
-async function api(action,body,options={}){const response=await fetch('/api/auth/'+action,{credentials:'same-origin',...(body?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}:{}),...options});let data;try{data=await response.json()}catch{throw Error('تعذر قراءة رد الخادم. تأكد من اتصال تطبيق الراكب بخادم مشوار.')}if(!response.ok)throw Error(data.error||'تعذر تسجيل الحساب');return data}
+async function api(action,body,options={}){
+ const controller=new AbortController(),external=options.signal;
+ let timedOut=false;
+ const onExternalAbort=()=>controller.abort();
+ const timeout=setTimeout(()=>{timedOut=true;controller.abort()},action==='session'?15000:35000);
+ if(external?.aborted)onExternalAbort();else external?.addEventListener('abort',onExternalAbort,{once:true});
+ try{
+  let response;
+  try{response=await fetch('/api/auth/'+action,{credentials:'same-origin',...(body?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}:{}),...options,signal:controller.signal})}
+  catch(error){if(timedOut)throw Error('انتهت مهلة الاتصال بالخادم. تحقق من الشبكة وأعد المحاولة.');if(error?.name==='AbortError')throw error;throw Error('تعذر الاتصال بخادم مشوار. حاول مجددًا.')}
+  let data;try{data=await response.json()}catch{if(timedOut)throw Error('انتهت مهلة الاتصال بالخادم. أعد المحاولة.');throw Error('تعذر قراءة رد الخادم. تأكد من اتصال تطبيق الراكب بخادم مشوار.')}
+  if(!response.ok)throw Error(data.error||'تعذر تسجيل الحساب');
+  return data;
+ }finally{clearTimeout(timeout);external?.removeEventListener('abort',onExternalAbort)}
+}
+function setRiderAuthPending(form,pending){
+ const scope=form.closest('.rider-auth-card')||form;
+ if(pending){
+  if(form.__mishwarDisabledControls)return;
+  form.__mishwarDisabledControls=[...scope.querySelectorAll('input,button,select,textarea')].map(el=>({el,wasDisabled:el.disabled}));
+  scope.setAttribute('aria-busy','true');
+  form.__mishwarDisabledControls.forEach(({el})=>{el.disabled=true});
+ }else{
+  for(const {el,wasDisabled} of form.__mishwarDisabledControls||[])el.disabled=wasDisabled;
+  delete form.__mishwarDisabledControls;
+  scope.removeAttribute('aria-busy');
+ }
+}
 function cooldownOtp(button,seconds=60){let left=Math.max(1,Math.min(300,Number(seconds)||60));const label=button.textContent;button.disabled=true;const tick=()=>{if(!button.isConnected){clearInterval(timer);return}button.textContent='إعادة الإرسال بعد '+left+' ثانية';if(left--<=0){clearInterval(timer);button.disabled=false;button.textContent=label}};const timer=setInterval(tick,1000);tick()}
 async function sync(){if(accountContext.snapshot().status==='transitioning')return false;const ticket=accountContext.beginAuthRead(),read=accountContext.readController();try{const result=await api('session',undefined,{signal:read.controller.signal});if(!accountContext.isAuthReadCurrent(ticket))return false;const previous=accountContext.snapshot();if(!accountContext.applyAuth(result,ticket))return false;account=result;if(account.authenticated&&account.profile)profile={...(previous.accountKey===account.accountKey?profile:{}),...account.profile};else profile={};save('rider-profile',profile);updateIdentity?.();accountContext.notifyAuth();return true}catch(error){if(!accountContext.ignored(error))console.warn(error.message);return false}finally{read.release()}}
 async function logout(){if(authMutation)return;authMutation=true;const transition=accountContext.beginTransition('logout');try{await api('logout',{});if(!accountContext.isTransitionCurrent(transition))return;account=null;profile={};save('rider-profile',profile);accountContext.finishTransition(transition);await sync();$('#modal').close()}catch(error){if(accountContext.isTransitionCurrent(transition)){accountContext.finishTransition(transition);toast(error.message||'تعذر تسجيل الخروج. أعد المحاولة.');await sync()}}finally{authMutation=false}}
 function login(register=false){sectionModal(register?'حساب جديد':'أهلًا بك في مشوار',`<section class="rider-auth-card premium-account"><div class="auth-welcome"><div class="auth-wordmark">مشوار<span>رحلتك تبدأ هنا</span></div><svg class="auth-route-art" viewBox="0 0 180 90" fill="none" aria-hidden="true"><path d="M20 68h45a16 16 0 0 0 16-16V38a16 16 0 0 1 16-16h61" stroke="currentColor" stroke-width="2" stroke-dasharray="5 7"/><circle cx="20" cy="68" r="7" fill="currentColor"/><rect x="149" y="14" width="16" height="16" rx="5" fill="currentColor"/></svg><h3>${register?'مشاوير جديدة، بدايات أجمل.':'وجهتك أقرب مما تتخيّل.'}</h3><p>${register?'أنشئ حسابك بخطوات بسيطة، وخلي الباقي علينا.':'سجّل دخولك لمتابعة مشاويرك ومحفظتك بسهولة.'}</p></div><div class="auth-mode-tabs" aria-label="خيارات الحساب"><button type="button" class="${register?'':'selected'}" ${register?'id="switch-rider-auth"':'aria-current="true"'}>تسجيل الدخول</button><button type="button" class="${register?'selected':''}" ${register?'aria-current="true"':'id="switch-rider-auth"'}>حساب جديد</button></div><form id="rider-password-form" class="account-form">${register?'<label>الاسم الكامل<input name="name" required minlength="3" maxlength="100" autocomplete="name" placeholder="اسمك كما تحب نناديك"></label>':''}<label>رقم الجوال<span class="account-input-wrap"><input name="phone" type="tel" dir="ltr" autocomplete="tel" ${register?'required':''} placeholder="05X XXX XXXX" inputmode="tel"><span class="input-side-icon" aria-hidden="true">◉</span></span></label><label>كلمة المرور<span class="auth-password"><input name="password" type="password" required minlength="6" maxlength="128" autocomplete="${register?'new-password':'current-password'}" placeholder="٦ خانات أو أكثر"><button type="button" id="toggle-rider-password" aria-label="إظهار كلمة المرور" aria-pressed="false">إظهار</button></span></label><label>البريد الإلكتروني <small>${register?'للتوثيق والاستعادة':'يمكنك الدخول بالبريد بدل رقم الجوال'}</small><input name="email" type="email" dir="ltr" maxlength="150" autocomplete="email" placeholder="name@example.com"></label><p id="rider-auth-error" role="alert"></p><button type="submit" class="primary account-submit">${register?'إنشاء حسابي':'دخول إلى مشوار'} <span aria-hidden="true">←</span></button></form><button type="button" class="recovery-link" id="rider-email-recovery">نسيت كلمة المرور؟ استعادتها بالبريد الإلكتروني</button><button type="button" class="recovery-link" data-account-recovery>الاستعادة عن طريق الإدارة</button><p class="auth-footnote">${register?'يمكنك توثيق بريدك الإلكتروني دون واتساب.':'يمكنك الدخول بالبريد أو الجوال واستعادة كلمة المرور عبر البريد.'}</p><button type="button" class="browse-guest" id="browse-rider">استكشف مشوار كضيف ←</button></section>`);
-$('#rider-email-recovery').onclick=()=>emailRecovery();$('#toggle-rider-password').onclick=e=>{const p=$('#rider-password-form [name=password]'),show=p.type==='password';p.type=show?'text':'password';e.currentTarget.textContent=show?'إخفاء':'إظهار';e.currentTarget.setAttribute('aria-pressed',String(show));e.currentTarget.setAttribute('aria-label',show?'إخفاء كلمة المرور':'إظهار كلمة المرور')};$('#switch-rider-auth').onclick=()=>login(!register);$('#browse-rider').onclick=()=>$('#modal').close();$('#rider-password-form').onsubmit=async e=>{e.preventDefault();if(authMutation)return;const fields=Object.fromEntries(new FormData(e.target)),b=e.target.querySelector('[type=submit]');authMutation=true;const transition=accountContext.beginTransition(register?'register':'login');b.disabled=true;b.textContent='لحظات ونكون معك…';try{await api(register?'register':'password-login',fields);if(!accountContext.finishTransition(transition))return;if(!await sync())throw Error('تم طلب الدخول؛ تعذر التحقق من الجلسة. أعد المحاولة.');$('#modal').close();showAccount()}catch(err){$('#rider-auth-error').textContent=err.message;if(register&&/مسجل بالفعل|مسجل بهذا|استخدم تسجيل الدخول/.test(err.message)){const phone=e.target.phone.value,link=document.createElement('button');link.type='button';link.className='account-refresh';link.textContent='تسجيل الدخول إلى حسابي';link.onclick=()=>{login(false);$('#rider-password-form [name=phone]').value=phone};$('#rider-auth-error').append(link)}b.disabled=false;b.textContent=register?'إنشاء حسابي':'دخول إلى مشوار';if(accountContext.isTransitionCurrent(transition)){accountContext.finishTransition(transition);await sync()}}finally{authMutation=false}}}
+$('#rider-email-recovery').onclick=()=>emailRecovery();$('#toggle-rider-password').onclick=e=>{const p=$('#rider-password-form [name=password]'),show=p.type==='password';p.type=show?'text':'password';e.currentTarget.textContent=show?'إخفاء':'إظهار';e.currentTarget.setAttribute('aria-pressed',String(show));e.currentTarget.setAttribute('aria-label',show?'إخفاء كلمة المرور':'إظهار كلمة المرور')};$('#switch-rider-auth').onclick=()=>login(!register);$('#browse-rider').onclick=()=>$('#modal').close();$('#rider-password-form').onsubmit=async e=>{
+ e.preventDefault();
+ if(authMutation)return;
+ const form=e.target,fields=Object.fromEntries(new FormData(form));
+ const b=form.querySelector('[type=submit]'),errorNode=form.querySelector('#rider-auth-error');
+ const originalButtonText=b.textContent;
+ authMutation=true;
+ const transition=accountContext.beginTransition(register?'register':'login');
+ if(errorNode)errorNode.textContent='';
+ setRiderAuthPending(form,true);
+ b.textContent='لحظات ونكون معك…';
+ try{
+  await api(register?'register':'password-login',fields);
+  if(!accountContext.finishTransition(transition))return;
+  if(!await sync())throw Error('تم قبول طلب الدخول، لكن تعذر تأكيد الجلسة. تحقق من الاتصال ثم أعد المحاولة.');
+  $('#modal').close();showAccount();
+ }catch(err){
+  if(errorNode?.isConnected){
+   errorNode.textContent=err?.message||'تعذر تسجيل الدخول. أعد المحاولة.';
+   if(register&&/مسجل بالفعل|مسجل بهذا|استخدم تسجيل الدخول/.test(err?.message||'')){
+    const phone=form.querySelector('[name=phone]')?.value||'',link=document.createElement('button');
+    link.type='button';link.className='account-refresh';link.textContent='تسجيل الدخول إلى حسابي';
+    link.onclick=()=>{login(false);$('#rider-password-form [name=phone]').value=phone};
+    errorNode.append(link);
+   }
+  }
+  if(accountContext.isTransitionCurrent(transition)){
+   accountContext.finishTransition(transition);
+   // Keep the login form responsive while reconciliation runs; never repeat a login mutation.
+   void sync();
+  }
+ }finally{
+  b.textContent=originalButtonText;
+  setRiderAuthPending(form,false);
+  authMutation=false;
+ }
+}}
 showAccount=function(){if(accountContext.snapshot().status!=='ready'||!account?.authenticated){login();return}const verified=account.phoneVerified!==false,p=account.profile;sectionModal('ملفي الشخصي',`<section class="rider-account-card premium-account"><div class="profile-heading"><span class="profile-avatar" data-no-translate>${esc((p.name||'م').slice(0,1))}</span><div><h3 data-no-translate>${esc(p.name)}</h3><p>حساب مشوار الشخصي</p></div><span class="profile-state ${verified?'verified':''}">${verified?'✓ موثّق':'قيد التوثيق'}</span></div>${!verified?`<div class="verification-card"><h3>وثّق رقم جوالك عبر SMS</h3><p>هنرسل رمزًا إلى رقمك المسجل.</p><button type="button" class="verification-send" id="rider-send-otp">إرسال رمز SMS</button><form id="rider-otp-form" class="account-form"><label>رمز التحقق<input name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{4,6}" required dir="ltr"></label><button class="primary" type="submit">تأكيد الرمز</button></form><p id="rider-otp-status" role="status"></p></div>`:'<p class="verified-note">رقم جوالك موثّق. تقدر تطلب مشوارك الآن.</p>'}${verified?`<details class="rider-account-disclosure"><summary>بيانات حسابي <span aria-hidden="true">⌄</span></summary><form id="rider-profile-form" class="account-form"><label>الاسم الكامل<input name="name" value="${esc(p.name)}" required minlength="3" maxlength="100" autocomplete="name"></label><label>رقم الجوال<input value="${esc(p.phone)}" readonly dir="ltr"></label><label>البريد الإلكتروني <small>اختياري</small><input name="email" type="email" value="${esc(p.email||'')}" maxlength="150" dir="ltr" autocomplete="email"></label><p id="profile-result" role="alert"></p><button type="submit" class="primary account-submit">حفظ بياناتي</button></form></details>`:`<details class="rider-account-disclosure"><summary>بيانات حسابي <span aria-hidden="true">⌄</span></summary><dl class="account-details"><div><dt>الاسم الكامل</dt><dd data-no-translate>${esc(p.name)}</dd></div><div><dt>رقم الجوال</dt><dd dir="ltr" data-no-translate>${esc(p.phone)}</dd></div><div><dt>البريد الإلكتروني</dt><dd>${esc(p.email||'لم يُضف')}</dd></div></dl></details>`}<button type="button" class="account-refresh" id="rider-email-verify">✉ إرسال رابط توثيق البريد</button><button type="button" class="account-refresh" id="refresh-verification">↻ تحديث حالة التوثيق</button><button type="button" class="account-logout" id="rider-logout">تسجيل الخروج</button></section>`);
 if(!verified){const status=$('#rider-otp-status');$('#rider-send-otp').onclick=async e=>{const button=e.currentTarget;button.disabled=true;try{const result=await api('phone-otp-start',{});if(!button.isConnected)return;status.textContent=result.alreadyVerified?'رقمك موثّق بالفعل.':'تم طلب إرسال الرمز. افحص رسائلك.';if(result.alreadyVerified){await sync();showAccount();return}cooldownOtp(button,result.retryAfter||60)}catch(err){if(status.isConnected)status.textContent=err.message;if(button.isConnected)button.disabled=false}};$('#rider-otp-form').onsubmit=async e=>{e.preventDefault();const btn=e.target.querySelector('button');btn.disabled=true;try{await api('phone-otp-check',{code:e.target.code.value});await sync();showAccount()}catch(err){status.textContent=err.message;btn.disabled=false}};}window.paintRiderRatings?.();const form=$('#rider-profile-form');if(form)form.onsubmit=async e=>{e.preventDefault();const b=e.target.querySelector('[type=submit]');b.disabled=true;try{await api('profile',Object.fromEntries(new FormData(e.target)));await sync();toast('تم حفظ ملفك')}catch(err){$('#profile-result').textContent=err.message}finally{b.disabled=false}};$('#rider-email-verify').onclick=async e=>{const button=e.currentTarget;button.disabled=true;try{const result=await api('email-request-verification',{});toast(result.message||'راجع بريدك الإلكتروني')}catch(err){toast(err.message)}finally{if(button.isConnected)button.disabled=false}};$('#refresh-verification').onclick=async e=>{e.currentTarget.disabled=true;await sync();showAccount()};$('#rider-logout').onclick=logout};
 
