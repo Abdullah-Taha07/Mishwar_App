@@ -30,7 +30,7 @@ async function api(payload){
       // A timed-out or old account read must not apply ownership or session changes.
       if(controller?.signal.aborted)throw aborted();
       accountContext.checkResponseOwner(d,ticket);
-      if(!r.ok){if([401,403].includes(r.status)&&['live_session','live_watch'].includes(payload.action))accountContext.invalidate('session-expired');const error=Error(d.error||'تعذر الاتصال بالخادم');error.status=r.status;throw error}
+      if(!r.ok){if([401,403].includes(r.status)&&['live_session','live_watch'].includes(payload.action)){const confirmed=await window.refreshMishwarRiderAccount?.();if(r.status===401&&confirmed!==true)accountContext.invalidate('session-expired')};const error=Error(d.error||'تعذر الاتصال بالخادم');error.status=r.status;throw error}
       return d;
     })();
     // Only reads are bounded/retried by the existing poller. Payment and booking
