@@ -13,12 +13,12 @@ const geoText=value=>typeof value==='string'?value.trim():'';
 const addressText=p=>geoText(p.name)||[geoText(p.street),geoText(p.housenumber)].filter(Boolean).join(' ')||geoText(p.district)||localCity(geoText(p.city))||'موقع مختار على الخريطة';
 function photonPoint(feature){
  const geometry=feature?.geometry,coordinates=geometry?.coordinates;
- if(!Array.isArray(coordinates)||geometry.type&&geometry.type!=='Point')return null;
+ if(!Array.isArray(coordinates)||geometry?.type!=='Point')return null;
  const point={lat:coordinates[1],lng:coordinates[0]};if(!validPoint(point))return null;
  const raw=feature.properties&&typeof feature.properties==='object'?feature.properties:{},p=Object.fromEntries(['name','street','housenumber','district','city','state','country'].map(key=>[key,key==='housenumber'&&Number.isFinite(raw[key])?String(raw[key]):geoText(raw[key])]));
  return {...point,name:addressText(p),area:[p.street&&p.street!==addressText(p)?p.street:null,p.district,localCity(p.city),p.state,localCity(p.country)].filter((value,index,list)=>value&&list.indexOf(value)===index).join('، ')};
 }
-function geoPoints(data){if(!Array.isArray(data?.features))throw Error('geo-shape');return data.features.map(photonPoint).filter(validPoint)}
+function geoPoints(data){return (Array.isArray(data?.features)?data.features:[]).map(photonPoint).filter(validPoint)}
 async function fetchGeo(url,signal=AbortSignal.timeout(10000)){
  let onAbort;const aborted=()=>Object.assign(Error('geo-aborted'),{name:'AbortError'});
  if(signal.aborted)throw aborted();
@@ -66,7 +66,7 @@ async function runAddressSearch(query,sequence){
    const term=query.trim().replace(/^(حي|شارع|طريق)\s+/,'').replace(/،?\s+الرياض$/,'');const url=new URL(provider);
    url.search=new URLSearchParams({q:term,limit:'30',lat:String(focus.lat),lon:String(focus.lng),bbox:window.MishwarGeoPolicy.bbox,countrycode:'SA',lang:'default',zoom:'14',location_bias_scale:'0.0'});
    const data=await fetchGeo(url,controller.signal);if(!current()||controller.signal.aborted)return;
-   points=window.MishwarGeoPolicy.rank(geoPoints(data),focus);geoCache.set(key,points);
+   points=window.MishwarGeoPolicy.rank(geoPoints(data),focus);if(Array.isArray(data?.features))geoCache.set(key,points);
   }
   if(!current()||controller.signal.aborted)return;editor.results=points;editor.loading=false;editor.error='';drawSuggestions();
  }catch{if(current()){editor.results=[];editor.error='تعذر تحميل اقتراحات الرياض. تحقق من الإنترنت أو اختر المكان على الخريطة.';editor.loading=false;drawSuggestions()}}

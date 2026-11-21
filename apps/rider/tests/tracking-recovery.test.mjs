@@ -188,6 +188,24 @@ test('captain tracking ignores old GPS, invalid dates and late frames after acco
   assert.equal(h.time.timers.size,0);
 });
 
+test('equal-time conflicting captain coordinates cannot replace the measured follow target',()=>{
+  const h=captainHarness(),t=h.trip();h.c.MishwarTracking.update(t);
+  h.c.MishwarTracking.update(h.trip({driverLocation:{...t.driverLocation,lat:25,lng:47}}));
+  h.node('.captain-follow').onclick();
+  const followed=h.pans.filter(p=>p.kind==='manual').at(-1).point;
+  assert.equal(followed.lat,t.driverLocation.lat);assert.equal(followed.lng,t.driverLocation.lng);
+  assert.equal(h.markers[0].point.lat,t.driverLocation.lat);
+});
+
+test('equivalent timestamp encodings cannot restart motion or introduce a conflicting sample',()=>{
+  const h=captainHarness(),t=h.trip();h.c.MishwarTracking.update(t);
+  const before=h.pans.filter(p=>p.kind==='follow').length;
+  h.c.MishwarTracking.update(h.trip({driverLocation:{...t.driverLocation,at:t.driverLocation.at.replace('.000Z','Z')}}));
+  assert.equal(h.pans.filter(p=>p.kind==='follow').length,before);
+  h.c.MishwarTracking.update(h.trip({driverLocation:{...t.driverLocation,at:t.driverLocation.at.replace('.000Z','Z'),lat:25}}));
+  h.node('.captain-follow').onclick();assert.equal(h.pans.filter(p=>p.kind==='manual').at(-1).point.lat,t.driverLocation.lat);
+});
+
 function liveHarness(fetcher,{full=false}={}){
   const h=base(),storage=new Map();h.calls=[];
   h.c.fetch=(url,options)=>{const body=JSON.parse(options.body);h.calls.push({url,body,options});return fetcher(h,body,h.calls.length)};

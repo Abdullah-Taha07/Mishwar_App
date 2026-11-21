@@ -55,6 +55,7 @@ function harness(){
  return {c:sandbox,node,sheet,list,pickup,destination,close,base,alreadyInert,toast,trigger,selected,
   key(key,target=sandbox.document.activeElement,shiftKey=false){const event={key,target,shiftKey,prevented:false,preventDefault(){this.prevented=true}};for(const fn of sheet.handlers.get('keydown')||[])fn(event);return event},
   clickResult(index){const option=list.options[index],button={dataset:option.dataset,hasAttribute:()=>false};for(const fn of sheet.handlers.get('click')||[])fn({target:{closest:()=>button},preventDefault(){},stopPropagation(){}})},
+  clickFavorite(index){const button={dataset:{searchFavorite:String(index)},hasAttribute:()=>false};for(const fn of sheet.handlers.get('click')||[])fn({target:{closest:()=>button},preventDefault(){},stopPropagation(){}})},
  };
 }
 
@@ -94,4 +95,32 @@ test('RIDER-012 search loading exposes status and three inert skeleton rows with
  assert.equal((h.list.innerHTML.match(/class="mw-skeleton"/g)||[]).length,3);assert.match(h.list.innerHTML,/aria-hidden="true"/);
  assert.equal(h.list.options.length,0);assert.equal(h.c.editor.visibleResults.length,0);
  h.c.editor.loading=false;h.c.drawSuggestions();assert.equal(h.list.getAttribute('aria-busy'),'false');
+});
+
+test('search favorites keep same-name same-latitude places with different longitudes independent',()=>{
+ const h=harness(),storage=new Map();
+ h.c.MishwarAccountContext={snapshot:()=>({status:'ready',authenticated:true}),storageKey:key=>key+':A',capture:()=>({owner:'A'}),isCurrent:ticket=>ticket?.owner==='A'};
+ h.c.read=(key,fallback)=>storage.has(key)?JSON.parse(storage.get(key)):fallback;
+ h.c.localStorage.setItem=(key,value)=>storage.set(key,value);
+ const a={name:'Same business',lat:24.7,lng:46.6},b={...a,lng:46.7};
+ h.c.openSearchSheet('destination');h.c.editor.query='business';h.c.editor.results=[a,b];h.c.drawSuggestions();
+ h.clickFavorite(0);h.clickFavorite(1);
+ const saved=()=>JSON.parse(storage.get('mishwar-favorites-v3:A'));
+ assert.equal(saved().length,2);assert.deepEqual(saved().map(point=>point.lng).sort(),[46.6,46.7]);
+ h.clickFavorite(0);assert.equal(saved().length,1);assert.equal(saved()[0].lng,46.7);
+});
+
+test('recent places do not evict a same-name branch at a different longitude',()=>{
+ const h=harness(),storage=new Map();
+ h.c.MishwarAccountContext={snapshot:()=>({status:'ready',authenticated:true}),storageKey:key=>key+':A',capture:()=>({owner:'A'}),isCurrent:ticket=>ticket?.owner==='A'};
+ h.c.read=(key,fallback)=>storage.has(key)?JSON.parse(storage.get(key)):fallback;
+ h.c.localStorage.setItem=(key,value)=>storage.set(key,value);
+ h.c.rememberAddress({name:'Branch',lat:24.7,lng:46.6});h.c.rememberAddress({name:'Branch',lat:24.7,lng:46.7});
+ assert.equal(JSON.parse(storage.get('mishwar-recent-addresses-v3:A')).length,2);
+});
+
+test('nearby distinct search results are not discarded by decimal coordinate rounding',()=>{
+ const h=harness();h.c.openSearchSheet('destination');h.c.editor.query='branch';
+ h.c.editor.results=[{name:'Branch',lat:24.7001,lng:46.6001},{name:'Branch',lat:24.7002,lng:46.6002}];h.c.drawSuggestions();
+ assert.equal(h.c.editor.visibleResults.length,2);assert.equal(h.list.options.length,2);
 });

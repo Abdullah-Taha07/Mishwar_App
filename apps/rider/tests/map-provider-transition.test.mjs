@@ -254,3 +254,37 @@ test('RIDER-014 manual Arabic and English place searches work without any browse
  const h=harness();assert.equal(h.c.navigator.geolocation,undefined);
  for(const query of ['شارع الاختبار','Synthetic District']){await h.search(query);assert.equal(h.editor.results.length,1);const call=h.calls.at(-1);assert.equal(call.url.searchParams.get('lat'),'24.7136');assert.equal(call.url.searchParams.get('lon'),'46.6753')}
 });
+
+// Main branch regression cases retained alongside the richer shared RIDER-014 suite.
+test('malformed GeoJSON rows do not discard valid search suggestions or poison the cache',async()=>{
+ const h=harness(),valid=places('Valid search result').features[0];
+ h.route(()=>json({features:[null,{},'invalid',{geometry:{type:'LineString',coordinates:[46.6,24.7]},properties:{name:'Wrong geometry'}},valid]}));
+ await h.search('Valid');assert.equal(h.editor.error,'');assert.equal(h.editor.results.length,1);assert.equal(h.editor.results[0].name,'Valid search result');
+ const publicResults=await h.c.searchMishwarPlaces('Valid');assert.equal(publicResults.length,1);assert.equal(publicResults[0].name,'Valid search result');
+});
+
+test('a reverse-geocoding response without a valid point cannot be marked resolved or cached',async()=>{
+ const h=harness();h.route(()=>json({features:[{properties:{name:'Untrusted address without coordinates'}}]}));
+ const result=await h.c.reverseAddress({lat:24.713,lng:46.675});
+ assert.equal(result.resolved,false);assert.equal(h.evaluate('reverseCache.size'),0);
+});
+
+test('invalid feature collections degrade to an empty search rather than throwing from array mapping',async()=>{
+ const h=harness();h.route(()=>json({features:{invalid:'not an array'}}));
+ const results=await h.c.searchMishwarPlaces('No results');assert.equal(results.length,0);
+ await h.search('No results');assert.equal(h.editor.results.length,0);assert.equal(h.editor.error,'');
+});
+
+test('a cancelled search cannot populate cache and replace a later retry for the same query',async()=>{
+ const h=harness(),old=deferred();let calls=0;
+ h.route(()=>++calls===1?old.promise:json(places('Current retry result')));
+ const pending=h.search('same query');await flush();h.c.stopAddressSearch();
+ old.resolve(json(places('Cancelled result')));await pending;
+ assert.equal(h.evaluate('geoCache.size'),0);
+ await h.search('same query');assert.equal(h.editor.results[0].name,'Current retry result');assert.equal(calls,2);
+});
+
+test('empty and single-character editor submissions do not request a provider',async()=>{
+ const h=harness(),before=h.calls.length;
+ await h.search('');await h.search(' ');await h.search('x');assert.equal(h.calls.length,before);
+});

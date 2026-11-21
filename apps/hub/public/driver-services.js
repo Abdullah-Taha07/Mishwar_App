@@ -5,7 +5,7 @@ let publishing=null,lastAttempt=0,lastCapturedAt=0,lastPublishedAt=0,previous=nu
 window.captainGPS=null;
 const activeTrip=()=>data?.current&&['arriving','arrived','riding'].includes(data.current.status)?data.current:null;
 const eligible=()=>!!data?.captain?.id&&!captainAuthBlocked&&!pageInactive&&!sessionBlocked&&(!!activeTrip()||data.available===true);
-const sampleFresh=p=>!!p&&Number.isFinite(p.at)&&p.at<=Date.now()+5000&&Date.now()-p.at<=30000;
+const sampleFresh=p=>!!p&&Number.isFinite(p.lat)&&Number.isFinite(p.lng)&&Math.abs(p.lat)<=90&&Math.abs(p.lng)<=180&&Number.isFinite(p.accuracy)&&p.accuracy>=0&&p.accuracy<=150&&Number.isFinite(p.at)&&p.at<=Date.now()+5000&&Date.now()-p.at<30000;
 const setLocationState=state=>{if(locationState===state)return;locationState=state;window.captainLocationState=state;window.dispatchEvent(new CustomEvent('mishwar-captain-location-state',{detail:{state}}))};
 const meters=(a,b)=>{const rad=n=>n*Math.PI/180,dlat=rad(b.lat-a.lat),dlng=rad(b.lng-a.lng),h=Math.sin(dlat/2)**2+Math.cos(rad(a.lat))*Math.cos(rad(b.lat))*Math.sin(dlng/2)**2;return 6371000*2*Math.asin(Math.sqrt(Math.max(0,Math.min(1,h))))};
 function stopGPS(reason='idle'){

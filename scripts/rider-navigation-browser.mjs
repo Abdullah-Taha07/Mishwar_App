@@ -11,8 +11,10 @@ const root=resolve(args.find(arg=>!arg.startsWith('--'))||'apps/rider/public');
 const artifact=resolve(args.find(arg=>arg.startsWith('--artifacts='))?.slice(12)||'artifacts/rider-repairs-2026-11-15/navigation-'+Date.now());
 const expectFailure=args.includes('--expect-failure');
 const quick=args.includes('--quick');
+const retryFile=args.find(arg=>arg.startsWith('--retry-from='))?.slice(13);
+const retryTargets=retryFile?new Set(JSON.parse(readFileSync(resolve(retryFile),'utf8')).results.filter(row=>!row.passed).map(row=>row.name)):null;
 mkdirSync(artifact,{recursive:true});
-const fixtures={owner:null,gateAuth:false,authReleases:[],holdLive:false,liveReleases:[],authRequests:0,authResponses:0,liveResponses:0,documents:0,requests:[],missing:[],blocked:[],exceptions:[],consoleErrors:[],results:[]};
+const fixtures={owner:null,gateAuth:false,authReleases:[],holdLive:false,liveReleases:[],authRequests:0,authResponses:0,liveResponses:0,documents:0,requests:[],missing:[],blocked:[],neutralAssets:[],navigationReadiness:[],exceptions:[],consoleErrors:[],results:[]};
 const keys={a:'a'.repeat(64),b:'b'.repeat(64)};
 const profile=owner=>({name:owner==='a'?'Navigation Rider Alpha':'Navigation Rider Beta',phone:owner==='a'?'+966500000001':'+966500000002',email:owner+'@example.test'});
 const auth=owner=>({authenticated:!!owner,phoneVerified:!!owner,accountKey:owner?keys[owner]:null,profile:owner?profile(owner):null});
@@ -64,8 +66,11 @@ assert.ok(browserPath,'A local Chromium browser is required');
 const browserProfile=mkdtempSync(join(tmpdir(),'mishwar-navigation-browser-'));
 const browser=spawn(browserPath,['--headless=new','--disable-gpu','--no-first-run','--disable-background-networking','--disable-component-update','--disable-extensions','--no-default-browser-check','--remote-debugging-port=0','--user-data-dir='+browserProfile,'about:blank'],{stdio:'ignore',windowsHide:true});
 let ws,command,evaluate;
-const timeout=setTimeout(()=>{browser.kill();console.error('Navigation browser timed out');process.exit(2)},180000);timeout.unref();
+// The full matrix contains140 cases,66 navigations/screenshots and six real
+// periodic-poll waits. Its watchdog must cover the whole matrix, not a quick run.
+const timeout=setTimeout(()=>{fixtures.summary={status:'INCOMPLETE',passed:fixtures.results.filter(row=>row.passed).length,failed:fixtures.results.filter(row=>!row.passed).length,total:fixtures.results.length,expectedTotal:quick?11:140,reason:'Navigation browser watchdog'};writeFileSync(join(artifact,'observations.json'),JSON.stringify(fixtures,null,2));browser.kill();console.error('Navigation browser timed out');process.exit(2)},600000);timeout.unref();
 const record=async(name,fn)=>{
+ if(retryTargets&&!retryTargets.has(name)&&name!=='runtime-and-assets')return;
  const row={name,passed:false};fixtures.results.push(row);
  try{await fn(row);row.passed=true;console.log('PASS '+name);}catch(error){row.error=error.message;console.error('FAIL '+name+': '+error.message);try{await screenshot('FAIL-'+name)}catch{}}
 };
@@ -91,12 +96,20 @@ try{
   else if(message.method==='Runtime.consoleAPICalled'&&message.params.type==='error')fixtures.consoleErrors.push(message.params.args.map(arg=>arg.value||arg.description||'').join(' '));
   else if(message.method==='Fetch.requestPaused'){
    const paused=message.params,url=new URL(paused.request.url);
-   if(url.hostname!=='127.0.0.1'){fixtures.blocked.push(paused.request.url);void command('Fetch.failRequest',{requestId:paused.requestId,errorReason:'BlockedByClient'}).catch(()=>{});}
-   else void command('Fetch.continueRequest',{requestId:paused.requestId}).catch(()=>{});
+   if(url.origin===origin)void command('Fetch.continueRequest',{requestId:paused.requestId}).catch(()=>{});
+   else{
+    fixtures.blocked.push(paused.request.url);
+    // Navigation tests do not validate external fonts or map imagery. Supply
+    // neutral local assets so intentional network denial cannot keep an image
+    // load pending or masquerade as an application readiness failure.
+    const tile=/^(?:[abc]\.)?tile\.openstreetmap\.org$/.test(url.hostname),font=['fonts.googleapis.com','fonts.gstatic.com'].includes(url.hostname);
+    if(tile||font){fixtures.neutralAssets.push({host:url.hostname,type:tile?'map-tile':'system-font'});void command('Fetch.fulfillRequest',{requestId:paused.requestId,responseCode:200,responseHeaders:[{name:'Content-Type',value:tile?'image/png':'text/css'}],body:tile?'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl2n2sAAAAASUVORK5CYII=':Buffer.from('/* Offline system fonts only. */').toString('base64')}).catch(()=>{})}
+    else void command('Fetch.failRequest',{requestId:paused.requestId,errorReason:'BlockedByClient'}).catch(()=>{});
+   }
   }
  };
  evaluate=async expression=>{const result=await command('Runtime.evaluate',{expression,returnByValue:true,awaitPromise:true});if(result.exceptionDetails)throw Error(JSON.stringify(result.exceptionDetails));return result.result.value;};
- const waitFor=async(expression,message)=>{const deadline=Date.now()+6500;while(Date.now()<deadline){if(await evaluate(expression))return;await wait(40);}throw Error(message);};
+ const waitFor=async(expression,message,timeoutMs=6500)=>{const deadline=Date.now()+timeoutMs;while(Date.now()<deadline){try{if(await evaluate(expression))return}catch(error){if(!/Execution context was destroyed|Cannot find context|Inspected target navigated/i.test(error.message))throw error}await wait(40);}throw Error(message);};
  const waitNode=async selector=>waitFor(`!!document.querySelector(${JSON.stringify(selector)})`,'Missing '+selector);
  const click=async selector=>{
   await waitNode(selector);
@@ -137,11 +150,16 @@ try{
   }
   assert.equal(state.drawer,false,'The selected screen must replace the drawer');
  };
+ let navigationSequence=0;
  const navigate=async(owner,gate)=>{
   releaseAuth();releaseLive();fixtures.owner=owner;fixtures.gateAuth=gate;
   const before=await evaluate('window.navigationFixtureMark');
-  await command('Page.navigate',{url:origin+'/?navigation='+Date.now()});
-  await waitFor(`window.navigationFixtureMark!==${JSON.stringify(before)}&&document.readyState==='complete'&&!!window.MishwarAccountContext`,'Application document must load');
+  const url=origin+'/?navigation='+Date.now()+'-'+(++navigationSequence),startedAt=Date.now();
+  await command('Page.navigate',{url});
+  try{
+   await waitFor(`location.href===${JSON.stringify(url)}&&typeof window.navigationFixtureMark==='string'&&window.navigationFixtureMark!==${JSON.stringify(before)}&&!!window.MishwarAccountContext&&!!window.MishwarNavigation&&!!window.MishwarLang&&typeof window.refreshMishwarTrip==='function'&&!!document.querySelector('#panel .launch-home-tools')&&!!document.querySelector('#search-sheet')&&!!document.querySelector('#modal')`,'Application document must load',30000);
+   fixtures.navigationReadiness.push({sequence:navigationSequence,ready:true,elapsedMs:Date.now()-startedAt});
+  }catch(error){fixtures.navigationReadiness.push({sequence:navigationSequence,ready:false,elapsedMs:Date.now()-startedAt,state:await evaluate(`({href:location.href,readyState:document.readyState,mark:window.navigationFixtureMark,hasAccountContext:!!window.MishwarAccountContext,hasLiveRefresh:typeof window.refreshMishwarTrip==='function',accountStatus:window.MishwarAccountContext?.snapshot().status})`)});throw error}
   if(!gate)await waitFor("window.MishwarAccountContext.snapshot().status==='ready'",'Account bootstrap must finish');
   return evaluate('window.navigationFixtureMark');
  };
@@ -154,6 +172,7 @@ try{
   await command('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:width<701});
   for(const owner of quick?[null]:[null,'a']){
    const actor=owner?'signed-in':'guest';
+   if(retryTargets&&![...retryTargets].some(name=>name.startsWith(viewport+'-'+actor+'-')))continue;
    for(const section of sections){
     await record(viewport+'-'+actor+'-bootstrap-'+section,async row=>{
      const mark=await navigate(owner,true);await openSection(section,width);await wait(50);
@@ -169,7 +188,7 @@ try{
     releaseAuth();releaseLive();
    }
    // Settled navigation is checked separately so a bootstrap failure does not hide it.
-   await navigate(owner,false);
+   await navigate(owner,false);await waitFor("!!document.querySelector('#panel .launch-home-tools')&&window.MishwarAccountContext.snapshot().status==='ready'",'Settled home must render');
    for(const section of sections)await record(viewport+'-'+actor+'-live-refresh-'+section,async row=>{
     const mark=await evaluate('window.navigationFixtureMark');
     await openSection(section,width);await wait(50);row.before=await viewState();expected(section,row.before,owner);
@@ -195,7 +214,9 @@ try{
   await command('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
   await navigate('a',false);await openSection('profile',390);
   await waitFor("document.querySelector('#modal-content')?.innerText.includes('Navigation Rider Alpha')",'Owner A profile must appear');
-  fixtures.owner='b';await evaluate('window.refreshMishwarRiderAccount()');await wait(100);
+  fixtures.owner='b';await evaluate('window.refreshMishwarRiderAccount()');await waitFor(`window.MishwarAccountContext.snapshot().status==='ready'&&window.MishwarAccountContext.snapshot().accountKey===${JSON.stringify(keys.b)}`,'Owner B session response must apply');
+  row.ownerLeakNodes=await evaluate(`([...document.querySelectorAll('body *')].filter(el=>[...el.childNodes].some(node=>node.nodeType===3&&node.textContent.includes('Navigation Rider Alpha'))).map(el=>({tag:el.tagName,id:el.id,className:el.className,display:getComputedStyle(el).display,visibility:getComputedStyle(el).visibility,dialog:el.closest('dialog')?.id,open:el.closest('dialog')?.open})))`);
+  assert.deepEqual(row.ownerLeakNodes,[],'Account reset must remove old identity even from a closed or closing drawer');
   assert.equal(await evaluate("document.body.innerText.includes('Navigation Rider Alpha')"),false,'Changing owner must remove the old profile');
   await openSection('profile',390);
   await waitFor("document.querySelector('#modal-content')?.innerText.includes('Navigation Rider Beta')",'Owner B profile must appear');
@@ -210,7 +231,7 @@ try{
   assert.ok(fixtures.requests.every(request=>request.path!=='/api/live'||readActions.has(request.action)),'Navigation must not issue a financial or booking mutation');
  });
  const passed=fixtures.results.filter(result=>result.passed).length,failed=fixtures.results.length-passed;
- fixtures.summary={status:failed?'FAIL':'PASS',passed,failed,total:fixtures.results.length,quick,root,artifact,externalNetwork:'blocked',productionVerified:false};
+ fixtures.summary={status:failed?'FAIL':'PASS',passed,failed,total:fixtures.results.length,quick,retryFrom:retryFile||null,retriedCases:retryTargets?[...retryTargets]:null,root,artifact,externalNetwork:'blocked; map tiles and fonts use neutral local fixtures',productionVerified:false};
  console.log(JSON.stringify(fixtures.summary,null,2));
  process.exitCode=expectFailure?(failed?0:1):(failed?1:0);
 }finally{
