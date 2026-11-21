@@ -9,6 +9,7 @@ import {startTrackingServer} from './fixtures/rider-tracking-server.mjs';
 // captain handlers and migrated SQLite. Only SMS, road, map tiles and GPS are
 // declared local fixtures. The browser enters addresses and books through UI.
 const args=process.argv.slice(2),option=(name,fallback)=>args.includes(name)?args[args.indexOf(name)+1]:fallback;
+const uxOnly=args.includes('--ux-only'),uxChecks=uxOnly||args.includes('--ux-checks');
 const publicRoot=resolve(option('--public','apps/rider/dist/public'));
 const output=resolve(option('--output','.local-verification/rdev003-browser-'+Date.now()));
 mkdirSync(join(output,'screens'),{recursive:true});
@@ -59,6 +60,40 @@ try{
   const click=async selector=>{await settle();await evaluate(`(${visible(selector)})?.scrollIntoView({block:'center',inline:'nearest',behavior:'instant'})`);await wait(60);const p=await evaluate(`(()=>{const e=${visible(selector)};if(!e)return null;const r=e.getBoundingClientRect(),x=r.x+r.width/2,y=r.y+r.height/2,h=document.elementFromPoint(x,y);return{x,y,clickable:!e.disabled&&!!h&&(e===h||e.contains(h)),hit:h?.outerHTML.slice(0,160)}})()`);assert.ok(p?.clickable,'Blocked UI '+selector+': '+JSON.stringify(p));for(const[type,extra]of[['mouseMoved',{}],['mousePressed',{button:'left',clickCount:1}],['mouseReleased',{button:'left',clickCount:1}]])await command('Input.dispatchMouseEvent',{type,x:p.x,y:p.y,...extra});await wait(80);await settle()};
   const fill=async(selector,value)=>{await click(selector);await command('Input.dispatchKeyEvent',{type:'keyDown',key:'a',code:'KeyA',windowsVirtualKeyCode:65,modifiers:2});await command('Input.dispatchKeyEvent',{type:'keyUp',key:'a',code:'KeyA',windowsVirtualKeyCode:65,modifiers:2});await command('Input.insertText',{text:String(value)})};
   const shot=async name=>{const r=await command('Page.captureScreenshot',{format:'png'});writeFileSync(join(output,'screens',name+'.png'),Buffer.from(r.data,'base64'))};
+  const auditUx=async kind=>{
+    const originalTheme=await evaluate("document.documentElement.getAttribute('data-theme')");
+    const originalLanguage=await evaluate('window.MishwarLang.get()');
+    current.uxChecks=[];
+    try{
+      for(const mode of [{width:390,lang:'ar',theme:null},{width:320,lang:'ar',theme:null},{width:320,lang:'en',theme:'dark'},{width:390,lang:'en',theme:'dark'}]){
+        await command('Emulation.setDeviceMetricsOverride',{width:mode.width,height:844,deviceScaleFactor:1,mobile:true});
+        await evaluate(`window.MishwarLang.set(${JSON.stringify(mode.lang)});${mode.theme?"document.documentElement.setAttribute('data-theme','dark')":"document.documentElement.removeAttribute('data-theme')"};document.querySelector('#panel .ride-scroll')?.scrollTo({top:0,behavior:'instant'})`);
+        await wait(150);await settle();
+        const layout=await evaluate(`(()=>{
+          const color=s=>s.match(/[\\d.]+/g).slice(0,3).map(Number),luminance=s=>color(s).map(x=>{x/=255;return x<=.04045?x/12.92:((x+.055)/1.055)**2.4}).reduce((n,x,i)=>n+x*[.2126,.7152,.0722][i],0);
+          const contrast=e=>{let p=e,bg;while(p){bg=getComputedStyle(p).backgroundColor;if(bg!=='rgba(0, 0, 0, 0)'&&bg!=='transparent')break;p=p.parentElement}const a=luminance(getComputedStyle(e).color),b=luminance(bg||'rgb(255,255,255)');return(Math.max(a,b)+.05)/(Math.min(a,b)+.05)};
+          const selector=${JSON.stringify(kind==='booking'?'.ride-category':'[data-live-eta]')};
+          return {direction:document.documentElement.dir,viewport:innerWidth,bodyWidth:document.body.scrollWidth,headerContrast:[...document.querySelectorAll('.header-brand,#mishwar-language,#notifications-button,#background-notifications-button')].map(contrast),cards:[...document.querySelectorAll(selector)].map(e=>{
+            const r=e.getBoundingClientRect(),price=e.querySelector(${JSON.stringify(kind==='booking'?'.ride-price':'[data-eta-minutes]')}),pr=price.getBoundingClientRect();
+            return {left:r.left,right:r.right,width:r.width,client:e.clientWidth,scroll:e.scrollWidth,priceLeft:pr.left,priceRight:pr.right,font:parseFloat(getComputedStyle(price).fontSize),contrasts:[...e.querySelectorAll(${JSON.stringify(kind==='booking'?'.ride-category-info > span,.ride-price':'[data-eta-target],[data-eta-connection],[data-eta-note]')})].map(contrast)};
+          })};
+        })()`);
+        assert.equal(layout.direction,mode.lang==='ar'?'rtl':'ltr');assert.ok(layout.bodyWidth<=layout.viewport+1,'No horizontal page overflow');
+        assert.equal(layout.cards.length,kind==='booking'?3:1);assert.ok(layout.headerContrast.every(r=>r>=4.5),'Readable header controls in both themes');
+        for(const card of layout.cards){assert.ok(card.left>=-1&&card.right<=layout.viewport+1,'Card inside mobile viewport');assert.ok(card.scroll<=card.client+1,'No clipped card content');assert.ok(card.priceLeft>=card.left&&card.priceRight<=card.right,'Visible price/ETA stays inside card');assert.ok(card.font>=18,'Readable price/ETA');assert.ok(card.contrasts.every(r=>r>=4.5),'Text contrast at least 4.5:1 in both themes')}
+        current.uxChecks.push({kind,...mode,...layout});await shot('ux-'+kind+'-'+mode.width+'-'+mode.lang+(mode.theme?'-dark':''));
+      }
+      if(kind==='tracking'){
+        assert.equal(await evaluate("(()=>{const n=document.querySelector('[data-live-eta]');n.hidden=true;const hidden=n.getClientRects().length===0;n.hidden=false;return hidden})()"),true,'Hidden tracking card occupies no space');
+      }else{
+        assert.equal(await evaluate("!!document.querySelector('.ride-scroll .launch-home-tools')&&!!(document.querySelector('.ride-categories').compareDocumentPosition(document.querySelector('[data-my-fare]'))&Node.DOCUMENT_POSITION_FOLLOWING)"),true,'Vehicle comparison precedes optional extras; extras remain in scroll area');
+      }
+    }finally{
+      await command('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
+      await evaluate(`window.MishwarLang.set(${JSON.stringify(originalLanguage)});${originalTheme===null?"document.documentElement.removeAttribute('data-theme')":"document.documentElement.setAttribute('data-theme',"+JSON.stringify(originalTheme)+")"}`);
+      await wait(100);
+    }
+  };
   const check=async(name,run)=>{current={name,passed:false,startedAt:Date.now()};observations.results.push(current);try{await run();current.passed=true;console.log('PASS '+name)}catch(error){current.error=error.message;current.dom=await evaluate('document.body.innerText.slice(0,16000)').catch(()=>'');current.snapshot=await lab.snapshot().catch(()=>null);await shot('FAIL-'+name).catch(()=>{});throw error}finally{current.durationMs=Date.now()-current.startedAt}};
   const live=()=>evaluate("fetch('/api/live',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'live_session'})}).then(async r=>({status:r.status,data:await r.json()}))");
   const etaAvailable=minutes=>`document.querySelector('[data-live-eta]')?.dataset.state==='available'&&document.querySelector('[data-eta-minutes]')?.textContent===${JSON.stringify(String(minutes))}`;
@@ -88,6 +123,7 @@ try{
     await fill('#search-destination',f.places.destination.name);await until("[...document.querySelectorAll('[data-search-select]')].some(e=>e.textContent.includes("+JSON.stringify(f.places.destination.name)+'))','Synthetic provider destination');await click('#search-results-list [data-search-select]');
     await until("!!document.querySelector('.ride-categories [data-tier=comfort]')&&!document.querySelector('[data-action=book]')?.disabled&&document.querySelector('.ride-categories')?.getAttribute('aria-busy')==='false'",'Actual route and price');
     await click('.ride-categories [data-tier="comfort"]');await until("document.querySelector('[data-tier=comfort]')?.getAttribute('aria-pressed')==='true'&&!document.querySelector('[data-action=book]')?.disabled&&document.querySelector('.ride-categories')?.getAttribute('aria-busy')==='false'",'Selected category reprice');
+    if(uxChecks)await auditUx('booking');
     await click('#panel [data-action="book"]');await until("document.querySelector('#panel .live-trip h2')?.textContent.includes('بانتظار قبول الكابتن')",'Actual booking matching');
     assert.equal((await lab.snapshot()).tripCount,1);assert.equal((await lab.snapshot()).liveBookCount,1);
     await lab.advanceTrip('accept');await until("document.querySelector('#panel .live-trip h2')?.textContent.includes('الكابتن في الطريق')",'Captain API acceptance reaches rider');
@@ -96,8 +132,10 @@ try{
     assert.equal((await lab.gps({lat:24.7127,lng:46.6744})).status,200);lab.invalidateEtaCache();
     await until(etaAvailable(4),'Road ETA is four synthetic minutes');await until(markerCount+'>0','Live captain marker');
     const session=await live();assert.equal(session.status,200);assert.equal(session.data.trip.eta.provider,'TomTom');assert.equal(session.data.trip.eta.distanceMeters,1000);assert.equal(session.data.trip.eta.trafficDelaySeconds,35);assert.equal(session.data.trip.eta.target,'pickup');
+    if(uxChecks)await auditUx('tracking');
     current.roadFacts=session.data.trip.eta;await shot('pickup-eta-390');await command('Emulation.setDeviceMetricsOverride',{width:320,height:740,deviceScaleFactor:1,mobile:true});await wait(200);await shot('pickup-eta-320');await command('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
   });
+  if(!uxOnly){
   await check('reject-inaccurate-old-and-other-trip-gps',async()=>{
     const before=(await live()).data.trip.driverLocation;
     assert.equal((await lab.gps({lat:24.711,lng:46.673},{accuracy:151})).status,400);
@@ -155,10 +193,11 @@ try{
     const data=await evaluate("fetch('/api/live',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'live_session',tripId:"+JSON.stringify((await lab.snapshot()).trip.id)+"})}).then(async r=>({status:r.status,data:await r.json()}))"),trip=data.data.trip||data.data.recentTrip;assert.equal(data.status,200);assert.ok(trip,'Completed trip not returned to its owner');assert.equal(trip.status,'completed');assert.equal(trip.driverLocation,null);assert.ok(trip.eta==null);assert.ok(!Object.keys(trip).some(k=>/^driver_(lat|lng|accuracy|location_at)$/.test(k)));assert.equal(await evaluate('window.__rdev003Document'),initialDocument);
     const final=await lab.snapshot();assert.equal(final.tripCount,1);assert.equal(final.counts.settlements,1);assert.equal(final.ledgerTotal,0);assert.equal(final.externalNetworkCalls,0);current.snapshot=final;await shot('completed');
   });
+  }
   observations.audit=lab.audit;observations.providerFacts=lab.controls.facts;
   assert.equal(observations.externalBlocked.length,0,'No unexpected browser network');assert.equal(observations.exceptions.length,0,'No uncaught browser exception');assert.equal(observations.consoleErrors.length,0,'No browser console error');assert.equal(lab.audit.errors.length,0,'No fixture request error');
 }catch(error){observations.fatalError=error.message;observations.audit=lab.audit;observations.providerFacts=lab.controls.facts;console.error('RDEV003_FATAL: '+error.message)}finally{
   clearTimeout(timeout);ws?.close();browser.kill();lab.releaseRoutes();await lab.close();observations.completedAt=new Date().toISOString();
-  const passed=observations.results.filter(r=>r.passed).length,failed=observations.results.length-passed,status=!failed&&!observations.fatalError&&passed===11?'PASS':'FAIL';
-  const summary={phase:'RDEV-003',status,total:observations.results.length,passed,failed,fatalError:observations.fatalError||null,output,limitations:observations.limitations};writeFileSync(join(output,'observations.json'),JSON.stringify(observations,null,2)+'\n');writeFileSync(join(output,'summary.json'),JSON.stringify(summary,null,2)+'\n');console.log(JSON.stringify(summary));if(status!=='PASS')process.exitCode=1;
+  const passed=observations.results.filter(r=>r.passed).length,failed=observations.results.length-passed,status=!failed&&!observations.fatalError&&passed===(uxOnly?2:11)?'PASS':'FAIL';
+  const summary={phase:uxChecks?'rider-ux-booking-tracking':'RDEV-003',status,total:observations.results.length,passed,failed,fatalError:observations.fatalError||null,output,limitations:observations.limitations};writeFileSync(join(output,'observations.json'),JSON.stringify(observations,null,2)+'\n');writeFileSync(join(output,'summary.json'),JSON.stringify(summary,null,2)+'\n');console.log(JSON.stringify(summary));if(status!=='PASS')process.exitCode=1;
 }

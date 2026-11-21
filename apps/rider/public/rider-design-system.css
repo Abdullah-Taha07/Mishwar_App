@@ -277,3 +277,37 @@ dialog::backdrop { background: #0527337a; backdrop-filter: blur(3px); }
   .mw-skeleton::after { display: none; }
   .captain-car-body { transition: none !important; }
 }
+
+/* Booking polish: keep the existing actions, quotes and sheet behavior. */
+.ride-summary { gap: 12px; border: 1px solid var(--mw-border); background: var(--mw-surface-soft); border-radius: 16px; text-align: start; }
+.ride-summary > strong { min-width: 0; overflow-wrap: anywhere; line-height: 1.65; }
+.ride-summary > strong small { color: var(--mw-text-secondary); font-weight: 500; }
+.ride-summary > span { flex-shrink: 0; color: var(--mw-accent-ink); }
+.ride-categories { gap: 10px; }
+.ride-category { display: grid; grid-template-columns: 64px minmax(0,1fr) auto; align-items: center; padding: 14px 12px; text-align: start; }
+.ride-category.selected { border-width: 1px; padding: 14px 12px; box-shadow: inset 0 0 0 1px var(--mw-accent-ink),var(--mw-shadow-card); }
+.ride-category-info strong { display: block; line-height: 1.6; }
+.ride-category-info > span { display: block; line-height: 1.65; overflow-wrap: anywhere; }
+.ride-category .ride-car, .ride-category .car-art { width: 64px; max-width: 100%; }
+.ride-price { min-width: 0; max-width: 120px; color: var(--mw-text); font-size: 19px; line-height: 1.5; font-variant-numeric: tabular-nums; unicode-bidi: isolate; overflow-wrap: anywhere; }
+.ride-price small { display: block; margin-block-start: 3px; color: var(--mw-text-secondary); font-size: 11px; font-weight: 500; white-space: normal; }
+.ride-category.selected .ride-price small { color: var(--mw-accent-ink); }
+.ride-metrics { padding: 10px 12px; border-radius: 12px; background: var(--mw-surface-soft); color: var(--mw-text-secondary); line-height: 1.7; }
+.ride-checkout:not(.live-checkout) > .primary { min-height: 54px; line-height: 1.6; }
+.ride-checkout:not(.live-checkout) > small { text-align: center; line-height: 1.6; color: var(--mw-text-secondary); }
+.ride-error { padding: 14px; border-radius: 14px; line-height: 1.75; }
+.ride-error button { display: block; width: 100%; margin-block-start: 8px; border-radius: 10px; }
+.driver-card { padding: 14px 16px; background: var(--mw-surface); }
+.live-trip .driver-card p { margin-block: 4px 0; overflow-wrap: anywhere; }
+html[data-theme="dark"] .topbar .header-brand { color: var(--mw-text) !important; }
+html[data-theme="dark"] .topbar :is(#mishwar-language,#notifications-button,#background-notifications-button) { color: var(--mw-text) !important; background: var(--mw-surface-soft) !important; border-color: var(--mw-border) !important; }
+@media (hover:hover) {
+  .ride-category:not(:disabled):hover { border-color: var(--mw-accent-ink); background: var(--mw-surface-accent); }
+}
+@media (max-width:380px) {
+  .ride-category { grid-template-columns: 52px minmax(0,1fr); grid-template-areas: "car info" "car price"; gap: 3px 12px; }
+  .ride-category .ride-car { grid-area: car; width: 52px; }
+  .ride-category-info { grid-area: info; }
+  .ride-category .ride-price { grid-area: price; max-width: none; font-size: 18px; text-align: start; }
+  .ride-category-info strong small { display: inline-block; }
+}
