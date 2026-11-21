@@ -263,7 +263,7 @@ export async function startJourneyServer({publicRoot = 'apps/rider/dist/public',
       audit.upstream.push({scenarioId: fixture.scenarioId, phase: 'setup', path: categoryPath, method: 'POST'});
       await checked(await context.run({state, phase: 'setup'}, () => hubWorker.fetch(categoryRequest, env, {})), 200, 'fixture vehicle economy/comfort approval');
       env.db.prepare("INSERT INTO platform_settings(key,value,updated_at,updated_by) VALUES('commission_bps','1000',?,'local-journey-fixture') ON CONFLICT(key) DO UPDATE SET value=excluded.value").run(new Date().toISOString());
-      await checked(await hubCall(state, '/api/driver', {action: 'available', available: true, lat: PICKUP.lat, lng: PICKUP.lng, accuracy: 5}, state.captainCookie), 200, 'eligible fixture captain online');
+      await checked(await hubCall(state, '/api/driver', {action: 'available', available: true, lat: PICKUP.lat, lng: PICKUP.lng, accuracy: 5, observedAt: new Date().toISOString()}, state.captainCookie), 200, 'eligible fixture captain online');
       if (returning) {
         const rider = await verifiedAccount(state, 'rider');
         await checked(await rider.call('/api/auth/logout', {}, rider.cookie), 200, 'returning rider fixture logout before UI login');
@@ -281,7 +281,7 @@ export async function startJourneyServer({publicRoot = 'apps/rider/dist/public',
     const trip = state.env.db.prepare("SELECT id FROM trips WHERE status IN ('matching','arriving','arrived','riding') ORDER BY created_at DESC LIMIT 1").get();
     assert.ok(trip, 'The browser must create a real local booking before captain progression');
     const call = body => hubCall(state, '/api/driver', body, state.captainCookie, 'captain');
-    if (target === 'accept') await checked(await call({action: 'available', available: true, lat: PICKUP.lat, lng: PICKUP.lng, accuracy: 5}), 200, 'captain refreshes real availability');
+    if (target === 'accept') await checked(await call({action: 'available', available: true, lat: PICKUP.lat, lng: PICKUP.lng, accuracy: 5, observedAt: new Date().toISOString()}), 200, 'captain refreshes real availability');
     const body = target === 'accept' ? {action: 'accept', tripId: trip.id} : {action: 'trip_status', tripId: trip.id, status: target, ...(pin === undefined ? {} : {pin}), ...(target === 'completed' ? {cashReceived: true} : {})};
     const result = await call(body);
     audit.captainActions.push({scenarioId: state.fixture.scenarioId, action: target, status: result.status, tripId: trip.id});
@@ -299,10 +299,19 @@ export async function startJourneyServer({publicRoot = 'apps/rider/dist/public',
     if (globalThis.fetch === guardedFetch) globalThis.fetch = originalFetch;
     activeServer = false;
   }
+  // RDEV-003 local acceptance counterpart. This helper is test-only; it calls
+  // the normal authenticated captain API using the fixture's real session.
+  async function captainCommand(body) {
+    assert.ok(current && !closed && !resetting, 'Local captain fixture is unavailable');
+    const response = await hubCall(current, '/api/driver', body, current.captainCookie, 'captain');
+    const data = await response.json();
+    audit.captainActions.push({scenarioId: current.fixture.scenarioId, action: body.action, status: response.status, tripId: body.tripId || null});
+    return {status: response.status, data};
+  }
   try {
     await new Promise((done, reject) => {server.once('error', reject); server.listen(0, '127.0.0.1', done);});
     origin = 'http://127.0.0.1:' + server.address().port;
     await resetFixture();
-    return {origin, get env() {return current.env;}, get fixture() {return current.fixture;}, audit, resetFixture, advanceTrip, snapshot, close};
+    return {origin, get env() {return current.env;}, get fixture() {return current.fixture;}, audit, resetFixture, advanceTrip, captainCommand, snapshot, close};
   } catch (error) {await close(); throw error;}
 }
