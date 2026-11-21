@@ -8,7 +8,7 @@ export async function operatingCity(env,p){const rows=(await env.DB.prepare('SEL
 // constructing cards for the quote the rider is about to accept.
 export function priceCityMarket(snapshot,route,category='economy'){
  const {city,multiplier,demand,supply}=snapshot,c=rideCategory(category),factor=c.multiplierBps/10000;
- const base=city.base_halalas,distanceHalalas=Math.round(route.distanceMeters/1000*city.per_km_halalas),timeHalalas=Math.round(route.durationSeconds/60*city.per_min_halalas);
+ const base=city.base_halalas,distanceHalalas=Math.round(route.distanceMeters*city.per_km_halalas/1000),timeHalalas=Math.round(route.durationSeconds*city.per_min_halalas/60);
  const unadjusted=base+distanceHalalas+timeHalalas,minimum=Math.max(1000,city.minimum_halalas),baseMinimum=Math.max(minimum,unadjusted),classed=Math.round(baseMinimum*factor),fare=Math.round(classed*multiplier/10000);
  return {city,fare,multiplier,demand,supply,breakdown:{baseHalalas:base,distanceHalalas,timeHalalas,perKmHalalas:city.per_km_halalas,perMinuteHalalas:city.per_min_halalas,minimumHalalas:minimum,classAdjustmentHalalas:classed-baseMinimum,minimumAdjustmentHalalas:baseMinimum-unadjusted,surgeHalalas:fare-classed,categoryName:c.name}};
 }

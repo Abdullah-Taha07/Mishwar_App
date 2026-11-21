@@ -72,6 +72,15 @@ test('hidden document and close-before-paint leave server notices unread',async(
  const closed=inbox();await closed.open();closed.modal.close();await closed.paint();assert.equal(closed.acks().length,0);
 });
 
+test('a fractionally clipped notification stays unread until its entire card is exposed',async()=>{
+ const h=inbox();await h.open();
+ const card=h.marker.cards[2];let clipped=true;
+ card.getBoundingClientRect=()=>({top:200,bottom:clipped?250.34375:250,left:0,right:400,width:400,height:clipped?50.34375:50});
+ await h.paint();assert.deepEqual(h.acks().flatMap(call=>call.body.ids),['server-0','server-1']);
+ clipped=false;h.document.emit('scroll');await h.paint();
+ assert.deepEqual(h.acks().at(-1).body.ids,['server-2']);
+});
+
 test('account changes before paint prevent acknowledgement and abort an in-flight acknowledgement',async()=>{
  const before=inbox();await before.open();before.change();await before.paint();assert.equal(before.acks().length,0);
  const pending=deferred(),during=inbox({ack:()=>pending.promise});await during.open();await during.paint();

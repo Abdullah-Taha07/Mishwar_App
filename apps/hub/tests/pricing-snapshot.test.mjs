@@ -50,6 +50,23 @@ function quote(env,body={}){
  return handleLiveRider(request,env);
 }
 
+test('MAIN audit: city price rounding preserves half-halalas and matches the existing fare policy',async()=>{
+ const env=setup();try{
+  const reference=(units,rate,divisor)=>Number((BigInt(units)*BigInt(rate)+BigInt(divisor/2))/BigInt(divisor));
+  for(const metrics of [{distanceMeters:4850,durationSeconds:1800},{distanceMeters:2400,durationSeconds:480},{distanceMeters:10000,durationSeconds:1200},{distanceMeters:10550,durationSeconds:633},{distanceMeters:2000000,durationSeconds:100000}]){
+   const snapshot=await cityMarket(env,pickup,metrics),city=snapshot.city;
+   for(const category of RIDE_CATEGORIES){
+    const priced=priceCityMarket(snapshot,metrics,category.id);
+    assert.equal(priced.breakdown.distanceHalalas,reference(metrics.distanceMeters,city.per_km_halalas,1000));
+    assert.equal(priced.breakdown.timeHalalas,reference(metrics.durationSeconds,city.per_min_halalas,60));
+    assert.equal(priced.fare,routeFare(metrics.distanceMeters,metrics.durationSeconds,category.id).fare);
+   }
+  }
+  const fixed=await cityMarket(env,pickup,{distanceMeters:4850,durationSeconds:1800});
+  assert.equal(fixed.breakdown.distanceHalalas,437);assert.equal(fixed.fare,1037,'Existing 300 + 437 + 300 tariff, with its original 1000 minimum');
+ }finally{env.db.close()}
+});
+
 for(const category of ['economy','comfort','vip'])test('RIDER-012 '+category+' quote, coupon and stored fare share one market snapshot under concurrent demand',async()=>{
  const env=setup();try{
   env.db.prepare('INSERT INTO coupons VALUES(?,?,?,?,?,?)').run('SNAPSHOT10','percent',1000,100,1,'2030-01-01T00:00:00Z');

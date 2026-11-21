@@ -3,6 +3,13 @@ import {secretMatches} from './operations.js';
 
 const validPoint = point => !!point && Number.isFinite(point.lat) && Number.isFinite(point.lng) && Math.abs(point.lat) <= 90 && Math.abs(point.lng) <= 180;
 const configured = env => env.TOMTOM_ENABLED === 'true' && typeof env.TOMTOM_API_KEY === 'string' && env.TOMTOM_API_KEY.trim().length > 0;
+const roadPoint = value => ({lat:value?.latitude,lng:value?.longitude});
+function roadSeparation(a,b){
+  if(!validPoint(a)||!validPoint(b))return Infinity;
+  const rad=value=>value*Math.PI/180;
+  const h=Math.sin(rad(b.lat-a.lat)/2)**2+Math.cos(rad(a.lat))*Math.cos(rad(b.lat))*Math.sin(rad(b.lng-a.lng)/2)**2;
+  return 12742000*Math.asin(Math.sqrt(Math.max(0,Math.min(1,h))));
+}
 
 export async function commercialRoad(env, points) {
   if (!Array.isArray(points) || points.length < 2 || points.length > 4 || !points.every(validPoint)) throw Error('حدد الانطلاق والوجهة من الخريطة');
@@ -12,7 +19,13 @@ export async function commercialRoad(env, points) {
   url.search = new URLSearchParams({key: env.TOMTOM_API_KEY, traffic: 'true', travelMode: 'car', routeType: 'fastest', departAt: 'now', computeTravelTimeFor: 'all', language: 'ar-SA'});
   const body = await boundedRoadJson(url, {}, 10000, env), route = body?.routes?.[0];
   if (!route || !Number.isFinite(route.summary?.lengthInMeters) || !Number.isFinite(route.summary?.travelTimeInSeconds)) throw Error('بيانات المسار التجاري ناقصة');
-  if (!Array.isArray(route.legs) || !route.legs.length || route.legs.some(leg => !Array.isArray(leg?.points) || leg.points.length < 2)) throw Error('إحداثيات الطريق غير صحيحة. أعد حساب المسار.');
+  if (!Array.isArray(route.legs) || route.legs.length !== points.length-1 || route.legs.some(leg => !Array.isArray(leg?.points) || leg.points.length < 2)) throw Error('إحداثيات الطريق غير صحيحة. أعد حساب المسار.');
+  for(let index=0;index<route.legs.length;index++){
+    const leg=route.legs[index],start=roadPoint(leg.points[0]),end=roadPoint(leg.points.at(-1));
+    // Match the existing OSRM snap allowance; a provider road must still join
+    // the requested itinerary rather than silently pricing another journey.
+    if(roadSeparation(start,points[index])>2000||roadSeparation(end,points[index+1])>2000||index&&roadSeparation(start,roadPoint(route.legs[index-1].points.at(-1)))>1)throw Error('الطريق لا يطابق نقاط الرحلة. أعد حساب المسار.');
+  }
   const coordinates = route.legs.flatMap(leg => leg.points.map(point => [point?.longitude, point?.latitude]));
   return checkedRouteSnapshot({
     distanceMeters: route.summary.lengthInMeters, durationSeconds: route.summary.travelTimeInSeconds,

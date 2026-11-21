@@ -1,21 +1,23 @@
 (()=>{let watch=null,waiting=[],lastAccuracy=null;window.captainGPS=null;
+const validGPS=p=>!!p&&Number.isFinite(p.lat)&&Number.isFinite(p.lng)&&Math.abs(p.lat)<=90&&Math.abs(p.lng)<=180&&Number.isFinite(p.accuracy)&&p.accuracy>=0&&p.accuracy<=150&&Number.isFinite(p.at)&&p.at<=Date.now()+5000&&Date.now()-p.at<30000;
 function gpsFailure(error){
  const message=error?.code===1?'اسمح بإذن الموقع من إعدادات المتصفح ثم حاول مجددًا':error?.code===3?'انتهت مهلة تحديد الموقع. تحرك لمكان مفتوح ثم حاول مجددًا':'تعذر تحديد موقعك. تأكد من تفعيل GPS ثم حاول مجددًا';
  if(watch!==null){navigator.geolocation?.clearWatch(watch);watch=null;}
- const tasks=waiting.splice(0);tasks.forEach(x=>x.reject(Error(message)));
+ window.captainGPS=null;const tasks=waiting.splice(0);tasks.forEach(x=>{clearTimeout(x.timer);x.reject(Error(message))});
 }
 window.startCaptainGPS=()=>new Promise((resolve,reject)=>{
- if(window.captainGPS&&Date.now()-window.captainGPS.at<30000){resolve(window.captainGPS);return}
+ if(validGPS(window.captainGPS)){resolve(window.captainGPS);return}
  if(!navigator.geolocation){reject(Error('الموقع غير مدعوم على الجهاز'));return}
  const task={resolve,reject};waiting.push(task);
  if(watch===null){watch=navigator.geolocation.watchPosition(p=>{
-   lastAccuracy=Math.round(p.coords.accuracy);
-   if(!Number.isFinite(p.coords.latitude)||!Number.isFinite(p.coords.longitude)||p.coords.accuracy>150)return;
-   window.captainGPS={lat:p.coords.latitude,lng:p.coords.longitude,accuracy:p.coords.accuracy,at:Date.now()};
+   lastAccuracy=Number.isFinite(p?.coords?.accuracy)?Math.round(p.coords.accuracy):null;
+   const point={lat:p?.coords?.latitude,lng:p?.coords?.longitude,accuracy:p?.coords?.accuracy,at:p?.timestamp};
+   if(!validGPS(point)||window.captainGPS&&point.at<=window.captainGPS.at)return;
+   window.captainGPS=point;
    window.updateCaptainLiveMap?.(data?.current);window.publishCaptainLocation?.();
-   waiting.splice(0).forEach(x=>x.resolve(window.captainGPS));
+   waiting.splice(0).forEach(x=>{clearTimeout(x.timer);x.resolve(window.captainGPS)});
  },gpsFailure,{enableHighAccuracy:true,timeout:15000,maximumAge:5000});}
- setTimeout(()=>{const index=waiting.indexOf(task);if(index<0)return;waiting.splice(index,1);reject(Error(lastAccuracy>150?'دقة موقعك '+lastAccuracy+' متر؛ المطلوب 150 متر أو أفضل. افتح GPS وانتقل لمكان مفتوح.':'لم نحصل على موقع دقيق. اسمح بالموقع من المتصفح وجرب قرب نافذة أو في مكان مفتوح.'));},18000);
+ task.timer=setTimeout(()=>{const index=waiting.indexOf(task);if(index<0)return;waiting.splice(index,1);reject(Error(lastAccuracy>150?'دقة موقعك '+lastAccuracy+' متر؛ المطلوب 150 متر أو أفضل. افتح GPS وانتقل لمكان مفتوح.':'لم نحصل على موقع دقيق. اسمح بالموقع من المتصفح وجرب قرب نافذة أو في مكان مفتوح.'));},18000);
 });
 window.captainServiceDialog=dialog;function dialog(title,html){document.querySelector('#driver-services-dialog')?.remove();const d=document.createElement('dialog');d.id='driver-services-dialog';d.className='driver-service-modal';d.style.cssText='font:inherit;border:0;border-radius:20px;padding:22px;max-width:500px;width:calc(100% - 32px);max-height:85dvh;overflow:auto;color:#083344';d.innerHTML='<h2><button class="account-arrow" id="close-driver-service" aria-label="رجوع">→</button>'+escapeHtml(title)+'</h2>'+html;document.body.append(d);d.querySelector('#close-driver-service').onclick=()=>{d.close();d.remove()};d.showModal();return d}
 let cachedHistory=null,historyLoading=false,historyAt=0;window.invalidateDriverHistory=()=>{historyAt=0};

@@ -34,7 +34,10 @@
     const time=Date.parse(loc?.at);
     if(!validLocation(loc)||!Number.isFinite(time)||time>Date.now()+5000){if(sample)sample={...sample,fresh:false};awaitingLocation=true;if(marker)paint();return}
     if(sample&&time<Date.parse(sample.at)){paint();return}
-    const same=sample?.at===loc.at;
+    const same=sample&&Date.parse(sample.at)===time;
+    // One measurement time identifies one GPS fix. A conflicting replay must
+    // never change the stored follow target while the visible marker stays put.
+    if(same&&(sample.lat!==loc.lat||sample.lng!==loc.lng)){paint();return}
     sample={...loc};awaitingLocation=!online();
     if(!marker){
       marker=L.marker([loc.lat,loc.lng],{icon:L.divIcon({className:'captain-car-marker',html:car,iconSize:[34,54],iconAnchor:[17,27]}),zIndexOffset:1500,title:'موقع الكابتن'}).addTo(liveMap).bindTooltip('موقع الكابتن');

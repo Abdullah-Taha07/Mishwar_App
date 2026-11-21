@@ -6,6 +6,11 @@ test('invalid metrics or malformed road geometry cannot be accepted as a trusted
  for(const invalid of [{distanceMeters:0},{durationSeconds:0},{distanceMeters:-1},{durationSeconds:Infinity},{distanceMeters:NaN},{geometry:{type:'Point',coordinates:[46.6,24.7]}},{geometry:{type:'LineString',coordinates:[[46.6,24.7],[Infinity,24.7]]}},{geometry:{type:'LineString',coordinates:[[46.6,24.7]]}}])assert.throws(()=>checkedRouteSnapshot({...good(),...invalid}));
  assert.deepEqual(checkedRouteSnapshot(good()),good());
 });
+
+test('MAIN audit: a traffic delay cannot exceed the whole driving duration',()=>{
+ for(const trafficDelaySeconds of [-1,NaN,Infinity,481])assert.throws(()=>checkedRouteSnapshot({...good(),trafficDelaySeconds}));
+ for(const trafficDelaySeconds of [0,120,480])assert.equal(checkedRouteSnapshot({...good(),trafficDelaySeconds}).trafficDelaySeconds,trafficDelaySeconds);
+});
 test('stale road data is never priceable, public demo quotes require explicit pilot approval',()=>{
  assert.throws(()=>assertPriceableRoute({}, {...good(),stale:true}));
  assert.throws(()=>assertPriceableRoute({}, {...good(),demoProvider:true}));

@@ -37,7 +37,7 @@ if(bell)bell.onclick=async()=>{
   if(card.checkVisibility&&!card.checkVisibility({checkOpacity:true,checkVisibilityCSS:true}))return false;
   const rect=card.getBoundingClientRect(),clip=(marker.closest('.dialog-body')||modal).getBoundingClientRect();
   const top=Math.max(0,clip.top),bottom=Math.min(window.innerHeight,clip.bottom),left=Math.max(0,clip.left),right=Math.min(window.innerWidth,clip.right);
-  return rect.width>0&&rect.height>0&&rect.top>=top-1&&rect.bottom<=bottom+1&&rect.left>=left-1&&rect.right<=right+1;
+  return rect.width>0&&rect.height>0&&rect.top>=top&&rect.bottom<=bottom&&rect.left>=left&&rect.right<=right;
  };
  let notifications=[],serverIds=new Set();
  const acknowledge=async()=>{
