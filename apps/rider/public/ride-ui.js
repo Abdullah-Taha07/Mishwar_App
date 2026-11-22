@@ -68,7 +68,7 @@ if(bell)bell.onclick=async()=>{
   if(response.ok){const data=await response.json();if(!current()){view.stop();return}if(Array.isArray(data.notifications)&&data.notifications.length){notifications=data.notifications;serverIds=new Set(notifications.filter(n=>typeof n.id==='string'&&n.id).map(n=>n.id))}}
  }catch(error){if(context.ignored(error)){view.stop();return}}finally{read.release()}
  if(!current()){view.stop();return}
- marker.innerHTML=notifications.length?`<div class="notifications-list">${notifications.map((n,index)=>`<article data-notification-index="${index}" data-notification-id="${esc(String(n.id))}"><span>♧</span><div><strong>${esc(n.title)}</strong><p>${esc(n.body)}</p></div></article>`).join('')}</div>`:`<div class="notifications-empty"><span>♧</span><h3>لا توجد إشعارات حاليًا</h3><p>${window.mishwarRiderVerified?'تظهر هنا تحديثات طلبك ورحلتك.':'سجّل حسابك وفعّل رقمك لتتابع إشعارات رحلاتك.'}</p></div>`;
+ marker.innerHTML=notifications.length?`<div class="notifications-list">${notifications.map((n,index)=>`<article data-notification-index="${index}" data-notification-id="${esc(String(n.id))}"><span aria-hidden="true"><svg><use href="#info"/></svg></span><div><strong>${esc(n.title)}</strong><p>${esc(n.body)}</p></div></article>`).join('')}</div>`:`<div class="notifications-empty"><span aria-hidden="true"><svg><use href="#info"/></svg></span><h3>لا توجد إشعارات حاليًا</h3><p>${window.mishwarRiderVerified?'تظهر هنا تحديثات طلبك ورحلتك.':'سجّل حسابك وفعّل رقمك لتتابع إشعارات رحلاتك.'}</p></div>`;
  view.schedule();
 };
 render();

@@ -73,11 +73,12 @@ test('RIDER-012 reduced-motion tracking places measured GPS immediately without 
 
 test('RIDER-012 enabling reduced motion cancels interpolation and keeps the last measured point',()=>{
   const h=trackingHarness();h.c.MishwarTracking.update(h.trip());h.advance(1000);
-  h.c.MishwarTracking.update(h.trip({driverLocation:{lat:24.709,lng:46.609,at:new h.c.Date().toISOString(),fresh:true}}));
+  // Keep the motion fixture plausible under the RDEV-003 GPS jump guard.
+  h.c.MishwarTracking.update(h.trip({driverLocation:{lat:24.706,lng:46.606,at:new h.c.Date().toISOString(),fresh:true}}));
   const lateFrames=[...h.frames.values()];assert.ok(h.frames.size>0);h.reduce(true);
-  assert.equal(h.markers[0].point.lat,24.709);assert.ok(h.cancelled.length>0);
+  assert.equal(h.markers[0].point.lat,24.706);assert.ok(h.cancelled.length>0);
   for(const frame of lateFrames)frame(100000);
-  assert.equal(h.markers[0].point.lat,24.709,'A queued interpolation cannot move the reduced-motion marker');
+  assert.equal(h.markers[0].point.lat,24.706,'A queued interpolation cannot move the reduced-motion marker');
   assert.ok(h.pans.filter(p=>p.kind==='fit').every(p=>p.options.animate===false));
 });
 
@@ -91,12 +92,12 @@ test('RIDER-012 reduced motion preserves stale and offline GPS guards and owner 
 
 test('RIDER-012 application motion preference stops captain interpolation without requiring an OS setting',()=>{
   const h=trackingHarness();h.c.MishwarTracking.update(h.trip());h.advance(1000);
-  h.c.MishwarTracking.update(h.trip({driverLocation:{lat:24.709,lng:46.609,at:new h.c.Date().toISOString(),fresh:true}}));
+  h.c.MishwarTracking.update(h.trip({driverLocation:{lat:24.706,lng:46.606,at:new h.c.Date().toISOString(),fresh:true}}));
   h.c.document.body.classList.toggle('no-animation',true);h.emit('mishwar-motion-changed');
-  assert.equal(h.markers[0].point.lat,24.709);assert.equal(h.preference.matches,false);
+  assert.equal(h.markers[0].point.lat,24.706);assert.equal(h.preference.matches,false);
   h.frames.clear();h.advance(1000);
-  h.c.MishwarTracking.update(h.trip({driverLocation:{lat:24.71,lng:46.61,at:new h.c.Date().toISOString(),fresh:true}}));
-  assert.equal(h.frames.size,0);assert.equal(h.markers[0].point.lat,24.71);
+  h.c.MishwarTracking.update(h.trip({driverLocation:{lat:24.707,lng:46.607,at:new h.c.Date().toISOString(),fresh:true}}));
+  assert.equal(h.frames.size,0);assert.equal(h.markers[0].point.lat,24.707);
   h.node('.captain-follow').onclick();assert.equal(h.pans.at(-1).options.animate,false);
 });
 

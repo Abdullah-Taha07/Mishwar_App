@@ -6,6 +6,17 @@ import {routeEstimate,routeFare,RIDE_CATEGORIES} from '../worker/routing.js';
 import {cityMarket,priceCityMarket} from '../worker/expansion.js';
 
 const pickup={lat:24.7,lng:46.6,name:'Synthetic pickup'},destination={lat:24.71,lng:46.61,name:'Synthetic destination'};
+test('RIDER-014 city pricing preserves integer-meter rounding used by the existing fare policy',()=>{
+ const city={base_halalas:300,per_km_halalas:90,per_min_halalas:10,minimum_halalas:1000};
+ for(const distanceMeters of [4850,7850,12850])for(const category of RIDE_CATEGORIES){
+  const measured={distanceMeters,durationSeconds:650};
+  const priced=priceCityMarket({city,multiplier:10000,demand:0,supply:1},measured,category.id);
+  const expected=routeFare(distanceMeters,650,category.id);
+  assert.equal(priced.breakdown.distanceHalalas,expected.breakdown.distanceHalalas,'Meters must not lose a half-halalah before rounding');
+  assert.equal(priced.breakdown.timeHalalas,expected.breakdown.timeHalalas);
+  assert.equal(priced.fare,expected.fare,'The tariff is unchanged');
+ }
+});
 const route={distanceMeters:2400,durationSeconds:480,provider:'OSRM',trafficAware:false,demoProvider:true,geometry:{type:'LineString',coordinates:[[46.6,24.7],[46.61,24.71]]}};
 function setup(){
  const env=makeEnv();

@@ -54,7 +54,7 @@
   const renderBeforePlaces=render;
   render=function(){labels();return renderBeforePlaces()};
   window.onMishwarMapTap=point=>{
-    if(window.mishwarTripActive||!['home','select'].includes(state.stage))return;
+    if(!validPoint(point)||window.mishwarTripActive||!['home','select'].includes(state.stage))return;
     const ticket=context.capture(),target=state.stage==='home'?'pickup':mapStep;
     const selected={lat:point.lat,lng:point.lng,name:target==='pickup'?'نقطة الانطلاق على الخريطة':'الوجهة على الخريطة'};
     if(target==='pickup'){state.destination=null;setPickup(selected);mapStep='destination';setStage('select');window.dispatchEvent(new CustomEvent('mishwar-sheet-height',{detail:44}))}

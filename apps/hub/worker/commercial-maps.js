@@ -3,12 +3,24 @@ import {secretMatches} from './operations.js';
 
 const validPoint = point => !!point && Number.isFinite(point.lat) && Number.isFinite(point.lng) && Math.abs(point.lat) <= 90 && Math.abs(point.lng) <= 180;
 const configured = env => env.TOMTOM_ENABLED === 'true' && typeof env.TOMTOM_API_KEY === 'string' && env.TOMTOM_API_KEY.trim().length > 0;
-const roadPoint = value => ({lat:value?.latitude,lng:value?.longitude});
-function roadSeparation(a,b){
-  if(!validPoint(a)||!validPoint(b))return Infinity;
-  const rad=value=>value*Math.PI/180;
-  const h=Math.sin(rad(b.lat-a.lat)/2)**2+Math.cos(rad(a.lat))*Math.cos(rad(b.lat))*Math.sin(rad(b.lng-a.lng)/2)**2;
-  return 12742000*Math.asin(Math.sqrt(Math.max(0,Math.min(1,h))));
+// Match the existing OSRM waypoint-to-road limit in routing.js. Road snapping
+// may move an endpoint, but must not turn a different itinerary into this one.
+const MAX_ROAD_SNAP_METERS = 2000;
+function pointDistanceMeters(a, b) {
+  const radians = value => value * Math.PI / 180;
+  const h = Math.sin(radians(b.lat - a.lat) / 2) ** 2 + Math.cos(radians(a.lat)) * Math.cos(radians(b.lat)) * Math.sin(radians(b.lng - a.lng) / 2) ** 2;
+  return 6371000 * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(Math.max(0, 1 - h)));
+}
+function checkItineraryLegs(legs, points) {
+  if (legs.length !== points.length - 1) throw Error('المسار لا يطابق محطات الرحلة. أعد حساب المسار.');
+  for (let index = 0; index < legs.length; index++) {
+    const start = legs[index].points[0], end = legs[index].points.at(-1);
+    if (pointDistanceMeters(points[index], {lat: start.latitude, lng: start.longitude}) > MAX_ROAD_SNAP_METERS || pointDistanceMeters(points[index + 1], {lat: end.latitude, lng: end.longitude}) > MAX_ROAD_SNAP_METERS) throw Error('المسار لا يطابق نقاط الرحلة. أعد حساب المسار.');
+    // A single LineString must not invent a connector between separate legs.
+    // Equal endpoints retain the provider's own precision and snapped location.
+    const previous = legs[index - 1]?.points.at(-1);
+    if (previous && (previous.latitude !== start.latitude || previous.longitude !== start.longitude)) throw Error('أجزاء المسار غير متصلة. أعد حساب المسار.');
+  }
 }
 
 export async function commercialRoad(env, points) {
@@ -16,22 +28,18 @@ export async function commercialRoad(env, points) {
   if (typeof env.TOMTOM_API_KEY !== 'string' || !env.TOMTOM_API_KEY.trim()) throw Error('خدمة المسارات التجارية بانتظار التفعيل');
   const coords = points.map(point => point.lat + ',' + point.lng).join(':');
   const url = new URL('https://api.tomtom.com/routing/1/calculateRoute/' + coords + '/json');
-  url.search = new URLSearchParams({key: env.TOMTOM_API_KEY, traffic: 'true', travelMode: 'car', routeType: 'fastest', departAt: 'now', computeTravelTimeFor: 'all', language: 'ar-SA'});
+  url.search = new URLSearchParams({key: env.TOMTOM_API_KEY, traffic: 'true', travelMode: 'car', routeType: 'fastest', departAt: 'now', computeTravelTimeFor: 'all', language: 'ar'});
   const body = await boundedRoadJson(url, {}, 10000, env), route = body?.routes?.[0];
   if (!route || !Number.isFinite(route.summary?.lengthInMeters) || !Number.isFinite(route.summary?.travelTimeInSeconds)) throw Error('بيانات المسار التجاري ناقصة');
-  if (!Array.isArray(route.legs) || route.legs.length !== points.length-1 || route.legs.some(leg => !Array.isArray(leg?.points) || leg.points.length < 2)) throw Error('إحداثيات الطريق غير صحيحة. أعد حساب المسار.');
-  for(let index=0;index<route.legs.length;index++){
-    const leg=route.legs[index],start=roadPoint(leg.points[0]),end=roadPoint(leg.points.at(-1));
-    // Match the existing OSRM snap allowance; a provider road must still join
-    // the requested itinerary rather than silently pricing another journey.
-    if(roadSeparation(start,points[index])>2000||roadSeparation(end,points[index+1])>2000||index&&roadSeparation(start,roadPoint(route.legs[index-1].points.at(-1)))>1)throw Error('الطريق لا يطابق نقاط الرحلة. أعد حساب المسار.');
-  }
+  if (!Array.isArray(route.legs) || !route.legs.length || route.legs.some(leg => !Array.isArray(leg?.points) || leg.points.length < 2)) throw Error('إحداثيات الطريق غير صحيحة. أعد حساب المسار.');
   const coordinates = route.legs.flatMap(leg => leg.points.map(point => [point?.longitude, point?.latitude]));
-  return checkedRouteSnapshot({
+  const result = checkedRouteSnapshot({
     distanceMeters: route.summary.lengthInMeters, durationSeconds: route.summary.travelTimeInSeconds,
     trafficDelaySeconds: route.summary.trafficDelayInSeconds === undefined ? 0 : route.summary.trafficDelayInSeconds, trafficAware: true, provider: 'TomTom',
     geometry: {type: 'LineString', coordinates}, demoProvider: false, calculatedAt: new Date().toISOString(),
   });
+  checkItineraryLegs(route.legs, points);
+  return result;
 }
 
 function coordinate(value) {
@@ -88,7 +96,7 @@ export async function commercialPlaces(request, env) {
     const rate = await env.DB.prepare('INSERT INTO access_rate_limits VALUES(?,1) ON CONFLICT(bucket) DO UPDATE SET n=n+1 RETURNING n').bind(bucket).first();
     if (rate.n > 50) return json({error: 'طلبات كثيرة'}, 429);
     const url = new URL(reverse ? 'https://api.tomtom.com/search/2/reverseGeocode/' + lat + ',' + lng + '.json' : 'https://api.tomtom.com/search/2/search/' + encodeURIComponent(query) + '.json');
-    url.search = new URLSearchParams({key: env.TOMTOM_API_KEY, language: 'ar-SA', countrySet: 'SA', lat: String(lat), lon: String(lng), radius: '50000', limit: '30'});
+    url.search = new URLSearchParams({key: env.TOMTOM_API_KEY, language: 'ar', countrySet: 'SA', lat: String(lat), lon: String(lng), radius: '50000', limit: '30'});
     const data = await boundedRoadJson(url, {}, 8000, env), rows = reverse ? data?.addresses : data?.results;
     if (!Array.isArray(rows)) throw Error('PLACE_RESPONSE_SHAPE');
     return json({provider: 'TomTom', features: rows.map(item => feature(item, reverse)).filter(Boolean)});

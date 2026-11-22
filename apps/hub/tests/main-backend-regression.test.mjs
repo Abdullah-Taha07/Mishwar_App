@@ -29,7 +29,7 @@ test('MAIN audit: completed and cancelled trip reads never reveal the captain cu
    const response=await read(env,action,id);assert.equal(response.status,200);
    const data=await response.json(),value=action==='live_history'?data.trips.find(row=>row.id===id):data.recentTrip;
    assert.ok(value);assert.equal(value.driverLocation,null,status+': '+action);
-   for(const key of ['driver_lat','driver_lng','driver_accuracy','driver_location_at'])assert.equal(value[key],null,key+' must be redacted after access ends');
+   for(const key of ['driver_lat','driver_lng','driver_accuracy','driver_location_at']){assert.equal(value[key],undefined,key+' must be redacted after access ends');assert.equal(Object.hasOwn(value,key),false,key+' must not appear in the response');}
   }
  }
 });

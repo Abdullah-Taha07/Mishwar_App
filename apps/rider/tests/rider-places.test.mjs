@@ -91,3 +91,10 @@ test('RIDER-007 resolving a current manual map point changes labels without repl
   pending.resolve({...point('Resolved manual address'),lat:0,lng:0,resolved:true});await pending.promise;await Promise.resolve();
   assert.equal(h.c.pickupPoint.source,'manual');assert.equal(h.c.pickupPoint.lat,24.7);assert.equal(h.c.pickupPoint.lng,46.6);assert.equal(h.c.pickupPoint.name,'Resolved manual address');
 });
+
+test('RIDER-014 invalid map taps cannot clear the destination, change stages or start reverse geocoding',()=>{
+ const h=harness();h.c.state.destination=point('Existing destination');const destination=h.c.state.destination,pickup=h.c.pickupPoint;let reverseCalls=0;
+ h.c.reverseAddress=async value=>{reverseCalls++;return value};
+ for(const invalid of [{lat:NaN,lng:46.6},{lat:24.7,lng:Infinity},null])h.c.onMishwarMapTap(invalid);
+ assert.equal(h.c.state.destination,destination);assert.equal(h.c.pickupPoint,pickup);assert.equal(h.c.state.stage,'home');assert.equal(reverseCalls,0);
+});

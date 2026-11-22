@@ -135,10 +135,46 @@ test('captain tracking requires an online refresh after disconnection and clears
   const h=captainHarness();const t=h.trip();h.c.MishwarTracking.update(t);
   h.c.navigator.onLine=false;h.emit('offline');assert.match(h.node('.captain-location-state').textContent,/آخر موقع/);
   h.c.navigator.onLine=true;h.emit('online');assert.match(h.node('.captain-location-state').textContent,/آخر موقع/);
-  h.c.MishwarTracking.update(t);assert.equal(h.node('.captain-location-state').textContent,'موقع الكابتن المباشر');
+  h.c.MishwarTracking.update(t);assert.match(h.node('.captain-location-state').textContent,/آخر موقع/,'A repeated pre-disconnection GPS measurement is not a new live observation');
+  h.c.MishwarTracking.update({...t,driverLocation:{...t.driverLocation,at:new Date(h.time.now+1000).toISOString()}});assert.equal(h.node('.captain-location-state').textContent,'موقع الكابتن المباشر');
   h.c.MishwarTracking.update(h.trip({id:'trip-B',driver_id:'captain-B',driverLocation:null}));
   assert.equal(h.markers[0].removed,true);assert.equal(h.controls[0].removed,true);
   assert.equal([...h.time.timers.values()].filter(timer=>timer.interval).length,0);
+});
+
+test('RDEV-003 equivalent timestamp formats and conflicting equal-time samples never replace the measured marker',()=>{
+  const h=captainHarness(),t=h.trip();h.c.MishwarTracking.update(t);const pans=h.pans.length;
+  h.c.MishwarTracking.update({...t,driverLocation:{...t.driverLocation,at:t.driverLocation.at.replace('.000Z','Z')}});
+  h.c.MishwarTracking.update({...t,driverLocation:{...t.driverLocation,lat:25.5,lng:47.5}});
+  h.node('.captain-follow').onclick();assert.equal(h.pans.length,pans+1);
+  assert.deepEqual(h.pans.at(-1).point,{lat:t.driverLocation.lat,lng:t.driverLocation.lng});
+});
+
+test('RDEV-003 location age is bounded by30 seconds even if no network event arrives',async()=>{
+  const h=captainHarness();h.c.MishwarTracking.update(h.trip());await h.time.advance(30000);
+  assert.equal(h.markers[0].opacity,.5);assert.match(h.node('.captain-location-state').textContent,/آخر موقع/);
+});
+
+test('RDEV-003 impossible GPS jumps do not animate or alter the last accepted position',async()=>{
+  const h=captainHarness(),t=h.trip();h.c.MishwarTracking.update(t);await h.time.advance(1000);
+  h.c.MishwarTracking.update({...t,driverLocation:{...t.driverLocation,lat:26,lng:48,at:new Date(h.time.now).toISOString()}});
+  await h.time.advance(1200);assert.equal(h.markers[0].point.lat,t.driverLocation.lat);assert.equal(h.markers[0].point.lng,t.driverLocation.lng);assert.equal(h.markers[0].opacity,.5);
+  h.c.MishwarTracking.update({...t,driverLocation:{...t.driverLocation,lat:t.driverLocation.lat+.0001,at:new Date(h.time.now).toISOString()}});
+  await h.time.advance(1100);assert.equal(h.markers[0].point.lat,t.driverLocation.lat+.0001);assert.equal(h.markers[0].opacity,1);
+});
+
+test('RDEV-003 valid heading includes zero and reduced motion uses the actual sample directly',()=>{
+  const h=captainHarness(),t=h.trip();h.c.document.body=h.node('body');h.c.document.body.classList.add('no-animation');
+  h.c.MishwarTracking.update({...t,driverLocation:{...t.driverLocation,heading:270}});
+  assert.match(h.node('rotation-0').style.transform,/-90deg|270deg/);
+  h.c.MishwarTracking.update({...t,driverLocation:{...t.driverLocation,heading:0,lat:t.driverLocation.lat+.0001,at:new Date(h.time.now+1000).toISOString()}});
+  assert.match(h.node('rotation-0').style.transform,/0deg|360deg/);assert.equal(h.markers[0].point.lat,t.driverLocation.lat+.0001);assert.equal(h.node('rotation-0').style.transition,'none');
+});
+
+test('RDEV-003 terminal/account reset cancels every animation and aging timer immediately',()=>{
+  const h=captainHarness();h.c.MishwarTracking.update(h.trip());h.emit('mishwar-account-reset');
+  assert.equal(h.time.timers.size,0);assert.equal(h.markers[0].removed,true);assert.equal(h.controls[0].removed,true);
+  h.c.MishwarTracking.update(h.trip());h.c.MishwarTracking.update(h.trip({status:'completed',driverLocation:null}));assert.equal(h.time.timers.size,0);assert.equal(h.markers.at(-1).removed,true);
 });
 
 test('captain tracking ignores old GPS, invalid dates and late frames after account reset',async()=>{

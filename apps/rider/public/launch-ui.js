@@ -148,7 +148,64 @@ async function caseChat(caseId){
     };
   }catch(e){if(d.open&&draft.current()&&e.name!=='AbortError')error(d,e)}
 }
-async function receipt(tripId){const d=modal('إيصال المشوار','<p>جارٍ تجهيز الإيصال…</p>');try{const{receipt:v}=await call('receipt',{tripId});d.querySelector('.launch-body').innerHTML=`<article class="trip-receipt"><div class="receipt-brand">مشوار</div><span>${escape(v.merchant.name)}</span><h3>إيصال مشوار</h3><p dir="ltr">${escape(v.receipt_number)}</p><dl><div><dt>الانطلاق</dt><dd>${escape(v.pickup.name)}</dd></div><div><dt>الوصول</dt><dd>${escape(v.destination.name)}</dd></div><div><dt>الأجرة</dt><dd>${price(v.fare)}</dd></div><div><dt>الخصم</dt><dd>${price(v.discount)}</dd></div><div><dt>الإجمالي</dt><dd>${price(v.paid)}</dd></div><div><dt>الدفع</dt><dd>${({cash:'نقدًا',wallet:'المحفظة',card:'بطاقة',applepay:'Apple Pay'})[v.method]||'غير محدد'}</dd></div>${v.commission!==undefined?`<div><dt>عمولة التطبيق</dt><dd>${price(v.commission)}</dd></div>`:''}</dl><p class="launch-note">${escape(v.note)}</p></article><button class="primary" data-print-receipt>طباعة أو حفظ PDF</button>`;d.querySelector('[data-print-receipt]').onclick=()=>window.print()}catch(e){error(d,e)}}
+// RDEV-002: keep receipt reads and exports inside the account that opened them.
+let receiptView=null;
+async function receipt(tripId){
+ if(receiptView?.tripId===tripId&&receiptView.current()){receiptView.dialog.focus();return}
+ const d=modal('إيصال المشوار','<p role="status">جارٍ تجهيز الإيصال…</p>');
+ const account=window.MishwarAccountContext,ticket=account?.capture(),helper=window.MishwarReceipt;
+ let model=null,loading=false,exporting=false,disposed=false,request=null;
+ const current=()=>!disposed&&d.open&&d.isConnected&&!!ticket?.accountKey&&account.isCurrent(ticket);
+ const body=()=>d.querySelector('.launch-body');
+ function cleanup(){
+  if(disposed)return;disposed=true;request?.controller.abort();request?.release();
+  if(model)helper?.dispose(model);model=null;
+  window.removeEventListener('mishwar-account-reset',reset);
+  window.removeEventListener('pagehide',reset);
+  if(receiptView?.dialog===d)receiptView=null;
+ }
+ function reset(){body()?.replaceChildren();cleanup();if(d.open)d.close()}
+ d.cleanup=cleanup;
+ if(!ticket?.accountKey||account.snapshot().status!=='ready'||!account.snapshot().authenticated){
+  body().innerHTML='<p class="launch-error" role="alert">سجّل الدخول لعرض إيصالات رحلاتك.</p>';return;
+ }
+ if(!helper){body().innerHTML='<p class="launch-error" role="alert">تعذر تحميل أدوات الإيصال. حدّث التطبيق وأعد المحاولة.</p>';return}
+ receiptView={tripId,dialog:d,current};
+ window.addEventListener('mishwar-account-reset',reset);
+ window.addEventListener('pagehide',reset);
+ function controls(){
+  d.querySelectorAll('[data-receipt-export]').forEach(button=>{button.disabled=exporting;button.setAttribute('aria-busy',String(exporting))});
+ }
+ async function run(action){
+  if(!current()||exporting||!model)return;
+  exporting=true;controls();const status=d.querySelector('[data-receipt-status]');status.textContent='جارٍ تجهيز المستند…';
+  try{
+   const result=await helper[action](model);if(!current())return;
+   const kind=typeof result==='string'?result:result?.action;
+   status.textContent=kind==='cancelled'?'أُلغيت المشاركة. يمكنك المحاولة مجددًا.':kind==='shared'?'اكتملت مشاركة الإيصال.':action==='print'?'فُتحت نافذة الطباعة؛ اختر الطابعة أو الحفظ حسب متصفحك.':kind==='download'||action==='download'?'بدأ تنزيل الإيصال؛ راجع تنزيلات المتصفح.':'تم تجهيز الإيصال.';
+  }catch(err){if(current())status.textContent=err.name==='AbortError'?'أُلغيت المشاركة. يمكنك المحاولة مجددًا.':'تعذر تجهيز المستند. بيانات الرحلة محفوظة؛ أعد المحاولة.'}
+  finally{exporting=false;if(current())controls()}
+ }
+ async function load(){
+  if(loading||!current())return;loading=true;
+  body().innerHTML='<p role="status">جارٍ تجهيز الإيصال…</p>';
+  request=account.readController();const activeRequest=request;let timer;
+  try{
+   const timeout=new Promise((_,reject)=>{timer=setTimeout(()=>{activeRequest.controller.abort();reject(Error('انتهت مهلة تحميل الإيصال. أعد المحاولة.'))},12000)});
+   const result=await Promise.race([call('receipt',{tripId},{signal:activeRequest.controller.signal}),timeout]);
+   if(!current())return;account.checkResponseOwner(result,ticket);
+   model=helper.normalize(result.receipt,{tripId,ticket});
+   body().innerHTML=helper.renderHtml(model)+'<div class="receipt-actions"><button type="button" class="primary" data-receipt-export data-receipt-download>تنزيل PDF</button><button type="button" class="secondary" data-receipt-export data-receipt-print>طباعة الإيصال</button><button type="button" class="secondary" data-receipt-export data-receipt-share>مشاركة الإيصال</button></div><p class="launch-note" data-receipt-status role="status" aria-live="polite"></p><p class="launch-note">ملف PDF صوري يدعم العربية؛ النص داخله غير قابل للتحديد أو البحث. إذا لم يدعم جهازك مشاركة الملفات سيبدأ التنزيل لتشاركه بنفسك.</p>';
+   for(const action of ['download','print','share'])d.querySelector('[data-receipt-'+action+']').onclick=()=>run(action);
+  }catch(err){
+   if(!current())return;
+   body().innerHTML='<p class="launch-error" role="alert">'+escape(err.message||'تعذر تحميل الإيصال.')+'</p><p class="launch-note">بيانات الرحلة محفوظة. يمكنك إعادة تحميل الإيصال.</p><button type="button" class="secondary" data-receipt-retry>إعادة تحميل الإيصال</button>';
+   d.querySelector('[data-receipt-retry]').onclick=load;
+  }finally{clearTimeout(timer);activeRequest.release();if(request===activeRequest)request=null;loading=false}
+ }
+ await load();
+}
+// End RDEV-002 receipt controller.
 async function reservations(){const d=modal('الحجوزات المسبقة','<p>جارٍ التحميل…</p>');try{const v=await call('reservations');d.querySelector('.launch-body').innerHTML=`<p class="launch-note">احجز موعدًا بعد ٣٠ دقيقة وحتى ٧ أيام. السعر يحفظ نقدًا دون خصومات. يبدأ البحث قبل الموعد بعشر دقائق، ويصلك تأكيد مستقل عند قبول كابتن؛ توفر السيارة غير مضمون.</p>${!v.schedulerConfigured?'<p class="launch-warning">بانتظار تفعيل المجدول في الخادم. الحجز المسبق غير متاح للتأكيد حاليًا.</p>':''}<form class="launch-form"><label>موعد الانطلاق<input type="datetime-local" name="pickupAt" required></label><p>يستخدم المسار والفئة المحددين في شاشة طلب المشوار.</p><button class="primary" ${v.schedulerConfigured?'':'disabled'}>تأكيد الحجز للمسار المحدد</button></form><p data-error role="alert"></p><h3>حجوزاتي</h3>${v.items.map(x=>`<article class="launch-reservation"><b data-no-translate>${escape(x.destination.name)}</b><p><time datetime="${escape(x.pickup_at)}" data-localized-date>${new Date(x.pickup_at).toLocaleString(window.MishwarEnglish?.locale?.()||'ar-SA')}</time> · ${price(x.fare_halalas)}</p><small>${({scheduled:'مجدول',dispatched:'بدأ البحث عن كابتن',cancelled:'ملغى',missed:'تعذر التنفيذ في الموعد',blocked:'يحتاج مراجعة الحساب'})[x.status]||'قيد المعالجة'}</small>${x.status==='scheduled'?`<button class="secondary" data-cancel-reservation="${escape(x.id)}">إلغاء الحجز المسبق</button>`:''}</article>`).join('')}`;d.querySelector('form').onsubmit=async e=>{e.preventDefault();const b=e.target.querySelector('button');b.disabled=true;try{const q=await window.getMishwarBookingQuote?.();if(!q?.id)throw Error('حدد الانطلاق والوجهة والفئة أولًا واحسب سعرًا تلقائيًا دون خصم.');await call('reserve',{quoteId:q.id,pickupAt:new Date(e.target.pickupAt.value).toISOString()});reservations()}catch(err){error(d,err);b.disabled=false}};d.querySelectorAll('[data-cancel-reservation]').forEach(b=>b.onclick=async()=>{try{await call('reserve_cancel',{id:b.dataset.cancelReservation});reservations()}catch(e){error(d,e)}})}catch(e){error(d,e)}}
 async function bookingOptions(){const saved=window.MishwarBookingOptions||{stops:[],guestName:'',businessNote:''},selected=[...(saved.stops||[])];const d=modal('خيارات المشوار',`<p class="launch-note">أضف حتى محطتين قبل الوجهة. يعاد احتساب مسار القيادة والسعر قبل التأكيد. لا توجد رسوم انتظار تلقائية في هذه النسخة.</p><form class="launch-form">${[0,1].map(i=>`<label>محطة ${i+1} · اختياري<input data-stop-search="${i}" value="${escape(selected[i]?.name||'')}" placeholder="ابحث عن مكان في الرياض" autocomplete="off"><div class="stop-results" data-stop-results="${i}"></div></label>`).join('')}<label>حجز لشخص آخر · الاسم<input name="guestName" maxlength="80" value="${escape(saved.guestName)}"></label><label class="launch-check"><input name="guestConsent" type="checkbox" ${saved.guestConsent?'checked':''}>لدي موافقة الشخص على الحجز ومشاركة اسمه مع الكابتن</label><label>مرجع عمل أو شركة · اختياري<input name="businessNote" maxlength="150" value="${escape(saved.businessNote)}"></label><button class="primary">اعتماد الخيارات وإعادة حساب السعر</button></form><p data-error role="alert"></p>`);d.querySelectorAll('[data-stop-search]').forEach(input=>{let timer,sequence=0;input.oninput=()=>{clearTimeout(timer);const i=Number(input.dataset.stopSearch);selected[i]=null;const seq=++sequence;timer=setTimeout(async()=>{const box=d.querySelector('[data-stop-results="'+i+'"]');if(input.value.trim().length<2){box.innerHTML='';return}try{const points=await window.searchMishwarPlaces(input.value);if(seq!==sequence||!d.open)return;box.innerHTML=points.slice(0,5).map((p,j)=>`<button type="button" data-stop-choice="${j}">${escape(p.name)}<small>${escape(p.area||'')}</small></button>`).join('')||'<small>لم تظهر نتائج قريبة.</small>';box.querySelectorAll('button').forEach(b=>b.onclick=()=>{selected[i]=points[Number(b.dataset.stopChoice)];input.value=selected[i].name;box.innerHTML=''})}catch(e){error(d,e)}},350)}});d.querySelector('form').onsubmit=e=>{e.preventDefault();try{const f=e.target,guest=f.guestName.value.trim();if(guest&&!f.guestConsent.checked)throw Error('أكد موافقة الشخص الذي تحجز له');for(const input of d.querySelectorAll('[data-stop-search]'))if(input.value.trim()&&!selected[Number(input.dataset.stopSearch)])throw Error('اختر محطة من نتائج البحث');window.MishwarBookingOptions={stops:selected.filter(Boolean),guestName:guest,guestConsent:f.guestConsent.checked,businessNote:f.businessNote.value.trim()};window.resetMishwarQuote?.();d.close()}catch(err){error(d,err)}}}
 async function refunds(){const d=modal('استرداد رصيد إلى البطاقة','<p>جارٍ التحميل…</p>');try{const v=await call('refunds');d.querySelector('.launch-body').innerHTML=`<p class="launch-note">طلب استرداد كامل لدفعة بطاقة مؤكدة غير مستهلكة في رحلة نشطة أو مكتملة، بشرط توفر قيمتها في المحفظة. يحجز المبلغ للمراجعة ولا يعتبر معادًا للبطاقة حتى تؤكده البوابة.</p>${v.payments.length?`<form class="launch-form"><label>دفعة البطاقة<select name="intentId">${v.payments.map(p=>`<option value="${escape(p.id)}">${p.purpose==='trip'?'دفعة مشوار غير مستهلكة':'شحن محفظة'} · ${price(p.amount_halalas)} · ${new Date(p.created_at).toLocaleDateString('ar-SA')}</option>`).join('')}</select></label><label>السبب<input name="reason" required minlength="3" maxlength="500"></label><button class="primary">طلب الاسترداد وحجز المبلغ</button></form>`:'<p>لا توجد دفعات بطاقة مؤهلة حاليًا. بطاقات شحن مشوار والقسائم ليست دفعات بطاقة قابلة للاسترداد بهذه الآلية.</p>'}<p data-error role="alert"></p>${v.items.map(x=>`<article class="launch-row"><span>${price(x.amount_halalas)}</span><small>${({requested:'بانتظار المراجعة',submitted_unknown:'أرسل للمزود · يحتاج مطابقة',refunded:'أكد المزود الاسترداد',rejected:'مرفوض · أعيد للمحفظة'})[x.status]||x.status}</small></article>`).join('')}`;d.querySelector('form')?.addEventListener('submit',async e=>{e.preventDefault();const b=e.target.querySelector('button');b.disabled=true;try{await call('refund_request',Object.fromEntries(new FormData(e.target)));refunds()}catch(err){error(d,err);b.disabled=false}})}catch(e){error(d,e)}}

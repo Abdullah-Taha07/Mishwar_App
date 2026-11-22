@@ -19,12 +19,13 @@ function restoreSearchFocus(){
 }
 function searchFocusable(){return [...searchSheet.querySelectorAll('button:not([disabled]),input:not([disabled]),a[href],[tabindex="0"]')].filter(node=>!node.hidden&&node.getAttribute?.('aria-hidden')!=='true')}
 const arabicKey=s=>String(s||'').normalize('NFKC').replace(/[\u064B-\u065F\u0670ـ]/g,'').replace(/[أإآ]/g,'ا').replace(/ى/g,'ي').toLowerCase().trim();
+const sameFavoritePlace=(a,b)=>a.name===b.name&&Math.abs(a.lat-b.lat)<.001&&Math.abs(a.lng-b.lng)<.001;
 function addressStorage(name){const context=window.MishwarAccountContext,state=context?.snapshot();return state?.status==='ready'&&state.authenticated?context.storageKey(name+'-v3'):null}
 function addressList(name){const key=addressStorage(name),points=key?read(key,[]):[];return Array.isArray(points)?points.filter(validPoint):[]}
 function savedAddresses(){return addressList('mishwar-favorites')}
 function recentAddresses(){return addressList('mishwar-recent-addresses')}
-function saveAddressList(name,points,ticket){const context=window.MishwarAccountContext,key=addressStorage(name);if(!key||!context.isCurrent(ticket))return false;try{localStorage.setItem(key,JSON.stringify(points));return true}catch{toast('تعذر حفظ المكان على هذا الجهاز. لم يُحفظ التعديل.');return false}}
-function rememberAddress(point,ticket=window.MishwarAccountContext?.capture()){return saveAddressList('mishwar-recent-addresses',[point,...recentAddresses().filter(p=>p.name!==point.name||Math.abs(p.lat-point.lat)>.001||Math.abs(p.lng-point.lng)>.001)].slice(0,12),ticket)}
+function saveAddressList(name,points,ticket){const context=window.MishwarAccountContext,key=addressStorage(name);if(!key||!context.isCurrent(ticket)||!Array.isArray(points)||points.some(point=>!validPoint(point)))return false;try{localStorage.setItem(key,JSON.stringify(points));return true}catch{toast('تعذر حفظ المكان على هذا الجهاز. لم يُحفظ التعديل.');return false}}
+function rememberAddress(point,ticket=window.MishwarAccountContext?.capture()){if(!validPoint(point))return false;return saveAddressList('mishwar-recent-addresses',[point,...recentAddresses().filter(p=>!sameFavoritePlace(p,point))].slice(0,12),ticket)}
 function openSearchSheet(target){
  searchOwnerTicket=window.MishwarAccountContext?.capture()||null;
  if(!searchSheet.hidden){selectSearchField(target);return}
@@ -33,7 +34,7 @@ function openSearchSheet(target){
  selectSearchField(target);
 }
 function selectSearchField(target){
- selectedSearchTarget=target;editor.target=target;editor.results=[];editor.error='';editor.loading=false;
+ stopAddressSearch();selectedSearchTarget=target;editor.target=target;editor.results=[];editor.error='';editor.loading=false;
  searchSheet.querySelectorAll('.search-route-row').forEach(row=>row.classList.toggle('focused',row.querySelector('input').dataset.searchAddress===target));
  const input=$('#search-'+target);editor.query=input.value;input.focus({preventScroll:true});input.select();
  if(input.value.trim().length>=2)scheduleAddressSearch(input.value);else drawSuggestions();
@@ -52,17 +53,18 @@ drawSuggestions=function(){
  if(!editor.target||searchSheet.hidden)return;
  const list=$('#search-results-list'),query=arabicKey(editor.query),words=query.split(/\s+/).filter(w=>w.length>1&&!['حي','شارع','طريق','الرياض'].includes(w));
  let results=editor.query.trim().length>=2?editor.results:[...savedAddresses(),...recentAddresses()];
- const seen=new Set();results=results.filter(p=>{const key=JSON.stringify([arabicKey(p.name),p.lat,p.lng]);if(seen.has(key))return false;seen.add(key);return true});
+ const seen=new Set();results=results.filter(validPoint).filter(p=>{const key=arabicKey(p.name)+'|'+p.lat+'|'+p.lng;if(seen.has(key))return false;seen.add(key);return true});
  results=window.MishwarGeoPolicy.rank(results,searchFocus());
  // The result pane scrolls; do not silently discard valid matches below its fold.
  editor.visibleResults=results;
  $('#search-result-heading').textContent=editor.loading?'جارٍ البحث…':query.length>=2?'الأقرب إليك في الرياض':'أماكنك الأخيرة والمفضلة';
  $('#search-result-heading').setAttribute('role','status');list.setAttribute('aria-busy',String(editor.loading));
  $('#search-result-hint').textContent=results.length>6?'أضف تفاصيل لتضييق النتائج':'';
- list.innerHTML=editor.visibleResults.length?editor.visibleResults.map((p,i)=>`<div class="search-result-row"><button role="option" aria-selected="false" data-search-select="${i}">${icon('pin')}<span><strong data-no-translate>${esc(p.name)}</strong><small><span data-no-translate>${esc(p.area||'')}</span> · ${p.distanceKm.toFixed(1)} كم</small></span></button><button class="favorite-address ${savedAddresses().some(f=>f.name===p.name&&Math.abs(f.lat-p.lat)<.001&&Math.abs(f.lng-p.lng)<.001)?'saved':''}" data-search-favorite="${i}" aria-label="حفظ ${esc(p.name)} في المفضلة">♡</button></div>`).join(''):editor.loading?`<div class="search-loading-skeleton" aria-hidden="true">${[1,2,3].map(()=>'<div class="search-result-row"><span class="mw-skeleton" style="height:12px;width:75%"></span></div>').join('')}</div>`:`<div class="search-empty">${icon('search')}<strong>${editor.error?'تعذر تحميل النتائج':query.length>=2?'جرّب اسمًا أو عنوانًا أوضح':'اكتب اسم مكان أو شارع أو حي'}</strong><p>${esc(editor.error||(query.length>=2?'بعض الأنشطة غير متوفرة في مصدر الخرائط الحالي. يمكنك تحديد مكانها بنفسك على الخريطة.':'ستظهر الاقتراحات هنا أثناء الكتابة.'))}</p></div>`;
+ list.innerHTML=editor.visibleResults.length?editor.visibleResults.map((p,i)=>`<div class="search-result-row"><button role="option" aria-selected="false" data-search-select="${i}">${icon('pin')}<span><strong data-no-translate>${esc(p.name)}</strong><small><span data-no-translate>${esc(p.area||'')}</span> · ${p.distanceKm.toFixed(1)} كم</small></span></button><button class="favorite-address ${savedAddresses().some(f=>sameFavoritePlace(f,p))?'saved':''}" data-search-favorite="${i}" aria-label="حفظ ${esc(p.name)} في المفضلة">♡</button></div>`).join(''):editor.loading?`<div class="search-loading-skeleton" aria-hidden="true">${[1,2,3].map(()=>'<div class="search-result-row"><span class="mw-skeleton" style="height:12px;width:75%"></span></div>').join('')}</div>`:`<div class="search-empty">${icon('search')}<strong>${editor.error?'تعذر تحميل النتائج':query.length>=2?'جرّب اسمًا أو عنوانًا أوضح':'اكتب اسم مكان أو شارع أو حي'}</strong><p>${esc(editor.error||(query.length>=2?'بعض الأنشطة غير متوفرة في مصدر الخرائط الحالي. يمكنك تحديد مكانها بنفسك على الخريطة.':'ستظهر الاقتراحات هنا أثناء الكتابة.'))}</p></div>`;
 };
 searchSheet.addEventListener('focusin',e=>{const input=e.target.closest('[data-search-address]');if(input&&editor.target!==input.dataset.searchAddress){stopAddressSearch();selectedSearchTarget=input.dataset.searchAddress;editor.target=selectedSearchTarget;editor.results=[];editor.query=input.value;editor.error='';editor.loading=false;searchSheet.querySelectorAll('.search-route-row').forEach(row=>row.classList.toggle('focused',row.contains(input)));input.value.length>=2?scheduleAddressSearch(input.value):drawSuggestions()}});
-searchSheet.addEventListener('input',e=>{if(e.target.matches('[data-search-address]'))scheduleAddressSearch(e.target.value)});
+function invalidateSearchPoint(target){if(target==='pickup'){window.beginMishwarManualPickup?.();pickupPoint=null}else if(target==='destination')state.destination=null;else return;syncMapPoints();window.resetMishwarQuote?.()}
+searchSheet.addEventListener('input',e=>{if(e.target.matches('[data-search-address]')){invalidateSearchPoint(e.target.dataset.searchAddress);scheduleAddressSearch(e.target.value)}});
 searchSheet.addEventListener('keydown',e=>{
  if(e.key==='Escape'){e.preventDefault();closeAddressEditor({restoreFocus:true});return}
  if(e.key==='Tab'){
@@ -83,14 +85,14 @@ searchSheet.addEventListener('click',e=>{
  const b=e.target.closest('button');if(!b)return;e.preventDefault();e.stopPropagation();
  const context=window.MishwarAccountContext;if(context&&searchOwnerTicket&&!context.isCurrent(searchOwnerTicket)){closeAddressEditor();return}
  if(b.hasAttribute('data-search-close')){closeAddressEditor({restoreFocus:true});return}
- if(b.dataset.searchClear){const input=$('#search-'+b.dataset.searchClear);input.value='';if(b.dataset.searchClear==='pickup'){window.beginMishwarManualPickup?.();pickupPoint=null;syncMapPoints()}else state.destination=null;selectSearchField(b.dataset.searchClear);return}
+ if(b.dataset.searchClear){const input=$('#search-'+b.dataset.searchClear);input.value='';invalidateSearchPoint(b.dataset.searchClear);selectSearchField(b.dataset.searchClear);return}
  if(b.hasAttribute('data-search-map')){const target=editor.target;startMapPick(target);return}
  if(b.hasAttribute('data-search-location')){locatePickup();return}
  if(b.hasAttribute('data-search-note')){closeAddressEditor();modal('ملاحظة للوصول',`<p class="feature-intro">مثال: أمام البوابة الرئيسية أو بجوار المدخل الشمالي.</p><form id="arrival-note"><label for="arrival-text">الملاحظة</label><textarea id="arrival-text" maxlength="200" rows="3">${esc(searchNote)}</textarea><button class="primary" type="submit">حفظ الملاحظة</button></form>`);$('#arrival-note').onsubmit=ev=>{ev.preventDefault();searchNote=$('#arrival-text').value.trim();$('#modal').close();toast('ستصل الملاحظة للكابتن عند تأكيد الطلب')};return}
- if(b.dataset.searchFavorite!==undefined){const p=editor.visibleResults[Number(b.dataset.searchFavorite)];if(!p)return;if(!addressStorage('mishwar-favorites')){toast('سجّل الدخول لحفظ المفضلة لهذا الحساب.');return}const list=savedAddresses(),exists=list.some(f=>f.name===p.name&&Math.abs(f.lat-p.lat)<.001&&Math.abs(f.lng-p.lng)<.001);saveAddressList('mishwar-favorites',exists?list.filter(f=>f.name!==p.name||Math.abs(f.lat-p.lat)>=.001||Math.abs(f.lng-p.lng)>=.001):[p,...list].slice(0,30),searchOwnerTicket);drawSuggestions();return}
+ if(b.dataset.searchFavorite!==undefined){const p=editor.visibleResults[Number(b.dataset.searchFavorite)];if(!p)return;if(!addressStorage('mishwar-favorites')){toast('سجّل الدخول لحفظ المفضلة لهذا الحساب.');return}const list=savedAddresses(),exists=list.some(f=>sameFavoritePlace(f,p));saveAddressList('mishwar-favorites',exists?list.filter(f=>!sameFavoritePlace(f,p)):[p,...list].slice(0,30),searchOwnerTicket);drawSuggestions();return}
  if(b.dataset.searchSelect!==undefined){const p=editor.visibleResults[Number(b.dataset.searchSelect)],target=editor.target;if(!p)return;rememberAddress(p);closeAddressEditor();if(target==='pickup'){setPickup(p);if(!state.destination)openSearchSheet('destination')}else{choose(p);fitLocations()}}
 });
 const chooseNamed=choose;
-choose=function(point){if(validPoint(point)){chooseNamed(point);return}openSearchSheet('destination');$('#search-destination').value=point.name;scheduleAddressSearch(point.name)};
+choose=function(point){if(validPoint(point)){chooseNamed(point);return}if(typeof point?.name!=='string'||!point.name.trim())return;openSearchSheet('destination');$('#search-destination').value=point.name;scheduleAddressSearch(point.name)};
 new ResizeObserver(()=>{if(!searchSheet.hidden)drawSuggestions()}).observe(searchSheet);
 window.addEventListener('mishwar-account-reset',()=>{searchOwnerTicket=null;closeAddressEditor();editor.query='';editor.error='';searchSheet.innerHTML=''});

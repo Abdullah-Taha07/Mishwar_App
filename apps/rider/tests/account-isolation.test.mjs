@@ -401,6 +401,38 @@ test('RIDER-012 an expired GPS sample clears old category amounts as well as dis
   assert.equal(h.calls.filter(x=>x.body?.action==='live_quote').length,1);
 });
 
+test('RIDER-014 editing a point clears preview geometry even while the home stage is visible',async()=>{
+  const h=harness({ride:null});await flush();
+  h.c.pickupPoint={name:'Pickup',lat:24.7,lng:46.6};h.c.state.destination={name:'Destination',lat:24.71,lng:46.61};
+  assert.ok(await h.c.getMishwarBookingQuote());
+  const before=h.state.routeClears;h.c.state.destination=null;h.c.resetMishwarQuote();
+  assert.ok(h.state.routeClears>before,'An edited point must remove the old map preview immediately');
+  assert.equal(await h.c.getMishwarBookingQuote(),null);
+  assert.equal(h.calls.some(x=>x.body?.action==='live_book'),false);
+});
+
+test('RIDER-014 an edited point invalidates a pending quote instead of restoring its old route or price',async()=>{
+  const h=harness({ride:null});await flush();
+  h.c.pickupPoint={name:'Pickup',lat:24.7,lng:46.6};h.c.state.destination={name:'Old destination',lat:24.71,lng:46.61};
+  const pending=deferred();h.state.handler=(_,body)=>body?.action==='live_quote'?pending.promise:undefined;
+  const waiting=h.c.getMishwarBookingQuote();h.c.state.destination=null;h.c.resetMishwarQuote();
+  pending.resolve(response({id:'obsolete-price',payable:1400,expiresAt:'2030-01-01T00:00:00Z',offers:[{category:'economy',payable:1400}],route:null}));
+  assert.equal(await waiting,null,'A late response for the removed point cannot become the current quote');
+  assert.equal(h.calls.filter(x=>x.body?.action==='live_quote').length,1);
+  assert.equal(h.calls.some(x=>x.body?.action==='live_book'),false);
+});
+
+test('RIDER-014 requesting a different route removes its previous geometry before the new result',async()=>{
+  const h=harness({ride:null});await flush();
+  h.c.pickupPoint={name:'Pickup',lat:24.7,lng:46.6};h.c.state.destination={name:'Old destination',lat:24.71,lng:46.61};
+  await h.c.getMishwarBookingQuote();const before=h.state.routeClears;
+  const pending=deferred();h.state.handler=(_,body)=>body?.action==='live_quote'?pending.promise:undefined;
+  h.c.state.destination={name:'New destination',lat:24.72,lng:46.62};const waiting=h.c.getMishwarBookingQuote();
+  assert.ok(h.state.routeClears>before,'The old path is not a placeholder for a new destination');
+  pending.resolve(response({id:'new-price',payable:2600,expiresAt:'2030-01-01T00:00:00Z',offers:[],route:null}));
+  assert.equal((await waiting).id,'new-price');
+});
+
 test('a completed old payment preserves its provider reference without verifying or booking as B',async()=>{
   const h=harness({ride:null});await flush();let form,payment;
   h.c.walletFundingForm=()=>'';h.c.bindWalletFunding=(_,options)=>form=options;h.c.Moyasar={init(options){payment=options}};

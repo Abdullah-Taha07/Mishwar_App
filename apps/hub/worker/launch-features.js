@@ -1,4 +1,5 @@
 import {maintenanceFetch} from './maintenance.js';
+import {captainLocationForTrip} from './live-tracking.js';
 import{authenticaReady}from'./authentica.js';
 import{clientRequestId,requestConflict,writeMessageOnce}from'./message-requests.js';
 import{tokenHash}from'./rider-auth.js';import{logEvent}from'./operations.js';import{notifyAccount}from'./background.js';import{realtimeToken,realtimeTrip,realtimeReady}from'./realtime.js';
@@ -18,6 +19,39 @@ export function providerReadiness(env){return [
  ].map(x=>({...x,state:x.ready?'configured':'awaiting_activation',tested:false}))}
 async function lfTrip(env,role,owner,id){const t=await env.DB.prepare('SELECT t.*,c.method,c.discount_halalas,q.category FROM trips t LEFT JOIN trip_commerce c ON c.trip_id=t.id LEFT JOIN ride_quotes q ON q.id=c.quote_id WHERE t.id=? AND t.is_demo=0').bind(lfText(id,100)).first();if(!t||(role==='rider'?t.rider_id!==owner:t.driver_id!==owner))throw Error('الرحلة ليست مرتبطة بحسابك');return t}
 async function lfRate(env,owner,kind,max=30){const r=await env.DB.prepare('INSERT INTO access_rate_limits VALUES(?,1) ON CONFLICT(bucket) DO UPDATE SET n=n+1 RETURNING n').bind('launch:'+kind+':'+owner+':'+Math.floor(Date.now()/60000)).first();if(r.n>max)throw Error('طلبات كثيرة. انتظر دقيقة')}
+function receiptDate(value){const at=typeof value==='string'?Date.parse(value):NaN;return Number.isFinite(at)?new Date(at).toISOString():null}
+function receiptPoint(raw){
+ let point;try{point=JSON.parse(raw)}catch{throw Error('تعذر قراءة بيانات مواقع الرحلة في الإيصال')}
+ if(!point||typeof point!=='object'||Array.isArray(point))throw Error('تعذر قراءة بيانات مواقع الرحلة في الإيصال');
+ const coordinates=Number.isFinite(point.lat)&&Number.isFinite(point.lng)&&Math.abs(point.lat)<=90&&Math.abs(point.lng)<=180?{lat:point.lat,lng:point.lng}:{};
+ return {name:lfText(point.name,150),area:lfText(point.area,150),...coordinates};
+}
+async function tripReceipt(env,role,t){
+ if(!['rider','captain'].includes(role))throw Error('غير مسموح');
+ if(t.status!=='completed')throw Error('إيصال الرحلة متاح بعد اكتمالها');
+ const fare=t.fare_halalas,discount=t.discount_halalas??0;
+ if(!Number.isSafeInteger(fare)||fare<0||!Number.isSafeInteger(discount)||discount<0||discount>fare)throw Error('مبالغ الرحلة غير صحيحة. راجع الدعم قبل إصدار الإيصال');
+ let commission;
+ if(role==='captain'){
+  if(!Number.isSafeInteger(t.commission_bps)||t.commission_bps<0||t.commission_bps>10000)throw Error('عمولة الرحلة غير صحيحة. راجع الدعم قبل إصدار الإيصال');
+  commission=Number((BigInt(fare)*BigInt(t.commission_bps)+5000n)/10000n);
+ }
+ const pickup=receiptPoint(t.pickup_json),destination=receiptPoint(t.destination_json);
+ const completion=await env.DB.prepare("SELECT created_at FROM trip_settlements WHERE trip_id=? AND operation='complete'").bind(t.id).first();
+ // Keep an existing receipt immutable; new identities use the entire trip ID
+ // as hash input instead of a shared truncated prefix. Other uniqueness errors
+ // fail explicitly rather than returning an unnumbered receipt.
+ const number='MW-'+(await tokenHash('trip-receipt:'+t.id)).slice(0,32).toUpperCase();
+ try{await env.DB.prepare('INSERT INTO trip_receipts(trip_id,receipt_number,created_at) VALUES(?,?,?) ON CONFLICT(trip_id) DO NOTHING').bind(t.id,number,lfNow()).run()}catch{throw Error('تعذر تجهيز إيصال الرحلة. أعد المحاولة لاحقًا')}
+ const saved=await env.DB.prepare('SELECT receipt_number,created_at FROM trip_receipts WHERE trip_id=?').bind(t.id).first();
+ if(!saved?.receipt_number)throw Error('تعذر تجهيز إيصال الرحلة. أعد المحاولة لاحقًا');
+ const total=fare-discount;
+ return {receipt:{...saved,tripId:t.id,tripStatus:'completed',tripCreatedAt:receiptDate(t.created_at),tripCompletedAt:receiptDate(completion?.created_at)||receiptDate(t.updated_at),currency:'SAR',pickup,destination,fare,discount,total,
+  // Compatibility field: paid has historically meant the net trip total. The
+  // separate paymentStatus reports collection state without changing payment.
+  paid:total,paymentStatus:t.payment_status,method:t.method,category:t.category,commission,
+  merchant:{name:env.MERCHANT_LEGAL_NAME||'مشوار',taxNumber:env.MERCHANT_VAT_NUMBER||null,license:env.MERCHANT_LICENSE_NUMBER||null},taxInvoice:false,note:'إيصال مشوار، وليس فاتورة ضريبية إلكترونية معتمدة.'}};
+}
 export async function launchAction(env,role,owner,b,ctx){const action=String(b.action||'').replace(/^live_/,'');
  if(action==='capabilities')return {features:providerReadiness(env),emergencyPhone:'911',emergencyRegion:'الرياض',safetyStaffed:env.SAFETY_STAFFED==='true',schedulerConfigured:env.SCHEDULER_ENABLED==='true'};
  if(action==='realtime_token')return realtimeToken(env,role,owner);
@@ -58,8 +92,20 @@ export async function launchAction(env,role,owner,b,ctx){const action=String(b.a
   return {messages:(await env.DB.prepare('SELECT id,role,body,created_at FROM trip_messages WHERE trip_id=? AND id>? ORDER BY id LIMIT 100').bind(t.id,Math.max(0,Number(b.after)||0)).all()).results}
  }
  if(action==='incident'){const description=lfText(b.description,1000);if(description.length<3)throw Error('اكتب وصفًا مختصرًا لما يحدث');await lfRate(env,owner,'safety',2);const id=crypto.randomUUID(),at=lfNow();await env.DB.prepare('INSERT INTO safety_incidents(id,trip_id,role,owner_id,kind,description,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)').bind(id,t.id,role,owner,'urgent',description,at,at).run();await logEvent(env,role,'safety_incident',owner,t.id,{incidentId:id});return {ok:true,id,emergencyPhone:'911',notice:'تم تسجيل البلاغ. هذا لا يستدعي الطوارئ تلقائيًا ولا يضمن ردًا فوريًا؛ اتصل بـ٩١١ عند الخطر في الرياض.'}}
- if(action==='receipt'){if(t.status!=='completed')throw Error('إيصال الرحلة متاح بعد اكتمالها');await env.DB.prepare('INSERT OR IGNORE INTO trip_receipts VALUES(?,?,?)').bind(t.id,'MW-'+(await tokenHash(t.id)).slice(0,32).toUpperCase(),lfNow()).run();const r=await env.DB.prepare('SELECT receipt_number,created_at FROM trip_receipts WHERE trip_id=?').bind(t.id).first();return {receipt:{...r,tripId:t.id,pickup:JSON.parse(t.pickup_json),destination:JSON.parse(t.destination_json),fare:t.fare_halalas,discount:t.discount_halalas||0,paid:t.fare_halalas-(t.discount_halalas||0),method:t.method,category:t.category,commission:role==='captain'?Math.round(t.fare_halalas*t.commission_bps/10000):undefined,merchant:{name:env.MERCHANT_LEGAL_NAME||'مشوار',taxNumber:env.MERCHANT_VAT_NUMBER||null,license:env.MERCHANT_LICENSE_NUMBER||null},taxInvoice:false,note:'إيصال مشوار، وليس فاتورة ضريبية إلكترونية معتمدة.'}}}
+ if(action==='receipt')return tripReceipt(env,role,t);
  if(action==='masked_call')return lfMaskedCall(env,t,role);
  throw Error('وظيفة غير معروفة')}
-export async function sharedTrip(env,token){if(!/^[a-f0-9]{64}$/.test(token||''))return lfJson({error:'رابط غير صالح'},404);const share=await env.DB.prepare('SELECT trip_id FROM trip_shares WHERE token_hash=? AND expires_at>? AND revoked_at IS NULL').bind(await tokenHash(token),lfNow()).first();if(!share)return lfJson({error:'الرابط منتهي أو أوقفه صاحب الرحلة'},404);const t=await env.DB.prepare("SELECT t.status,t.pickup_json,t.destination_json,a.vehicle_json,json_extract(a.personal_json,'$.name') AS driver,p.latitude,p.longitude,p.location_at FROM trips t LEFT JOIN captain_applications a ON a.id=t.driver_id LEFT JOIN captain_presence p ON p.application_id=t.driver_id WHERE t.id=?").bind(share.trip_id).first();if(!t||!['matching','arriving','arrived','riding'].includes(t.status))return lfJson({ended:true,status:t?.status||'ended'});const vehicle=t.vehicle_json?JSON.parse(t.vehicle_json):null;return lfJson({status:t.status,pickup:JSON.parse(t.pickup_json),destination:JSON.parse(t.destination_json),driver:t.driver?.split(' ')[0]||null,vehicle:vehicle?{make:vehicle.make,model:vehicle.model,color:vehicle.color,plate:vehicle.plate}:null,location:Number.isFinite(t.latitude)&&Number.isFinite(t.longitude)?{lat:t.latitude,lng:t.longitude,at:t.location_at,fresh:Date.parse(t.location_at)>Date.now()-120000}:null})}
+export async function sharedTrip(env,token){
+ if(!/^[a-f0-9]{64}$/.test(token||''))return lfJson({error:'???? ??? ????'},404);
+ const hash=await tokenHash(token),share=await env.DB.prepare('SELECT trip_id FROM trip_shares WHERE token_hash=? AND expires_at>? AND revoked_at IS NULL').bind(hash,lfNow()).first();
+ if(!share)return lfJson({error:'?????? ????? ?? ????? ???? ??????'},404);
+ const t=await env.DB.prepare("SELECT t.id,t.driver_id,t.is_demo,t.status,t.pickup_json,t.destination_json,a.vehicle_json,json_extract(a.personal_json,'$.name') AS driver,p.latitude AS driver_lat,p.longitude AS driver_lng,p.accuracy AS driver_accuracy,p.location_at AS driver_location_at FROM trips t LEFT JOIN captain_applications a ON a.id=t.driver_id LEFT JOIN captain_presence p ON p.application_id=t.driver_id WHERE t.id=?").bind(share.trip_id).first();
+ if(!t||!['matching','arriving','arrived','riding'].includes(t.status))return lfJson({ended:true,status:t?.status||'ended'});
+ const location=await captainLocationForTrip(env,t);
+ const current=await env.DB.prepare('SELECT t.status,t.driver_id FROM trips t JOIN trip_shares s ON s.trip_id=t.id WHERE t.id=? AND s.token_hash=? AND s.expires_at>? AND s.revoked_at IS NULL').bind(t.id,hash,lfNow()).first();
+ if(!current)return lfJson({error:'?????? ????? ?? ????? ???? ??????'},404);
+ if(!['matching','arriving','arrived','riding'].includes(current.status))return lfJson({ended:true,status:current.status});
+ const vehicle=t.vehicle_json?JSON.parse(t.vehicle_json):null;
+ return lfJson({status:current.status,pickup:JSON.parse(t.pickup_json),destination:JSON.parse(t.destination_json),driver:t.driver?.split(' ')[0]||null,vehicle:vehicle?{make:vehicle.make,model:vehicle.model,color:vehicle.color,plate:vehicle.plate}:null,location:location&&current.driver_id===t.driver_id&&current.status===t.status?{lat:location.lat,lng:location.lng,accuracy:location.accuracy,at:location.at,fresh:location.fresh}:null});
+}
 async function lfMaskedCall(env,t,role){if(!['arriving','arrived','riding'].includes(t.status)||!t.driver_id)throw Error('الاتصال المحمي متاح في الرحلة النشطة بعد القبول');if(!env.TWILIO_PROXY_SERVICE_SID||!env.TWILIO_ACCOUNT_SID||!env.TWILIO_AUTH_TOKEN)throw Error('الاتصال المحمي ظاهر وينتظر تفعيل Twilio Proxy؛ استخدم المحادثة داخل مشوار');const r=await env.DB.prepare('SELECT phone FROM riders WHERE id=?').bind(t.rider_id).first(),c=await env.DB.prepare('SELECT phone FROM captain_applications WHERE id=?').bind(t.driver_id).first();const base='https://proxy.twilio.com/v1/Services/'+encodeURIComponent(env.TWILIO_PROXY_SERVICE_SID);const call=async(path,body)=>{const res=await maintenanceFetch(env,base+path,{method:'POST',headers:{Authorization:'Basic '+btoa(env.TWILIO_ACCOUNT_SID+':'+env.TWILIO_AUTH_TOKEN),'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams(body),signal:AbortSignal.timeout(10000)});const d=await res.json();if(!res.ok)throw Error('تعذر تجهيز الاتصال المحمي لدى المزود');return d};const session=await call('/Sessions',{UniqueName:'mishwar-'+t.id+'-'+crypto.randomUUID(),Mode:'voice-only',Ttl:'600'});const a=await call('/Sessions/'+session.sid+'/Participants',{Identifier:r.phone}),b=await call('/Sessions/'+session.sid+'/Participants',{Identifier:c.phone});const number=role==='rider'?b.proxy_identifier:a.proxy_identifier;if(!/^\+[0-9]{8,15}$/.test(number||''))throw Error('رقم الاتصال الوسيط غير متاح');return {phone:number,expiresIn:600}}

@@ -16,7 +16,7 @@ test('public captain driver endpoint rejects untrusted identity header without a
   const request=new Request(origin+'/api/driver',{
     method:'POST',
     headers:{origin, 'content-type':'application/json','oai-authenticated-user-id':'qa-applicant'},
-    body:JSON.stringify({action:'available',available:true,lat:24.7,lng:46.6,accuracy:5})
+    body:JSON.stringify({action:'available',available:true,observedAt:new Date().toISOString(),lat:24.7,lng:46.6,accuracy:5})
   });
   const response=await worker.fetch(request,env,{});
   assert.equal(response.status,401);
@@ -28,7 +28,7 @@ test('captain availability is persisted and returned without turning on for inva
  env.db.prepare("UPDATE captain_applications SET status='active'").run();
  const request=(available,accuracy)=>new Request(origin+'/api/driver',{
    method:'POST',headers:{origin,'content-type':'application/json','oai-authenticated-user-id':'qa-applicant'},
-   body:JSON.stringify({action:'available',available,lat:24.7,lng:46.6,accuracy})
+   body:JSON.stringify({action:'available',available,observedAt:new Date().toISOString(),lat:24.7,lng:46.6,accuracy})
  });
  let r=await handleDriver(request(true,999),env,{});
  assert.notEqual(r.status,200);
@@ -64,7 +64,7 @@ test('SMS-verified captain session can enable availability end-to-end through pu
  env.db.prepare("UPDATE captain_applications SET status='active',user_id=?").run(actor);
  const response=await worker.fetch(new Request(origin+'/api/driver',{
    method:'POST',headers:{origin,'content-type':'application/json','cookie':'__Host-mishwar_captain='+sessionToken},
-   body:JSON.stringify({action:'available',available:true,lat:24.7,lng:46.6,accuracy:10})
+   body:JSON.stringify({action:'available',available:true,observedAt:new Date().toISOString(),lat:24.7,lng:46.6,accuracy:10})
  }),env,{});
  assert.equal(response.status,200,await response.clone().text());
  assert.deepEqual(await response.json(),{ok:true,available:true});

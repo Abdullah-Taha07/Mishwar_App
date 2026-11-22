@@ -1,0 +1,30 @@
+/* Reuse rider tokens in both themes; status remains readable without color. */
+.live-eta {
+  direction: inherit;
+  display: grid;
+  gap: 6px;
+  margin-block: 12px;
+  padding: 16px;
+  min-width: 0;
+  border: 1px solid var(--mw-border, #d9e5e9);
+  border-inline-start: 4px solid var(--mw-accent-ink, #006579);
+  border-radius: var(--mw-radius-card, 20px);
+  background: var(--mw-surface-accent, #e9f9fc);
+  color: var(--mw-text, #123b4a);
+  overflow-wrap: anywhere;
+}
+.live-eta[hidden] { display: none; }
+.live-eta [data-eta-target] { color: var(--mw-text-secondary, #526b76); font-size: 13px; line-height: 1.65; }
+.live-eta-number { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 9px; }
+.live-eta [data-eta-minutes] { font-size: 34px; line-height: 1.25; font-variant-numeric: tabular-nums; }
+.live-eta small, .live-eta p { margin: 0; font-size: 12px; line-height: 1.65; }
+.live-eta [data-eta-unit], .live-eta [data-eta-note], .live-eta [data-eta-age] { color: var(--mw-text-secondary, #526b76); }
+.live-eta [data-eta-connection] { display: flex; align-items: center; gap: 7px; color: var(--mw-success, #14654e); }
+.live-eta [data-eta-connection]::before { content: ""; flex: 0 0 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.live-eta[data-state="stale"], .live-eta[data-state="unavailable"] { background: var(--mw-surface-soft, #f3f8f9); border-inline-start-color: var(--mw-text-secondary, #526b76); }
+.live-eta[data-state="stale"] [data-eta-connection] { color: var(--mw-text-secondary, #526b76); }
+.live-eta[data-state="arrived"] [data-eta-minutes] { font-size: 23px; }
+@media (max-width:360px) {
+  .live-eta { padding: 13px; }
+  .live-eta [data-eta-minutes] { font-size: 30px; }
+}
