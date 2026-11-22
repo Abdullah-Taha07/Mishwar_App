@@ -1,0 +1,65 @@
+// A destination proposal never changes the active map point. Only the next
+// authenticated trip snapshot may apply a captain-approved destination.
+(()=>{
+ const context=window.MishwarAccountContext,escape=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+ const text=(ar,en)=>window.MishwarLang?.get()==='en'?en:ar;
+ const price=value=>(value/100).toFixed(2)+' '+text('ر.س','SAR');
+ const active=trip=>!!trip?.driver_id&&['arriving','arrived','riding'].includes(trip.status);
+ const allowed=trip=>active(trip)&&trip.method==='cash'&&!trip.discount_halalas&&!trip.coupon&&!trip.negotiation&&!trip.options?.stops?.length;
+ let current=null,dialog=null,revision=0,searchTimer=null,quote=null,selected=null,saving=false,dialogChangeId=null;
+ const statusText=status=>({quoted:text('راجع السعر ثم أرسل الطلب للكابتن.','Review the fare, then send the request to your captain.'),pending:text('بانتظار موافقة الكابتن. الوجهة والأجرة الحاليتان مستمرتان.','Waiting for captain approval. The current destination and fare still apply.'),accepted:text('وافق الكابتن وتم تحديث الوجهة والأجرة.','Your captain accepted. The destination and fare have been updated.'),rejected:text('رفض الكابتن تغيير الوجهة. الوجهة والأجرة لم تتغيرا.','Your captain rejected the request. The destination and fare are unchanged.'),withdrawn:text('تم سحب طلب تغيير الوجهة.','The destination request was withdrawn.'),expired:text('انتهت صلاحية طلب تغيير الوجهة. احسب عرضًا جديدًا.','The destination request expired. Calculate a new quote.'),invalidated:text('تغيرت حالة الرحلة؛ طلب الوجهة السابق غير صالح.','The trip changed. The earlier destination request is no longer valid.'),unavailable:text('مسار موثوق غير متاح. لا يمكن تأكيد وجهة أو سعر جديد حاليًا.','A trusted route is unavailable. A new destination or fare cannot be confirmed yet.')})[status]||'';
+ function html(trip){
+  current=trip;
+  if(!active(trip))return '';
+  const change=trip.destinationChange,pending=change?.status==='pending';
+  return `<section class="destination-change-card" data-no-translate><h3>${text('طلب تغيير الوجهة','Request a destination change')}</h3>${change?`<p role="status">${escape(statusText(change.status))}</p>${change.destination?`<p>${text('الوجهة المطلوبة:','Requested destination:')} <b>${escape(change.destination.name)}</b></p>`:''}`:''}${allowed(trip)?`<button type="button" class="secondary" data-destination-open>${pending?text('متابعة الطلب','View request'):text('اختيار وجهة جديدة','Choose a new destination')}</button>`:`<p>${text('تغيير الوجهة متاح حاليًا للنقد دون خصم أو تفاوض أو محطات فقط. الرحلات المدفوعة تحتاج مسار مراجعة مستقل.','Destination changes currently support cash trips without discounts, negotiation or stops. Paid trips require a separate review process.')}</p>`}</section>`;
+ }
+ function close(){revision++;clearTimeout(searchTimer);searchTimer=null;quote=null;selected=null;saving=false;dialogChangeId=null;if(dialog){dialog.close();dialog.remove();dialog=null}}
+ function live(ticket,version,trip){return context.isCurrent(ticket)&&version===revision&&dialog?.open&&current?.id===trip.id&&active(current)&&current.destination?.lat===trip.destination?.lat&&current.destination?.lng===trip.destination?.lng}
+ function field(selector){return dialog?.querySelector(selector)}
+ function error(message){const node=field('[data-destination-error]');if(node)node.textContent=message}
+ function failure(errorValue){if(window.MishwarLang?.get()!=='en')return errorValue.message;return ({DESTINATION_POLICY_UNSUPPORTED:'This trip does not support destination changes. Cash, discount and paid-booking policies remain unchanged.',DESTINATION_TRIP_CHANGED:'The trip changed. Refresh it before trying again.',DESTINATION_REQUEST_CONFLICT:'A destination request already exists or was decided. Refresh the trip.',DESTINATION_CONSENT_REQUIRED:'Review the fare difference and explicitly agree before sending.',DESTINATION_INVALID:'Choose a valid destination from search results.',DESTINATION_RATE_LIMIT:'Too many destination requests. Wait before trying again.'})[errorValue.code]||'The destination request could not be completed. Refresh the trip and try again.'}
+ function validQuote(change){return change?.status==='quoted'&&typeof change.id==='string'&&Date.parse(change.expiresAt)>Date.now()&&[change.oldFare,change.newFare,change.fareDifference,change.oldCashDue,change.newCashDue].every(Number.isSafeInteger)&&change.newFare>=0&&change.newCashDue>=0&&change.newFare-change.oldFare===change.fareDifference&&change.route&&['OSRM','TomTom'].includes(change.route.provider)&&!change.route.stale&&Number.isFinite(change.route.distanceMeters)&&change.route.distanceMeters>0&&Number.isFinite(change.route.durationSeconds)&&change.route.durationSeconds>0&&change.destination?.lat===selected?.lat&&change.destination?.lng===selected?.lng}
+ function showReview(change){
+  const review=field('[data-destination-review]');if(!review)return;
+  if(!validQuote(change)){quote=null;review.innerHTML=`<p role="status">${escape(statusText(change?.status==='unavailable'?'unavailable':'expired'))}</p>`;return}
+  quote=change;dialogChangeId=change.id;
+  review.innerHTML=`<h3>${text('راجع الوجهة والأجرة','Review destination and fare')}</h3><p><b>${escape(change.destination.name)}</b></p><dl><div><dt>${text('الأجرة الحالية','Current fare')}</dt><dd>${price(change.oldFare)}</dd></div><div><dt>${text('الأجرة الجديدة','New fare')}</dt><dd>${price(change.newFare)}</dd></div><div><dt>${text('فرق الأجرة','Fare difference')}</dt><dd>${change.fareDifference>0?'+':''}${price(change.fareDifference)}</dd></div><div><dt>${text('المطلوب نقدًا حاليًا','Current cash due')}</dt><dd>${price(change.oldCashDue)}</dd></div><div><dt>${text('المطلوب نقدًا بعد الموافقة','Cash due after approval')}</dt><dd>${price(change.newCashDue)}</dd></div></dl><p>${escape(change.route.provider)} · ${(change.route.distanceMeters/1000).toFixed(1)} ${text('كم','km')} · ${Math.ceil(change.route.durationSeconds/60)} ${text('دقيقة تقديرية للمسار الكامل، وليست وقت الوصول المباشر','estimated minutes for the full route, not live arrival time')}</p><p>${text('الأجرة الجديدة هي إجمالي المسار من الانطلاق الأصلي إلى الوجهة الجديدة، وليست أجرة المسافة المتبقية. لا يتغير المشوار حتى يقبل الكابتن. طريقة الدفع نقدًا مستمرة دون خصم أو رسوم انتظار جديدة.','The new fare is the total from the original pickup to the new destination, not a remaining-distance fare. The trip changes only after your captain accepts. Cash payment continues, with no new discount or waiting charge.')}</p><label class="destination-consent"><input type="checkbox" data-destination-consent> ${text('أوافق صراحة على الوجهة والأجرة الجديدة وفرق الأجرة والمبلغ النقدي الموضحة أعلاه، وأطلب موافقة الكابتن.','I explicitly agree to the destination, new fare, fare difference and cash amount shown above, and request captain approval.')}</label><button type="button" class="primary" data-destination-send disabled>${text('إرسال الطلب للكابتن','Send request to captain')}</button>`;
+  field('[data-destination-consent]').onchange=event=>{field('[data-destination-send]').disabled=!event.target.checked||saving};
+  field('[data-destination-send]').onclick=send;
+ }
+ function showPending(change){
+  const body=field('[data-destination-body]');if(!body)return;dialogChangeId=change.id;
+  body.innerHTML=`<p role="status">${escape(statusText(change.status))}</p><p><b>${escape(change.destination?.name||'')}</b></p>${change.status==='pending'?`<button class="secondary" type="button" data-destination-withdraw>${text('سحب الطلب','Withdraw request')}</button>`:''}`;
+  const withdraw=field('[data-destination-withdraw]');if(withdraw)withdraw.onclick=async()=>{
+   if(saving)return;const ticket=context.capture(),version=revision,trip=current;saving=true;withdraw.disabled=true;
+   try{const result=await window.mishwarRiderApi({action:'live_destination_withdraw',tripId:trip.id,changeId:change.id});if(!live(ticket,version,trip))return;showPending(result.change);await window.refreshMishwarTrip?.(true)}catch(e){if(live(ticket,version,trip)){error(failure(e));withdraw.disabled=false}}finally{if(version===revision)saving=false}
+  };
+ }
+ async function send(){
+  if(saving||!quote||!field('[data-destination-consent]')?.checked)return;
+  if(!validQuote(quote)){error(text('انتهت صلاحية السعر. احسب عرضًا جديدًا.','This quote expired. Calculate a new quote.'));showReview(null);return}
+  const change=quote,trip=current,ticket=context.capture(),version=revision;saving=true;field('[data-destination-send]').disabled=true;
+  try{const result=await window.mishwarRiderApi({action:'live_destination_request',tripId:trip.id,changeId:change.id,consent:true});if(!live(ticket,version,trip))return;quote=null;showPending(result.change);await window.refreshMishwarTrip?.(true)}catch(e){if(live(ticket,version,trip)){error(failure(e));const button=field('[data-destination-send]');if(button)button.disabled=false}}finally{if(version===revision)saving=false}
+ }
+ function open(trip=current){
+  if(!allowed(trip)||!context.snapshot().verified)return;
+  close();current=trip;const version=revision,ticket=context.capture();dialog=document.createElement('dialog');dialog.className='destination-change-dialog';dialog.dataset.noTranslate='';
+  dialog.innerHTML=`<div class="destination-change-content"><button type="button" class="secondary" data-destination-close>${text('رجوع للمشوار','Back to trip')}</button><h2>${text('طلب تغيير الوجهة','Request a destination change')}</h2><p>${text('ابحث واختر وجهة، ثم راجع عرضًا موثوقًا قبل طلب موافقة الكابتن.','Search and choose a destination, then review a trusted quote before requesting captain approval.')}</p><div data-destination-body><label>${text('البحث عن الوجهة الجديدة','Search for a new destination')}<input data-destination-search autocomplete="off" maxlength="150"></label><div class="search-results" data-destination-results></div><button type="button" class="secondary" data-destination-quote disabled>${text('حساب الطريق والأجرة','Calculate route and fare')}</button><div data-destination-review></div></div><p data-destination-error role="alert"></p></div>`;
+  document.body.append(dialog);dialog.showModal();field('[data-destination-close]').onclick=close;dialog.addEventListener('cancel',event=>{event.preventDefault();close()});
+  if(trip.destinationChange?.status==='pending'){showPending(trip.destinationChange);return}
+  const input=field('[data-destination-search]'),calculate=field('[data-destination-quote]');let searchRevision=0;
+  input.oninput=()=>{
+   clearTimeout(searchTimer);selected=null;quote=null;calculate.disabled=true;field('[data-destination-review]').innerHTML='';field('[data-destination-results]').innerHTML='';error('');const query=input.value.trim(),search=++searchRevision;if(query.length<2)return;
+   searchTimer=setTimeout(async()=>{try{const points=await window.searchMishwarPlaces(query);if(!live(ticket,version,trip)||search!==searchRevision)return;const results=field('[data-destination-results]');results.innerHTML=points.slice(0,6).map((point,index)=>`<button type="button" data-destination-choice="${index}">${escape(point.name)}<small>${escape(point.area||'')}</small></button>`).join('')||`<p>${text('لم تظهر نتائج. جرّب بحثًا آخر.','No results. Try another search.')}</p>`;results.querySelectorAll('button').forEach(button=>button.onclick=()=>{if(saving)return;selected=points[Number(button.dataset.destinationChoice)];input.value=selected.name;results.innerHTML='';quote=null;calculate.disabled=false})}catch(e){if(live(ticket,version,trip)&&search===searchRevision)error(failure(e))}},400);
+  };
+  calculate.onclick=async()=>{
+   if(saving||!selected)return;saving=true;calculate.disabled=true;error('');const destination={...selected};
+   try{const result=await window.mishwarRiderApi({action:'live_destination_quote',tripId:trip.id,destination});if(!live(ticket,version,trip)||selected?.lat!==destination.lat||selected?.lng!==destination.lng)return;showReview(result.change)}catch(e){if(live(ticket,version,trip))error(failure(e))}finally{if(live(ticket,version,trip)){saving=false;calculate.disabled=!selected}}
+  };
+ }
+ function update(trip){const previous=current;current=trip;if(dialog&&(!active(trip)||previous?.id!==trip?.id||previous?.destination?.lat!==trip?.destination?.lat||previous?.destination?.lng!==trip?.destination?.lng)){close();return}if(dialog&&dialogChangeId===trip?.destinationChange?.id&&['accepted','rejected','withdrawn','expired','invalidated'].includes(trip?.destinationChange?.status)){quote=null;showPending(trip.destinationChange)}}
+ window.MishwarDestinationChange={html,open,reset:close};
+ document.addEventListener('click',event=>{if(event.target.closest('[data-destination-open]'))open()});
+ window.addEventListener('mishwar-trip-updated',event=>update(event.detail));window.addEventListener('mishwar-account-reset',()=>{current=null;close()});window.addEventListener('mishwar-language-changed',()=>{close();window.refreshMishwarTrip?.(true)});
+})();
