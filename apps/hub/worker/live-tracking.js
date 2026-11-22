@@ -1,6 +1,7 @@
 import {distanceKm} from './dispatch.js';
 import {drivingItinerary} from './routing.js';
 import {checkedRouteSnapshot} from './road-data.js';
+import {tripStopProgress} from './stop-progress.js';
 
 export const TRACKING_POLICY = Object.freeze({maxAgeMs:30000,futureMs:5000,maxAccuracy:150,maxSpeed:80,jumpAllowance:250,ratePerMinute:30,etaAgeMs:30000,minRouteMs:15000,routeMoveMeters:50});
 const activeStatuses = new Set(['arriving','arrived','riding']);
@@ -78,12 +79,12 @@ function locationFresh(location,clock=Date.now()){
  const at=instant(location?.at);
  return validPoint(location)&&Number.isFinite(at)&&at>=clock-TRACKING_POLICY.maxAgeMs&&at<=clock+TRACKING_POLICY.futureMs;
 }
-function cacheCurrent(value,trip,target,clock){
+function cacheCurrent(value,trip,target,clock,stopFingerprint){
  const age=clock-instant(value?.calculatedAt),expiry=instant(value?.expiresAt);
- return !!value&&value.tripId===trip.id&&value.driverId===trip.driver_id&&value.phase===trip.status&&value.target===target&&value.destinationJson===(trip.destination_json||JSON.stringify(trip.destination))&&validPoint(value.origin)&&Number.isFinite(age)&&age>=0&&Number.isFinite(expiry)&&expiry>clock&&expiry-instant(value.calculatedAt)<=TRACKING_POLICY.etaAgeMs;
+ return !!value&&value.tripId===trip.id&&value.driverId===trip.driver_id&&value.phase===trip.status&&value.target===target&&value.stopFingerprint===stopFingerprint&&value.destinationJson===(trip.destination_json||JSON.stringify(trip.destination))&&validPoint(value.origin)&&Number.isFinite(age)&&age>=0&&Number.isFinite(expiry)&&expiry>clock&&expiry-instant(value.calculatedAt)<=TRACKING_POLICY.etaAgeMs;
 }
 async function currentTracking(env,id){
- return env.DB.prepare('SELECT t.status,t.driver_id,t.rider_id,t.destination_json,t.pickup_json,p.latitude,p.longitude,p.accuracy,p.location_at FROM trips t LEFT JOIN captain_presence p ON p.application_id=t.driver_id WHERE t.id=?').bind(id).first();
+ return env.DB.prepare('SELECT t.status,t.driver_id,t.rider_id,t.destination_json,t.pickup_json,o.stops_json,p.latitude,p.longitude,p.accuracy,p.location_at FROM trips t LEFT JOIN captain_presence p ON p.application_id=t.driver_id LEFT JOIN trip_options o ON o.trip_id=t.id WHERE t.id=?').bind(id).first();
 }
 function sameTrip(current,trip){return current&&current.status===trip.status&&current.driver_id===trip.driver_id&&current.rider_id===trip.rider_id&&current.destination_json===(trip.destination_json||JSON.stringify(trip.destination))}
 function sameLocation(current,location){return current&&current.location_at===location.at&&current.latitude===location.lat&&current.longitude===location.lng&&current.accuracy===location.accuracy}
@@ -97,19 +98,21 @@ async function calculateEta(env,trip){
  const location=trip.driverLocation;
  if(!location)return unavailable(trip,target,'location_unavailable');
  if(!locationFresh(location))return unavailable(trip,target,'location_stale');
- if(target==='destination'&&trip.options?.stops?.length)return unavailable(trip,target,'stops_progress_unavailable');
+ const stopProgress=target==='destination'?await tripStopProgress(env,trip):null;
+ if(stopProgress&&!stopProgress.allDeparted)return unavailable(trip,target,'stops_progress_unavailable');
+ const stopFingerprint=stopProgress?JSON.stringify(stopProgress.stops.map(stop=>[stop.index,stop.departedAt])):'[]';
  const destination=trip[target];if(!validPoint(destination))return unavailable(trip,target,'route_unavailable');
  const clock=Date.now();await trackingCleanup(env,clock);
  const key='live-eta:'+trip.id,cached=await env.DB.prepare('SELECT route_json FROM road_route_cache WHERE cache_key=? AND expires_at>?').bind(key,new Date(clock).toISOString()).first();let record;
  try{record=JSON.parse(cached?.route_json||'null')}catch{}
- if(cacheCurrent(record,trip,target,clock)){
+ if(cacheCurrent(record,trip,target,clock,stopFingerprint)){
   const age=clock-instant(record.calculatedAt),movement=distanceKm(record.origin,location)*1000;
   if(movement<TRACKING_POLICY.routeMoveMeters&&(record.result?.status==='available'||age<TRACKING_POLICY.minRouteMs))return record.result;
   if(age<TRACKING_POLICY.minRouteMs)return unavailable(trip,target,'route_refresh_pending');
  }
  // Live passenger GPS must never be sent to the public demo fallback, even if quoting permits it.
  if(!approvedRoad(env))return unavailable(trip,target,'route_untrusted');
- const state=stateFor(env),requestKey=trip.id+':'+trip.status+':'+(trip.destination_json||JSON.stringify(trip.destination));
+ const state=stateFor(env),requestKey=trip.id+':'+trip.status+':'+(trip.destination_json||JSON.stringify(trip.destination))+':'+stopFingerprint;
  const running=state.inFlight.get(requestKey);
  if(running)return running.locationAt===location.at?running.promise:unavailable(trip,target,'location_changed');
  const work=(async()=>{
@@ -123,11 +126,14 @@ async function calculateEta(env,trip){
   }catch(error){result=unavailable(trip,target,error.message==='UNTRUSTED_ETA_ROUTE'?'route_untrusted':'route_unavailable')}
   const fresh=await currentTracking(env,trip.id);
   if(!sameTrip(fresh,trip))return unavailable(trip,target,'trip_changed');
+  const freshStops=target==='destination'?await tripStopProgress(env,{id:trip.id,stops_json:fresh.stops_json}):null;
+  const freshFingerprint=freshStops?JSON.stringify(freshStops.stops.map(stop=>[stop.index,stop.departedAt])):'[]';
+  if(freshFingerprint!==stopFingerprint||freshStops&&!freshStops.allDeparted)return unavailable(trip,target,'trip_changed');
   if(!sameLocation(fresh,location))return unavailable(trip,target,'location_changed');
   if(!locationFresh(location)||Date.now()>=Date.parse(expiresAt))return unavailable(trip,target,'location_stale');
-  const cache={tripId:trip.id,driverId:trip.driver_id,phase:trip.status,target,destinationJson:trip.destination_json||JSON.stringify(trip.destination),origin:{lat:location.lat,lng:location.lng},calculatedAt,expiresAt,result};
+  const cache={tripId:trip.id,driverId:trip.driver_id,phase:trip.status,target,stopFingerprint,destinationJson:trip.destination_json||JSON.stringify(trip.destination),origin:{lat:location.lat,lng:location.lng},calculatedAt,expiresAt,result};
   // One short-lived record per trip, never a persisted history of every GPS origin.
-  const saved=await env.DB.prepare('INSERT INTO road_route_cache(cache_key,route_json,expires_at) SELECT ?,?,? WHERE EXISTS(SELECT 1 FROM trips t JOIN captain_presence p ON p.application_id=t.driver_id WHERE t.id=? AND t.status=? AND t.driver_id=? AND t.rider_id=? AND t.destination_json=? AND p.location_at=? AND p.latitude=? AND p.longitude=? AND p.accuracy=?) ON CONFLICT(cache_key) DO UPDATE SET route_json=excluded.route_json,expires_at=excluded.expires_at').bind(key,JSON.stringify(cache),expiresAt,trip.id,trip.status,trip.driver_id,trip.rider_id,trip.destination_json||JSON.stringify(trip.destination),location.at,location.lat,location.lng,location.accuracy).run();
+  const saved=await env.DB.prepare("INSERT INTO road_route_cache(cache_key,route_json,expires_at) SELECT ?,?,? WHERE EXISTS(SELECT 1 FROM trips t JOIN captain_presence p ON p.application_id=t.driver_id WHERE t.id=? AND t.status=? AND t.driver_id=? AND t.rider_id=? AND t.destination_json=? AND p.location_at=? AND p.latitude=? AND p.longitude=? AND p.accuracy=? AND COALESCE((SELECT o.stops_json FROM trip_options o WHERE o.trip_id=t.id),'[]')=? AND (?<>'destination' OR (SELECT json_group_array(json_array(s.key,e.created_at)) FROM trip_options o,json_each(o.stops_json) s LEFT JOIN operation_events e ON e.id='trip-stop:'||o.trip_id||':'||s.key||':departed' AND e.source='captain' AND e.action='trip_stop_departed' WHERE o.trip_id=t.id)=?)) ON CONFLICT(cache_key) DO UPDATE SET route_json=excluded.route_json,expires_at=excluded.expires_at").bind(key,JSON.stringify(cache),expiresAt,trip.id,trip.status,trip.driver_id,trip.rider_id,trip.destination_json||JSON.stringify(trip.destination),location.at,location.lat,location.lng,location.accuracy,fresh.stops_json||'[]',target,stopFingerprint).run();
   if(!saved.meta?.changes)return unavailable(trip,target,'trip_changed');
   return result;
  })();

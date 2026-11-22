@@ -45,9 +45,18 @@ const server=createServer(async(req,res)=>{
     if(body.tripId!==trip.id||!state.requests.length)return json(res,{error:'Synthetic offer unavailable'},400);
     state.current={...trip,status:'arriving'};state.requests=[];state.transitions.push('arriving');return json(res,{ok:true,trip:state.current});
    }
+   if(body.action==='trip_stop'){
+    const progress=state.current?.stopProgress,stop=progress?.stops[body.stopIndex];
+    if(!state.current||state.current.status!=='riding'||body.tripId!==state.current.id||!stop||progress.nextIndex!==body.stopIndex||!['arrived','departed'].includes(body.phase))return json(res,{error:'Invalid synthetic stop'},409);
+    if(body.phase==='arrived'&&stop.status!=='pending'||body.phase==='departed'&&stop.status!=='arrived')return json(res,{error:'Invalid synthetic stop sequence'},409);
+    stop.status=body.phase;stop[body.phase==='arrived'?'arrivedAt':'departedAt']=new Date().toISOString();
+    const next=progress.stops.findIndex(item=>item.status!=='departed');progress.nextIndex=next<0?null:next;progress.allDeparted=next<0;
+    return json(res,{ok:true,stopProgress:progress});
+   }
    if(body.action==='trip_status'){
     const allowed={arriving:'arrived',arrived:'riding',riding:'completed'};
-    if(!state.current||body.tripId!==trip.id||allowed[state.current.status]!==body.status)return json(res,{error:'Invalid synthetic transition'},400);
+    if(!state.current||body.tripId!==state.current.id||allowed[state.current.status]!==body.status)return json(res,{error:'Invalid synthetic transition'},400);
+    if(body.status==='completed'&&state.current.stopProgress&&!state.current.stopProgress.allDeparted)return json(res,{error:'Synthetic stops remain'},409);
     if(body.status==='completed'&&!body.cashReceived)return json(res,{error:'Confirm synthetic cash collection'},400);
     state.current={...state.current,status:body.status,updated_at:new Date().toISOString()};state.transitions.push(body.status);
     if(body.status==='completed'){state.history.push({...state.current,captainMovement:-250});state.current=null}
@@ -107,6 +116,31 @@ try{
  await scenario('fresh-gps-preserves-measurement-time-and-publishes-once',async()=>{firstAt=Date.now()-50;await evaluate(`window.__mainCaptainGPS.emit({coords:{latitude:24.7136,longitude:46.6753,accuracy:5},timestamp:${firstAt}})`);await until(`window.captainGPS?.at===${firstAt}`,'Original geolocation timestamp retained');for(let n=0;n<50&&!state.locations.length;n++)await wait(40);assert.equal(state.locations.length,1);assert.equal(state.locations[0].lat,24.7136);assert.equal(state.locations[0].accuracy,5)});
  await scenario('older-and-duplicate-gps-cannot-replace-newer-location',async()=>{for(const timestamp of [firstAt-1000,firstAt])await evaluate(`window.__mainCaptainGPS.emit({coords:{latitude:24.714,longitude:46.676,accuracy:5},timestamp:${timestamp}})`);assert.equal(await evaluate(`window.captainGPS.lat`),24.7136);assert.equal(await evaluate(`window.captainGPS.at`),firstAt);assert.equal(state.locations.length,1)});
  await scenario('captain-trip-buttons-complete-the-declared-fixture-lifecycle',async()=>{await click('[data-accept]');await until(`!!document.querySelector('[data-status="arrived"]')`,'Accepted trip opens');assert.equal(state.current.status,'arriving');await click('[data-status="arrived"]');await until(`!!document.querySelector('[data-status="riding"]')`,'Arrival action applied');await click('[data-status="riding"]');await until(`!!document.querySelector('#cash-received')`,'Start action applied');await click('#cash-received');await click('[data-status="completed"]');await until(`document.querySelector('#driver-panel')?.textContent.includes('لا توجد رحلة نشطة')`,'Completion action applied');assert.deepEqual(state.transitions,['arriving','arrived','riding','completed']);assert.equal(state.history.length,1);assert.equal(state.api.filter(a=>a.action==='accept').length,1)});
+ await scenario('completion-button-waits-for-every-booked-stop-departure',async()=>{
+  // Server-owned API fixtures exercise the real UI; they do not prove backend
+  // stop authorization or settlement, which have separate SQLite E2E tests.
+  const stops=[point('محطة اختبار أولى',24.715,46.676),point('محطة اختبار ثانية',24.718,46.678)];
+  state.current={...trip,id:'main-captain-synthetic-stop-trip',status:'riding',options:{stops},stopProgress:{stops:stops.map((point,index)=>({index,point,status:'pending',arrivedAt:null,departedAt:null,waitSeconds:0})),nextIndex:0,allDeparted:false}};
+  await evaluate('refresh(true)');
+  await until(`document.querySelector('[data-stop-action="arrived"][data-stop-index="0"]')&&document.querySelector('[data-status="completed"]')?.disabled`,'Pending stops disable completion');
+  assert.equal(await evaluate(`document.querySelector('#driver-panel').textContent.includes('أكمل الوصول والمغادرة لكل محطات المشوار قبل إنهاء الرحلة.')`),true,'The UI explains the required stop progress');
+  const completedRequests=state.api.filter(row=>row.action==='trip_status').length;
+  const disabled=await evaluate(`(()=>{const button=document.querySelector('[data-status="completed"]');button.scrollIntoView({block:'center',behavior:'instant'});const r=button.getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2}})()`);
+  await command('Input.dispatchMouseEvent',{type:'mousePressed',x:disabled.x,y:disabled.y,button:'left',clickCount:1});
+  await command('Input.dispatchMouseEvent',{type:'mouseReleased',x:disabled.x,y:disabled.y,button:'left',clickCount:1});await wait(100);
+  assert.equal(state.api.filter(row=>row.action==='trip_status').length,completedRequests,'Clicking a disabled completion button cannot send a mutation');
+  for(const [index,phase]of [[0,'arrived'],[0,'departed'],[1,'arrived'],[1,'departed']]){
+   await click('[data-stop-index="'+index+'"][data-stop-action="'+phase+'"]');
+   const last=index===1&&phase==='departed';
+   await until(last?`document.querySelector('[data-status="completed"]')?.disabled===false`:`!!document.querySelector('[data-stop-index="${phase==='departed'?index+1:index}"][data-stop-action="${phase==='arrived'?'departed':'arrived'}"]')`,'Stop progress renders after '+index+' '+phase);
+   assert.equal(await evaluate(`document.querySelector('[data-status="completed"]').disabled`),!last,'Completion is enabled only after the final departure');
+  }
+  assert.equal(state.api.filter(row=>row.action==='trip_stop').length,4);
+  writeFileSync(join(output,'screens','stops-complete-390.png'),Buffer.from((await command('Page.captureScreenshot',{format:'png',captureBeyondViewport:false})).data,'base64'));
+  await click('#cash-received');await click('[data-status="completed"]');
+  await until(`document.querySelector('#driver-panel')?.textContent.includes('لا توجد رحلة نشطة')`,'The enabled completion button ends the declared stop fixture');
+  assert.equal(state.history.length,2);
+ });
  await scenario('history-wallet-profile-and-mobile-320',async()=>{
   await click('[data-tab="history"]');await until(`!!document.querySelector('.history-trip')`,'Synthetic completed history displayed');
   await click('[data-tab="requests"]');await until(`document.body.dataset.driverTab==='requests'`,'Return from full-page history');

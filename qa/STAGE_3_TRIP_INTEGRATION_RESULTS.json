@@ -1,0 +1,93 @@
+{
+  "date": "2026-11-22",
+  "phase": "Stage 3 trip integration",
+  "branch": "dev/mishwar-shared",
+  "baselineCommit": "037d64a8b3e77b5adc8763a1c255de2ccca0b34b",
+  "workSavedInCommit": false,
+  "pushed": false,
+  "deployed": false,
+  "productionMutation": false,
+  "baselineApplications": {
+    "pass": 793,
+    "fail": 0
+  },
+  "applications": {
+    "hub": {
+      "pass": 394,
+      "fail": 0,
+      "skipped": 0
+    },
+    "rider": {
+      "pass": 390,
+      "fail": 0,
+      "skipped": 0
+    },
+    "admin": {
+      "pass": 35,
+      "fail": 0,
+      "skipped": 0
+    },
+    "total": 819
+  },
+  "operations": {
+    "pass": 30,
+    "fail": 0,
+    "skipped": 0
+  },
+  "security": {
+    "pass": 7,
+    "fail": 0,
+    "skipped": 0
+  },
+  "nodeTestsTotal": 856,
+  "staticContracts": {
+    "pass": 19,
+    "fail": 0
+  },
+  "apiIntegration": {
+    "pass": 8,
+    "fail": 0,
+    "includedInApplications": true,
+    "scope": "Compiled rider, hub/captain and admin gateways, migrated in-memory SQLite; synthetic phone ownership, captain approval, GPS and provider responses. No provider network call."
+  },
+  "browsers": {
+    "riderTracking": {
+      "pass": 11,
+      "fail": 0,
+      "scope": "Actual local gateways/SQLite with synthetic providers and GPS"
+    },
+    "admin": {
+      "pass": 7,
+      "fail": 0,
+      "scope": "Actual portal with explicit local API/GPS/route fixtures"
+    },
+    "captain": {
+      "pass": 8,
+      "fail": 0,
+      "scope": "Actual captain UI with explicit local API/GPS fixtures; stop button acceptance pending final runner"
+    }
+  },
+  "install": "npm ci passed with unchanged package-lock.json",
+  "build": "All three applications built successfully",
+  "workflow": "Locally verified only; no new remote GitHub Actions run",
+  "d1": {
+    "migrationSchemaSqlite": "PASS",
+    "localWorkerdRuntime": "PENDING_TOOL_AVAILABILITY",
+    "hostedDatabase": "NOT_TESTED_OR_MODIFIED"
+  },
+  "remaining": [
+    "ETA to a pending intermediate stop is explicitly unavailable; final-destination ETA resumes after all departures",
+    "Authorized deployed staging and independent device synchronization",
+    "Real SMS/email and route-provider acceptance",
+    "Approved payment sandbox and settlement reconciliation",
+    "Physical Android/iPhone/Safari, background tracking/push",
+    "Load/stress, monitoring and recovery acceptance before launch"
+  ],
+  "report": "docs/STAGE_3_TRIP_INTEGRATION_AR.md",
+  "evidencePaths": [
+    ".local-verification/stage3-20261122/",
+    ".local-verification/stage3/trip-integration-e2e-result.json",
+    ".local-verification/stage3-admin-browser-final/observations.json"
+  ],
+  "limits": "Local tests and synthetic provider facts are not production, field, commercial or external-service acceptance."
+}

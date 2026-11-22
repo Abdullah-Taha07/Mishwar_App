@@ -8,12 +8,24 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
           cache: npm
-      - run: npm ci
-      - run: npm test
-      - run: npm run audit:source
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Build and test applications with external fetch blocked
+        run: npm test
+        env:
+          NODE_OPTIONS: --import=${{ github.workspace }}/scripts/offline-fetch-guard.mjs
+      - name: Audit shared source contracts
+        run: npm run audit:source
+      - name: Test backup, migration and local fixture tools
+        run: npm run test:ops
+      - name: Test security and account containment
+        run: npm run test:security
