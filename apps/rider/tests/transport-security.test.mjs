@@ -54,3 +54,36 @@ test('malformed JSON shapes are rejected and upstream retry budgets are preserve
  assert.equal(calls,0);
  for(const path of ['/api/auth/session','/api/service-status']){const r=await worker.fetch(request(path),env,trusted);assert.equal(r.status,429);assert.equal(r.headers.get('retry-after'),'900');assert.equal(r.headers.get('x-private-fixture'),null)}
 });
+
+test('cross-site top-level GET cannot revoke a rider session or mutate auth and background state',async()=>{
+ let calls=0;
+ globalThis.fetch=async()=>{calls++;return Response.json({ok:true})};
+ const unsafe=[
+  '/api/auth/logout',
+  '/api/auth/change-cancel',
+  '/api/auth/profile',
+  '/api/auth/email-confirm',
+  '/api/live',
+  '/api/background?action=ack',
+  '/api/background?action=register',
+  '/api/background?action=unregister',
+  '/api/background?action=register_native',
+ ];
+ for(const path of unsafe){
+  // SameSite=Lax permits the session cookie on a cross-site top-level GET navigation.
+  const response=await worker.fetch(new Request('https://rider.test'+path,{method:'GET',headers:{cookie}}),env,trusted);
+  assert.equal(response.status,405,`${path} must reject GET without forwarding a mutation`);
+  assert.equal(response.headers.get('set-cookie'),null,`${path} must not clear the session cookie`);
+ }
+ assert.equal(calls,0,'no rejected GET request can reach the authenticated backend');
+});
+
+test('rider read-only GETs still proxy session and background queries',async()=>{
+ const calls=[];globalThis.fetch=async(url,init)=>{calls.push({url,init});return Response.json({ok:true})};
+ for(const path of ['/api/auth/session','/api/background','/api/background?action=latest','/api/background?action=config']){
+  const response=await worker.fetch(new Request('https://rider.test'+path,{method:'GET',headers:{cookie}}),env,trusted);
+  assert.equal(response.status,200,path);
+ }
+ assert.equal(calls.length,4);
+ for(const row of calls)assert.equal(row.init.method,'POST');
+});

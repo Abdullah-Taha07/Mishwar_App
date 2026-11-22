@@ -219,6 +219,14 @@ export async function backgroundFor(
   actor,
   sessionHash = null,
 ) {
+  // Only explicit read-only queries may use GET: browser navigations can
+  // include a SameSite=Lax authenticated cookie even from another site.
+  if (!['GET', 'POST'].includes(request.method))
+    return bj({ error: 'غير مسموح' }, 405);
+  if (request.method === 'GET' &&
+      !['latest', 'config'].includes(new URL(request.url).searchParams.get('action') || 'latest'))
+    return bj({ error: 'غير مسموح' }, 405);
+
   let b = { action: "latest" };
 
   if (request.method === "POST") {
