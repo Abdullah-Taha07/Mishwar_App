@@ -40,7 +40,7 @@
   if(saving||!quote||!field('[data-destination-consent]')?.checked)return;
   if(!validQuote(quote)){error(text('انتهت صلاحية السعر. احسب عرضًا جديدًا.','This quote expired. Calculate a new quote.'));showReview(null);return}
   const change=quote,trip=current,ticket=context.capture(),version=revision;saving=true;field('[data-destination-send]').disabled=true;
-  try{const result=await window.mishwarRiderApi({action:'live_destination_request',tripId:trip.id,changeId:change.id,consent:true});if(!live(ticket,version,trip))return;quote=null;showPending(result.change);await window.refreshMishwarTrip?.(true)}catch(e){if(live(ticket,version,trip)){error(failure(e));const button=field('[data-destination-send]');if(button)button.disabled=false}}finally{if(version===revision)saving=false}
+  try{const result=await window.mishwarRiderApi({action:'live_destination_request',tripId:trip.id,changeId:change.id,consent:true});if(!live(ticket,version,trip))return;quote=null;showPending(result.change);await window.refreshMishwarTrip?.(true)}catch(e){if(live(ticket,version,trip)){error(failure(e));const button=field('[data-destination-send]'),consent=field('[data-destination-consent]');if(button)button.disabled=!consent?.checked}}finally{if(version===revision)saving=false}
  }
  function open(trip=current){
   if(!allowed(trip)||!context.snapshot().verified)return;

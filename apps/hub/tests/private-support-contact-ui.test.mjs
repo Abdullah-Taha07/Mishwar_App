@@ -70,7 +70,7 @@ function harness(path, {captain = false, initialSession = null} = {}) {
     return body.querySelector(selector);
   };
   const auth = {status:'ready',accountKey:'a'.repeat(64)};
-  const c = {console,JSON,Date,String,Number,Map,Set,Promise,Error,Response,encodeURIComponent,
+  const c = {console,JSON,Date,String,Number,Map,Set,Promise,Error,Response,AbortController,encodeURIComponent,
     profile: {}, esc:escape, escapeHtml:escape, save() {}, updateIdentity() {},
     navigator:{clipboard:{writeText(){externalActions.push('clipboard');throw Error('Unexpected clipboard access');}}},
     open(){externalActions.push('navigation');throw Error('Unexpected external navigation');},
@@ -79,7 +79,7 @@ function harness(path, {captain = false, initialSession = null} = {}) {
     setInterval:()=>1,clearInterval(){},setTimeout:()=>1,clearTimeout(){},
     addEventListener(name, fn) { events.set(name,fn); },dispatchEvent(){},Event:class{constructor(type){this.type=type;}},
     document:{body,hidden:false,createElement:tag=>new Node(tag),querySelector:get,addEventListener(name,fn){events.set(name,fn);}},
-    MishwarAccountContext:{snapshot:()=>auth,beginAuthRead:()=>({}),readController:()=>({controller:{signal:{}},release(){}}),isAuthReadCurrent:()=>true,applyAuth:()=>true,notifyAuth(){},ignored:()=>false},
+    MishwarAccountContext:{snapshot:()=>auth,beginAuthRead:()=>({}),readController:()=>({controller:new AbortController(),release(){}}),isAuthReadCurrent:()=>true,applyAuth:()=>true,notifyAuth(){},ignored:()=>false},
     sectionModal(_title,html){modal.innerHTML=html;modal.open=true;},$:get,toast:message=>notices.push(message),refresh(){notices.push('refresh');},
     captainServiceDialog(_title,html){const dialog=new Node('dialog');dialog.innerHTML=html;body.append(dialog);dialog.showModal();return dialog;},
     FormData:class{constructor(form){this.items=Object.entries(form.elements).map(([name,node])=>[name,node.value]);}[Symbol.iterator](){return this.items[Symbol.iterator]();}},

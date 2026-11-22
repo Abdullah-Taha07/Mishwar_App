@@ -96,14 +96,14 @@ export async function launchAction(env,role,owner,b,ctx){const action=String(b.a
  if(action==='masked_call')return lfMaskedCall(env,t,role);
  throw Error('وظيفة غير معروفة')}
 export async function sharedTrip(env,token){
- if(!/^[a-f0-9]{64}$/.test(token||''))return lfJson({error:'???? ??? ????'},404);
+ if(!/^[a-f0-9]{64}$/.test(token||''))return lfJson({error:'رابط مشاركة الرحلة غير صالح'},404);
  const hash=await tokenHash(token),share=await env.DB.prepare('SELECT trip_id FROM trip_shares WHERE token_hash=? AND expires_at>? AND revoked_at IS NULL').bind(hash,lfNow()).first();
- if(!share)return lfJson({error:'?????? ????? ?? ????? ???? ??????'},404);
+ if(!share)return lfJson({error:'رابط مشاركة الرحلة منتهي أو غير متاح'},404);
  const t=await env.DB.prepare("SELECT t.id,t.driver_id,t.is_demo,t.status,t.pickup_json,t.destination_json,a.vehicle_json,json_extract(a.personal_json,'$.name') AS driver,p.latitude AS driver_lat,p.longitude AS driver_lng,p.accuracy AS driver_accuracy,p.location_at AS driver_location_at FROM trips t LEFT JOIN captain_applications a ON a.id=t.driver_id LEFT JOIN captain_presence p ON p.application_id=t.driver_id WHERE t.id=?").bind(share.trip_id).first();
  if(!t||!['matching','arriving','arrived','riding'].includes(t.status))return lfJson({ended:true,status:t?.status||'ended'});
  const location=await captainLocationForTrip(env,t);
  const current=await env.DB.prepare('SELECT t.status,t.driver_id FROM trips t JOIN trip_shares s ON s.trip_id=t.id WHERE t.id=? AND s.token_hash=? AND s.expires_at>? AND s.revoked_at IS NULL').bind(t.id,hash,lfNow()).first();
- if(!current)return lfJson({error:'?????? ????? ?? ????? ???? ??????'},404);
+ if(!current)return lfJson({error:'رابط مشاركة الرحلة منتهي أو غير متاح'},404);
  if(!['matching','arriving','arrived','riding'].includes(current.status))return lfJson({ended:true,status:current.status});
  const vehicle=t.vehicle_json?JSON.parse(t.vehicle_json):null;
  return lfJson({status:current.status,pickup:JSON.parse(t.pickup_json),destination:JSON.parse(t.destination_json),driver:t.driver?.split(' ')[0]||null,vehicle:vehicle?{make:vehicle.make,model:vehicle.model,color:vehicle.color,plate:vehicle.plate}:null,location:location&&current.driver_id===t.driver_id&&current.status===t.status?{lat:location.lat,lng:location.lng,accuracy:location.accuracy,at:location.at,fresh:location.fresh}:null});

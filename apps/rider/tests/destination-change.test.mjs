@@ -44,6 +44,22 @@ test('quote review preserves active destination and requires explicit unchecked 
  h.get('consent').checked=true;h.get('consent').onchange({target:h.get('consent')});await h.get('send').onclick();
  assert.deepEqual(JSON.parse(JSON.stringify(h.calls[1])),{action:'live_destination_request',tripId:t.id,changeId:'change-1',consent:true});assert.equal('destination'in h.calls[1],false);assert.equal(h.refreshes(),1);assert.match(h.get('body').innerHTML,/بانتظار موافقة/);assert.equal(t.destination.name,'Original destination');
 });
+test('a failed request never re-enables fare submission after consent was withdrawn',async()=>{
+ const h=harness();h.api.html(trip());h.api.open();await h.pick();await h.quote();
+ const consent=h.get('consent'),send=h.get('send');
+ consent.checked=true;consent.onchange({target:consent});assert.equal(send.disabled,false);
+ h.reply(async payload=>{
+  if(payload.action==='live_destination_request'){
+   consent.checked=false;consent.onchange({target:consent});
+   throw Error('Temporary request failure');
+  }
+  return {change:proposal()};
+ });
+ await send.onclick();
+ assert.equal(consent.checked,false);
+ assert.equal(send.disabled,true,'Retry must remain disabled until fresh, explicit consent');
+ assert.equal(h.calls.filter(call=>call.action==='live_destination_request').length,1);
+});
 test('editing search after quote removes review and consent and cannot send the earlier destination',async()=>{
  const h=harness();h.api.html(trip());h.api.open();await h.pick();await h.quote();const input=h.get('search');input.value='different';input.oninput();assert.equal(h.get('review').innerHTML,'');assert.equal(h.get('quote').disabled,true);assert.equal(h.get('send'),null);assert.equal(h.calls.length,1);
 });
@@ -88,7 +104,7 @@ function captainHarness(){
  const source=readFileSync(new URL('../../hub/public/driver.js',import.meta.url),'utf8'),changes=[],listeners=new Map();let language='ar';
  const cash={id:'cash-received',checked:false,value:''},online={setAttribute(){}},panel={scrollTop:0,querySelectorAll:selector=>selector==='input[id]'?[cash]:[],querySelector:()=>null,set innerHTML(value){this.html=value;cash.checked=false}};
  const sandbox={Date,Number,Object,String,Math,JSON,data:{current:trip(),available:true,wallet:{balance:0},requests:[],captain:{name:'Captain'}},tab:'trip',busy:false,availabilitySaving:false,by:selector=>selector==='#online'?online:selector==='#driver-panel'?panel:selector==='#cash-received'?cash:null,money:value=>(value/100).toFixed(2),escapeHtml:value=>String(value??'').replaceAll('<','&lt;'),methods:{cash:'cash'},document:{body:{classList:{toggle(){}},dataset:{}},querySelectorAll:()=>[],getElementById:id=>id===cash.id?cash:null,addEventListener:(name,fn)=>listeners.set(name,fn)},window:{MishwarLang:{get:()=>language}},change:async payload=>{changes.push(payload)},walletForm(){},render(){}};
- vm.createContext(sandbox);const begin=source.indexOf('const destinationText='),end=source.indexOf("by('#online').onclick",begin);assert.ok(begin>0&&end>begin);vm.runInContext(source.slice(begin,end),sandbox);
+ vm.createContext(sandbox);const begin=source.indexOf('function navigationLink('),end=source.indexOf("by('#online').onclick",begin);assert.ok(begin>0&&end>begin);vm.runInContext(source.slice(begin,end),sandbox);
  const listenerBegin=source.indexOf("document.addEventListener('click',e=>{const b="),listenerEnd=source.indexOf('\nfunction walletForm(',listenerBegin);vm.runInContext(source.slice(listenerBegin,listenerEnd),sandbox);
  return {c:sandbox,cash,panel,changes,language:value=>{language=value},render:()=>vm.runInContext('render()',sandbox),card:t=>vm.runInContext('destinationChangeCard('+JSON.stringify(t)+')',sandbox),click:dataset=>listeners.get('click')({target:{closest:()=>({dataset,hasAttribute:()=>false})}})};
 }
