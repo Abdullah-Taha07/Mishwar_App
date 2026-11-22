@@ -1,0 +1,16 @@
+import{createHash}from'node:crypto';import{DatabaseSync}from'node:sqlite';import{readdirSync,readFileSync}from'node:fs';import{DOCUMENTS}from'../public/validation.js';
+const fixtureExecute=Symbol('fixtureExecute');
+export function makeEnv(seed=false){
+ const db=new DatabaseSync(':memory:');
+ for(const migration of readdirSync(new URL('../drizzle/',import.meta.url)).filter(name=>name.endsWith('.sql')).sort())db.exec(readFileSync(new URL('../drizzle/'+migration,import.meta.url),'utf8'));
+ const objects=new Map();
+ const wrap=(sql,values=[])=>{
+  const execute=()=>{const statement=db.prepare(sql);if(statement.columns().length){const results=statement.all(...values);return {results,success:true,meta:{changes:db.prepare('SELECT changes() AS n').get().n}}}return {results:[],success:true,meta:{changes:statement.run(...values).changes}}};
+  return {[fixtureExecute]:execute,bind(...args){return wrap(sql,args)},first:async column=>{const row=execute().results[0]||null;return column===undefined?row:row?.[column]??null},all:async()=>execute(),run:async()=>execute()};
+ };
+ const env={db,objects,ALLOW_PUBLIC_ROUTE_QUOTES:'true',CAPTAIN_ADMIN_EMAIL:'admin@example.com',ADMIN_SERVICE_KEY:'test-admin-key',RIDER_SERVICE_KEY:'test-rider-key',DB:{prepare:sql=>wrap(sql),async batch(items){
+  // D1 batches execute atomically. Avoid await inside the transaction on this
+  // single SQLite connection, and retain SELECT/RETURNING results like D1 does.
+  db.exec('BEGIN');try{const out=items.map(item=>item[fixtureExecute]());db.exec('COMMIT');return out}catch(error){db.exec('ROLLBACK');throw error}
+ }},BUCKET:{put:async(k,v)=>objects.set(k,v),delete:async k=>objects.delete(k),get:async k=>objects.has(k)?{body:objects.get(k)}:null}};
+ if(seed){const docs=Object.fromEntries(DOCUMENTS.map(([key])=>[key,{key:'qa/'+key,type:'image/png',size:1000}]));for(const[key]of DOCUMENTS)objects.set('qa/'+key,readFileSync(new URL('../public/icon-192.png',import.meta.url)));db.prepare('INSERT INTO captain_applications VALUES (?,?,?,?,?,?,?,?,?,?)').run('11111111-1111-4111-8111-111111111111','qa-applicant','+966500000001','captain@example.com',JSON.stringify({name:'كابتن تجريبي للمراجعة',birthDate:'1995-04-12',nationality:'اختبار',identityType:'national',identityNumber:'1000000001',city:'الرياض',district:'حي الاختبار',street:'شارع الاختبار',building:'12',postalCode:'12345'}),JSON.stringify({make:'تويوتا',model:'كامري',year:'2024',color:'أبيض',plate:'أ ب ج 1234',seats:'5',ownership:'owner',identityExpiry:'2030-01-01',licenseExpiry:'2030-01-01',registrationExpiry:'2030-01-01',insuranceExpiry:'2030-01-01'}),JSON.stringify(docs),'pending','2026-11-08T15:00:00Z',null)}env.verifiedToken=actor=>{const token=createHash('sha256').update('test-token-'+actor).digest('hex');const hash=createHash('sha256').update(token).digest('hex');env.db.prepare('INSERT OR IGNORE INTO rider_sessions(token_hash,actor,phone,expires_at) VALUES(?,?,?,?)').run(hash,actor,'+966500000001','2030-01-01T00:00:00Z');return token};return env}
