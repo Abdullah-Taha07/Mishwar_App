@@ -2,7 +2,7 @@ name: Source checks
 on:
   pull_request:
   push:
-    branches: [main]
+    branches: [main, dev/mishwar-shared]
 permissions:
   contents: read
 jobs:
