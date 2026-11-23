@@ -1,5 +1,13 @@
 (()=>{
   const messages=Object.freeze({
+    "اضغط لتحديد وجهتك":"Tap to choose your destination",
+    "اضغط لاختيار الانطلاق والوجهة":"Tap to choose pickup and destination",
+    "حسابي":"Account",
+    "خيارات إضافية":"More options",
+    "تسعيرتي، محطات، أو حجز مسبق":"Custom fare, stops or scheduling",
+    "تسعيرتي مفعّلة":"Custom fare enabled",
+    "اطلب مشوار":"Request a ride",
+
     'رحلة مريحة':'A comfortable ride',
     'وجهتك عليك، والباقي علينا.':'Choose your destination. We will handle the ride.',
     'أضف موقع منزلك':'Save your home address',
@@ -426,6 +434,7 @@
   });
   const digits=value=>String(value).replace(/[٠-٩]/g,n=>'٠١٢٣٤٥٦٧٨٩'.indexOf(n)).replaceAll('٫','.').replaceAll('٬',',');
   const formats=[
+    [/^اطلب مشوار · ([0-9٠-٩.٫٬,]+) ر\.س$/, amount=>'Request a ride · '+digits(amount)+' SAR'],
     [/^إعادة الإرسال بعد ([0-9٠-٩]+) ثانية$/,value=>'Resend in '+digits(value)+' seconds'],
     [/^([0-9٠-٩]+) طلب$/,value=>digits(value)+' requests'],
     [/^([0-9٠-٩]+) طلبات$/,value=>digits(value)+' requests'],

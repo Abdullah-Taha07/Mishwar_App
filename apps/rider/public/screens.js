@@ -3,7 +3,7 @@ let dialogFitFrame=null,profileDraft=null;
 const modalBeforeLayout=modal;
 modal=function(title,body){closeAddressEditor();modalBeforeLayout(title,body);const root=$('#modal-content'),header=root.querySelector('.modal-head'),viewport=document.createElement('div'),inner=document.createElement('div');viewport.className='dialog-body';inner.className='dialog-inner';[...root.children].filter(x=>x!==header).forEach(x=>inner.append(x));viewport.append(inner);root.append(viewport);queueDialogFit()};
 function queueDialogFit(){cancelAnimationFrame(dialogFitFrame);dialogFitFrame=requestAnimationFrame(fitDialog)}
-function fitDialog(){if(!$('#modal').open)return;const body=$('#modal .dialog-body'),inner=$('#modal .dialog-inner');if(!body||!inner)return;inner.style.zoom='1';const scale=Math.min(1,(body.clientHeight-2)/Math.max(1,inner.scrollHeight));inner.style.zoom=String(scale)}
+function fitDialog(){if(!$('#modal').open)return;const body=$('#modal .dialog-body'),inner=$('#modal .dialog-inner');if(!body||!inner)return;inner.style.removeProperty('zoom')}
 function syncVisibleViewport(){document.documentElement.style.setProperty('--visible-height',(window.visualViewport?.height||innerHeight)+'px');document.body.classList.toggle('keyboard-compact',!!window.visualViewport&&window.visualViewport.height<innerHeight*.78);queueDialogFit();if(editor.target)requestAnimationFrame(drawSuggestions)}
 window.addEventListener('resize',syncVisibleViewport);window.visualViewport?.addEventListener('resize',syncVisibleViewport);window.visualViewport?.addEventListener('scroll',syncVisibleViewport);
 new MutationObserver(queueDialogFit).observe($('#modal-content'),{childList:true,subtree:true});

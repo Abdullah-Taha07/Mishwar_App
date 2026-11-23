@@ -28,7 +28,7 @@ function attachSheetGesture(element,handle,mode){
 }
 function prepareCompactSheet(){
  const booking=$('.booking');let handle=booking.querySelector('.booking-sheet-handle');
- if(!handle){handle=document.createElement('button');handle.type='button';handle.className='booking-sheet-handle mobile-sheet-handle';handle.setAttribute('aria-label','رفع لوحة البحث عن الانطلاق والوجهة');handle.setAttribute('aria-expanded','false');handle.innerHTML='<span></span><small>اسحب للأعلى للبحث</small>';booking.prepend(handle);attachSheetGesture(booking,handle,'compact')}
+ if(!handle){handle=document.createElement('button');handle.type='button';handle.className='booking-sheet-handle mobile-sheet-handle';handle.setAttribute('aria-label','اضغط لاختيار الانطلاق والوجهة');handle.setAttribute('aria-expanded','false');handle.innerHTML='<span></span><small>اضغط لتحديد وجهتك</small>';booking.prepend(handle);attachSheetGesture(booking,handle,'compact')}
  const saved=$('#panel .saved');
  if(saved&&!saved.querySelector('[data-sheet-other]')){const other=document.createElement('button');other.type='button';other.dataset.sheetOther='';other.innerHTML=icon('pin')+'<div><strong>أخرى</strong><small>أماكني المفضلة</small></div>';saved.append(other)}
  document.body.classList.toggle('rider-home-sheet',sheetMedia.matches&&state.stage==='home');

@@ -1,0 +1,38 @@
+/* Focus each captain screen on the next action, preserving existing controls. */
+.driver-shell #online{min-height:44px;min-width:112px;font-weight:700;border-width:2px}
+.driver-shell #online::before{content:"";display:inline-block;width:8px;height:8px;margin-inline-end:7px;border-radius:50%;background:currentColor}
+.driver-shell #online[aria-checked=true]{background:#d8f8eb;color:#176c52;border-color:#79cfad}
+.driver-shell .live-offer{border:1px solid #dbe8ec;border-radius:18px;padding:15px;margin-block:12px;background:#fff}
+.driver-shell .live-offer .fare{padding-block:10px;border-block:1px solid #edf3f5;margin-block:12px}
+.driver-shell .live-offer .fare strong{font-size:25px;font-weight:700}
+.driver-shell .live-offer>.arrival-note{background:transparent;padding:0;margin-block:9px}
+.captain-trip-overview{margin-bottom:14px}
+.captain-trip-overview .panel-title{margin-bottom:12px}
+.captain-trip-steps{display:flex;gap:5px;list-style:none;padding:0;margin:0 0 13px}
+.captain-trip-steps li{flex:1;padding-block:8px;border-top:3px solid #dce9ed;color:#6d8791;text-align:center;font-size:11px;line-height:1.5}
+.captain-trip-steps li[aria-current=step]{border-color:#079eb5;color:#083344;font-weight:700}
+.captain-trip-total{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:13px 15px;background:#effafb;border:1px solid #dbedf0;border-radius:14px}
+.captain-trip-total>div{min-width:0}
+.captain-trip-total>div:last-child{text-align:end;flex-shrink:0}
+.captain-trip-total strong,.captain-trip-total small{display:block;overflow-wrap:anywhere}
+.captain-trip-total small{color:#54727f;font-size:11px;margin-block:3px}
+.captain-trip-total>div:last-child strong{font-size:21px;font-weight:700}
+.captain-trip-contact{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.captain-trip-contact button{min-height:44px;padding:9px 5px;line-height:1.5;font-size:12px}
+.captain-trip-contact [data-launch=safety]{background:#eef8f5;color:#176c52;border-color:#b4ded0}
+.captain-trip-details{margin-block:13px;border:1px solid #dce8ed;border-radius:13px;background:#fbfdfd}
+.captain-trip-details>summary{cursor:pointer;min-height:48px;padding:13px 15px;font-size:13px;font-weight:600}
+.captain-detail-body{padding:0 15px 12px;line-height:1.9;font-size:12px}
+.captain-detail-body p{margin:0}
+.captain-next-action{position:sticky;bottom:-20px;z-index:3;margin-block:12px -20px;padding:12px 0 20px;background:#fff;border-top:1px solid #dce8ed;box-shadow:0 -8px 14px #fff}
+.captain-next-action .primary{margin-top:0;min-height:48px}
+.captain-next-action .cash-confirm{margin-top:0;margin-bottom:10px;min-height:44px;line-height:1.6}
+.captain-next-action .driver-pin-label{display:block;margin-bottom:10px}
+.captain-next-action .hint{margin-bottom:0}
+@media(max-width:380px){
+ .captain-trip-total{padding:11px;gap:8px}
+ .captain-trip-total>div:last-child strong{font-size:18px}
+ .captain-trip-steps li{font-size:10px}
+ .captain-trip-contact{gap:5px}
+ .captain-trip-contact button{font-size:11px}
+}
