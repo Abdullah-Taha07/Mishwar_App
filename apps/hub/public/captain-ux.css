@@ -36,3 +36,93 @@
  .captain-trip-contact{gap:5px}
  .captain-trip-contact button{font-size:11px}
 }
+
+/* Quiet depth, confident primary actions and deliberate touch feedback. */
+.driver-shell {
+ --captain-ink:#102b35;
+ --captain-accent:#00a9bd;
+ --captain-line:#e1eaee;
+ --captain-ease:cubic-bezier(.2,.75,.25,1);
+ color:var(--captain-ink);
+}
+.driver-shell header {
+ border-bottom-color:#e7eef1;
+ box-shadow:0 2px 12px #102b3505;
+}
+.driver-shell header>a {letter-spacing:-.3px}
+.driver-shell #driver-panel h1 {letter-spacing:-.35px;font-weight:700}
+.driver-shell .live-offer {
+ border-color:var(--captain-line);
+ border-radius:22px;
+ box-shadow:0 5px 22px #102b3508;
+}
+.driver-shell .live-offer .offer-countdown {
+ border:1px solid #dceff1;
+ background:#f1fbfc;
+ border-radius:16px;
+}
+.driver-shell .live-offer .fare strong {color:var(--captain-ink);font-variant-numeric:tabular-nums}
+.driver-shell .driver-route {border-color:var(--captain-line);background:#fff;border-radius:16px}
+.driver-shell .driver-route strong {font-weight:600;color:var(--captain-ink)}
+.driver-shell .driver-route small {color:#647d88}
+.driver-shell #driver-panel .primary {
+ background:var(--captain-ink);
+ color:#fff;
+ border:1px solid var(--captain-ink);
+ border-radius:15px;
+ box-shadow:0 4px 10px #102b3514;
+ font-weight:700;
+}
+.driver-shell #driver-panel .primary:disabled {box-shadow:none}
+.driver-shell .captain-trip-total {background:#f3fafb;border-color:#dbeaed;border-radius:17px}
+.driver-shell .captain-trip-total>div:last-child strong {font-variant-numeric:tabular-nums;letter-spacing:-.35px}
+.driver-shell .captain-trip-steps {gap:7px;margin-bottom:16px}
+.driver-shell .captain-trip-steps li {border-top-width:3px;border-radius:2px;color:#657d88}
+.driver-shell .captain-trip-steps li[aria-current=step] {border-color:var(--captain-accent);color:var(--captain-ink)}
+.driver-shell .captain-trip-contact button {border-radius:13px;background:#f7fafb;border-color:var(--captain-line);color:#304f5c;font-weight:600}
+.driver-shell .captain-trip-contact [data-launch=safety] {background:#edf8f3;color:#17634f;border-color:#c8e6d9}
+.driver-shell .captain-trip-details {background:#fff;border-color:var(--captain-line);border-radius:15px}
+.driver-shell .captain-trip-details>summary {color:#304f5c}
+.driver-shell .captain-trip-details[open]>summary {border-bottom:1px solid #edf2f4}
+.driver-shell .captain-detail-body {padding-top:12px;color:#54707d}
+.driver-shell .captain-next-action {border-top-color:#e7eef1;background:#fffffff5;box-shadow:0 -9px 20px #ffffffed}
+.driver-shell .captain-next-action .cash-confirm {background:#fff9ea;border:1px solid #f1e7cb;border-radius:13px}
+.driver-shell .driver-nav {border-top-color:#e5edef;gap:2px;padding-inline:5px}
+.driver-shell .driver-nav button {min-height:44px;border-radius:13px;margin-block:3px;color:#657f8b}
+.driver-shell .driver-nav button.active {background:#eaf6f8;color:#0a5865;font-weight:700}
+.driver-shell #online {box-shadow:0 2px 7px #102b3505}
+.driver-shell #online[aria-checked=true] {background:#e6f8ef;border-color:#9bd9bc;color:#17634f}
+.driver-shell :is(button,a,summary) {-webkit-tap-highlight-color:transparent}
+.driver-shell :is(button:not([data-driver-sheet]):not(.driver-grab):not(.driver-sheet-handle),a,summary) {
+ touch-action:manipulation;
+ transition:background-color 180ms var(--captain-ease),border-color 180ms var(--captain-ease),color 180ms var(--captain-ease),box-shadow 180ms var(--captain-ease);
+}
+.driver-shell :is(button,a,summary):focus-visible {outline:3px solid #26b9cc;outline-offset:3px}
+.driver-shell :is(.primary,.secondary,.counter-button,.decline-offer,.driver-nav button,.captain-trip-contact button):not(:disabled) {
+ transition:transform 150ms var(--captain-ease),background-color 180ms var(--captain-ease),border-color 180ms var(--captain-ease),color 180ms var(--captain-ease),box-shadow 180ms var(--captain-ease);
+}
+.driver-shell :is(.primary,.secondary,.counter-button,.decline-offer,.driver-nav button,.captain-trip-contact button):not(:disabled):active {transform:scale(.98)}
+.driver-shell #online:not(:disabled):active {background:#d8eee3}
+.driver-shell .captain-trip-details>summary:active {background:#f0f7f9}
+@media(hover:hover) and (pointer:fine){
+ .driver-shell #driver-panel .primary:not(:disabled):hover {background:#173b48;border-color:#173b48;box-shadow:0 5px 15px #102b3520}
+ .driver-shell :is(.secondary,.captain-trip-contact button,.driver-nav button):not(:disabled):hover {background:#eaf4f7;color:#173e4d}
+ .driver-shell .captain-trip-details>summary:hover {background:#f6fafb}
+}
+@keyframes mw-captain-reveal {
+ from {opacity:.35;transform:translateY(6px)}
+ to {opacity:1;transform:translateY(0)}
+}
+@media(prefers-reduced-motion:no-preference){
+ body:not(.no-animation):not(.driver-sheet-dragging) #driver-panel :is(.captain-trip-overview,.live-offer,.welcome,.summary,.panel-title)[data-motion-surface].mw-scene-enter {
+  animation:mw-captain-reveal 220ms var(--captain-ease) both;
+ }
+}
+@media(prefers-reduced-motion:reduce){
+ .driver-shell :is(button,a,summary),
+ #driver-panel [data-motion-surface].mw-scene-enter {transition:none!important;animation:none!important}
+ .driver-shell :is(button,a):active {transform:none!important}
+}
+body.no-animation .driver-shell :is(button,a,summary),
+body.no-animation #driver-panel [data-motion-surface].mw-scene-enter {transition:none!important;animation:none!important}
+body.no-animation .driver-shell :is(button,a):active {transform:none!important}

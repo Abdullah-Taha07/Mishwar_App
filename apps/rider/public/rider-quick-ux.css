@@ -85,3 +85,152 @@
   .mobile-nav button { flex: 1; min-width: 0; }
   .ride-checkout-actions .ride-payment { gap: 5px; }
 }
+
+/* Quiet, transport-app surfaces with Mishwar's original teal identity. */
+:root {
+  --mw-quick-ink: #102c38;
+  --mw-quick-line: #dfe8ec;
+  --mw-quick-ease: cubic-bezier(.2, .8, .2, 1);
+}
+
+.ride-heading h2, .ride-category-info strong, .ride-price {
+  color: var(--mw-text, var(--mw-quick-ink));
+  letter-spacing: -.3px;
+}
+
+.ride-summary {
+  border-color: var(--mw-quick-line);
+  background: var(--mw-surface-soft, #f5f8f9);
+  border-radius: 18px;
+}
+
+.ride-category {
+  min-height: 88px;
+  padding: 14px 12px;
+  border: 2px solid var(--mw-quick-line);
+  border-radius: 18px;
+  background: var(--mw-surface, #fff);
+  box-shadow: 0 2px 5px #102c3804;
+}
+
+.ride-category.selected {
+  padding: 14px 12px;
+  border-color: var(--mw-accent-ink, #0a8497);
+  background: var(--mw-surface-accent, #eef9fa);
+  box-shadow: 0 3px 12px #0833440a;
+}
+
+.ride-category-info > span { line-height: 1.6; }
+.ride-price { font-variant-numeric: tabular-nums; }
+.ride-price small { font-weight: 500; }
+.ride-checkout { padding-block-start: 12px; }
+.ride-checkout-actions .ride-payment,
+.ride-checkout-actions .ride-coupon { min-height: 48px; border-radius: 14px; }
+.ride-extra-options { border-color: var(--mw-quick-line); border-radius: 18px; }
+.ride-extra-options[open] { border-color: #abcbd2; }
+.ride-extra-options > summary { font-weight: 600; }
+.ride-extra-options > summary small { font-weight: 400; }
+
+.ride-checkout > .primary,
+.rider-home-sheet #panel > .primary {
+  background: #0b3443;
+  color: #fff;
+  border-color: #0b3443;
+  border-radius: 16px;
+  font-weight: 700;
+  letter-spacing: -.2px;
+}
+
+.ride-checkout > .primary { min-height: 54px; }
+.ride-checkout > .primary:disabled { opacity: .58; cursor: default; }
+.mobile-nav { border-top-color: var(--mw-quick-line); box-shadow: 0 -3px 18px #102c3805; }
+.mobile-nav button { border-radius: 13px; margin-block: 3px; }
+.mobile-nav button.active { color: var(--mw-accent-ink, #087f91); }
+
+/* Transform-only feedback never changes the position of neighbouring content. */
+:is(.primary, .secondary, .ride-category, .ride-payment, .ride-coupon,
+    .mobile-nav button, .saved button, .launch-home-tools button,
+    #notifications-button, #background-notifications-button) {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 140ms var(--mw-quick-ease),
+    background-color 180ms ease, border-color 180ms ease,
+    box-shadow 180ms ease, color 140ms ease;
+}
+
+:is(.primary, .secondary, .ride-category, .ride-payment, .ride-coupon,
+    .mobile-nav button, .saved button, .launch-home-tools button,
+    #notifications-button, #background-notifications-button):not(:disabled):active {
+  transform: scale(.985);
+}
+
+:is(.primary, .secondary, .ride-category, .ride-payment, .ride-coupon,
+    .mobile-nav button, .saved button, .launch-home-tools button):focus-visible {
+  outline: 3px solid #55c5d6;
+  outline-offset: 3px;
+}
+
+.ride-extra-options { transition: border-color 180ms ease, background-color 180ms ease; }
+
+@media (hover: hover) and (pointer: fine) {
+  .ride-category:not(.selected):hover {
+    border-color: #b4cad1;
+    background: var(--mw-surface-soft, #f7fafb);
+    box-shadow: 0 5px 16px #102c380a;
+  }
+  .ride-checkout > .primary:not(:disabled):hover { background: #124c5d; }
+}
+
+/* The shared motion controller applies this only when the screen changes. */
+[data-motion-surface].mw-scene-enter {
+  animation: mw-rider-scene 220ms var(--mw-quick-ease) both;
+}
+
+#modal[open], #drawer[open], #launch-dialog[open], #search-sheet:not([hidden]) {
+  animation: mw-rider-sheet 220ms var(--mw-quick-ease) both;
+}
+
+@keyframes mw-rider-scene {
+  from { opacity: .35; translate: 0 7px; }
+  to { opacity: 1; translate: 0 0; }
+}
+
+@keyframes mw-rider-sheet {
+  from { opacity: 0; translate: 0 12px; }
+  to { opacity: 1; translate: 0 0; }
+}
+
+@media (max-width: 700px) {
+  .ride-category, .ride-category.selected { min-height: 80px; padding: 12px 10px; }
+  .ride-checkout-actions .ride-payment strong { font-size: 13px; }
+}
+
+/* Respect both the OS preference and the existing in-app motion switch. */
+body.no-animation :is([data-motion-surface], #modal, #drawer, #launch-dialog,
+  #search-sheet, .primary, .secondary, .ride-category, .ride-payment, .ride-coupon,
+  .mobile-nav button, .saved button, .launch-home-tools button,
+  #notifications-button, #background-notifications-button) {
+  animation: none !important;
+  transition: none !important;
+}
+
+body.no-animation :is(.primary, .secondary, .ride-category, .ride-payment,
+  .ride-coupon, .mobile-nav button, .saved button, .launch-home-tools button,
+  #notifications-button, #background-notifications-button):active {
+  transform: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :is([data-motion-surface], #modal, #drawer, #launch-dialog, #search-sheet,
+    .primary, .secondary, .ride-category, .ride-payment, .ride-coupon,
+    .mobile-nav button, .saved button, .launch-home-tools button,
+    #notifications-button, #background-notifications-button) {
+    animation: none !important;
+    transition: none !important;
+  }
+  :is(.primary, .secondary, .ride-category, .ride-payment, .ride-coupon,
+    .mobile-nav button, .saved button, .launch-home-tools button,
+    #notifications-button, #background-notifications-button):active {
+    transform: none !important;
+  }
+}
