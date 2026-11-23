@@ -14,6 +14,7 @@ function fixture(t){
 }
 const identity={'oai-authenticated-user-id':'local-admin','oai-authenticated-user-email':'admin@example.test'};
 const runtime={ADMIN_EMAIL:'admin@example.test'};
+const trustedCtx={access:{getIdentity:async()=>({id:'cf-access-owner',email:'admin@example.test'})}};
 async function worker(f){return(await import('data:text/javascript;base64,'+Buffer.from(f.read('dist/server/index.js')).toString('base64'))).default}
 
 test('administration excludes private source artifacts from both Vercel output and Worker assets',async t=>{
@@ -25,7 +26,7 @@ test('administration excludes private source artifacts from both Vercel output a
  for(const file of privateFiles){
   assert.equal(existsSync(join(f.root,'public',file)),true,file+' remains in source');
   assert.equal(existsSync(join(f.root,'dist/public',file)),false,file+' is absent from static output');
-  assert.equal((await portal.fetch(new Request('https://admin.example.test/'+file,{headers:identity}),runtime)).status,404,file+' is absent from Worker assets');
+  assert.equal((await portal.fetch(new Request('https://admin.example.test/'+file,{headers:identity}),runtime,trustedCtx)).status,404,file+' is absent from Worker assets');
  }
 });
 
@@ -33,10 +34,10 @@ test('administration preserves legitimate UI assets and APK downloads across hos
  const f=fixture(t);f.build();const portal=await worker(f);
  for(const file of ['index.html','applications.html','portal.js','portal.css','admin-auth.js','sw.js','manifest.webmanifest']){
   assert.deepEqual(readFileSync(join(f.root,'dist/public',file)),readFileSync(join(f.root,'public',file)),file+' is copied intact');
-  const response=await portal.fetch(new Request('https://admin.example.test/'+file,{headers:identity}),runtime);
+  const response=await portal.fetch(new Request('https://admin.example.test/'+file,{headers:identity}),runtime,trustedCtx);
   assert.equal(response.status,200);assert.equal(await response.text(),f.read('public/'+file));
  }
- const apk='downloads/mishwar-admin.apk',download=await portal.fetch(new Request('https://admin.example.test/'+apk,{headers:identity}),runtime);
+ const apk='downloads/mishwar-admin.apk',download=await portal.fetch(new Request('https://admin.example.test/'+apk,{headers:identity}),runtime,trustedCtx);
  assert.equal(download.status,200);assert.equal(download.headers.get('Content-Type'),'application/vnd.android.package-archive');assert.match(download.headers.get('Content-Disposition'),/attachment/);
  assert.deepEqual(Buffer.from(await download.arrayBuffer()),readFileSync(join(f.root,'dist/public',apk)));
  assert.equal((await portal.fetch(new Request('https://admin.example.test/'),runtime)).status,403,'Worker administration still requires its trusted identity');

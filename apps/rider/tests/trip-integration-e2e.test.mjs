@@ -57,7 +57,8 @@ async function setup(t){
  const r=(action,body={},cookie=state.riderCookie,headers={})=>rider.fetch(request(ORIGINS.rider,'/api/live',{action,...body},cookie,headers),riderEnv,{trustedClientIp:'192.0.2.91'});
  const auth=(path,body,cookie='')=>rider.fetch(request(ORIGINS.rider,'/api/auth/'+path,body,cookie),riderEnv,{trustedClientIp:'192.0.2.91'});
  const c=(action,body={},cookie=state.captainCookie,headers={})=>hub.fetch(request(ORIGINS.hub,'/api/driver',{action,...body},cookie,headers),env,{});
- const a=(path,body,headers=ownerHeaders)=>admin.fetch(request(ORIGINS.admin,'/api/admin/'+path,body,'',headers),adminEnv);
+ const trustedAdminCtx={access:{getIdentity:async()=>({id:'offline-access-owner',email:env.CAPTAIN_ADMIN_EMAIL})}};
+ const a=(path,body,headers=ownerHeaders)=>admin.fetch(request(ORIGINS.admin,'/api/admin/'+path,body,'',headers),adminEnv,headers===ownerHeaders?trustedAdminCtx:undefined);
  const read=async(response,status=200,step='integration response')=>{const body=await response.json();assert.equal(response.status,status,step+': '+(body.error||''));return body};
  const cookie=(response,name)=>{const value=response.headers.get('set-cookie')||'';assert.ok(value.includes('HttpOnly')&&value.includes('Secure'));assert.ok(value.includes('SameSite='+(name==='__Host-mishwar_sid'?'Lax':'None')),'Role cookie retains its configured SameSite policy');assert.ok(value.startsWith(name+'='));return value.split(';',1)[0]};
  const state={riderCookie:'',otherCookie:'',captainCookie:'',secondCookie:'',riderId:'',captainActor:'',secondActor:''};
@@ -97,6 +98,7 @@ test('integration registrations, role sessions and trip privacy cross the real g
  assert.equal((await r('live_book',{quoteId:'forged',actor:state.riderId},'',{'oai-authenticated-user-id':state.riderId})).status,401);
  assert.equal((await c('accept',{tripId:'forged'},'',{'oai-authenticated-user-id':state.captainActor})).status,401);
  assert.equal((await a('operations/trips',undefined,{})).status,403);
+ assert.equal((await a('operations/trips',undefined,{'oai-authenticated-user-id':'offline-owner','oai-authenticated-user-email':env.CAPTAIN_ADMIN_EMAIL})).status,403,'forged owner headers alone must not authenticate');
  const {trip}=await f.book();
  const foreign=await read(await r('live_watch',{tripId:trip.id},state.otherCookie));assert.equal(foreign.trip,null);assert.equal(foreign.recentTrip,null);
  assert.equal((await r('live_cancel',{tripId:trip.id,reason:'changed_plans'},state.otherCookie)).status,409);

@@ -36,7 +36,10 @@ test('local cash journey crosses compiled rider, hub and admin gateways with one
   const asCaptain = (action, body = {}, cookie = '', headers) => hub.fetch(request(origins.hub, '/api/driver', {action, ...body}, cookie, headers), env, {});
   // The compiled admin Worker is a platform-authenticated owner adapter. These
   // identity headers model that trusted platform boundary, not Vercel staff login.
-  const asAdmin = (path, headers = {'oai-authenticated-user-id': 'local-owner', 'oai-authenticated-user-email': env.CAPTAIN_ADMIN_EMAIL}) => admin.fetch(request(origins.admin, path, undefined, '', headers), adminEnv);
+  const trustedAdminHeaders = {'oai-authenticated-user-id': 'local-owner', 'oai-authenticated-user-email': env.CAPTAIN_ADMIN_EMAIL};
+  // A trusted runtime context is created by the local platform fixture, not HTTP headers.
+  const trustedAdminCtx = {access:{getIdentity:async()=>({id:'local-access-owner',email:env.CAPTAIN_ADMIN_EMAIL})}};
+  const asAdmin = (path, headers = trustedAdminHeaders) => admin.fetch(request(origins.admin, path, undefined, '', headers), adminEnv, headers === trustedAdminHeaders ? trustedAdminCtx : undefined);
   const read = async (response, status, step) => {
     assert.equal(response.status, status, step);
     return response.json();
@@ -83,6 +86,7 @@ test('local cash journey crosses compiled rider, hub and admin gateways with one
   assert.equal((await asRider('/api/live', {action: 'live_book', actor: riderActor}, '', {'oai-authenticated-user-id': riderActor})).status, 401);
   assert.equal((await asCaptain('accept', {tripId: 'forged-trip'}, '', {'oai-authenticated-user-id': captainActor})).status, 401);
   assert.equal((await asAdmin('/api/admin/operations/trips', {})).status, 403);
+  assert.equal((await asAdmin('/api/admin/operations/trips', {'oai-authenticated-user-id': 'local-owner', 'oai-authenticated-user-email': env.CAPTAIN_ADMIN_EMAIL})).status, 403, 'forged identical headers without Access must be rejected');
   assert.equal((await asAdmin('/api/admin/operations/trips', {'oai-authenticated-user-id': 'visitor', 'oai-authenticated-user-email': 'visitor@local.test'})).status, 403);
   assert.equal((await hub.fetch(request(origins.hub, '/internal/administration/operations/trips', undefined, '', {'x-mishwar-key': 'wrong-fixture-key'}), env, {})).status, 403);
   assert.equal(env.db.prepare('SELECT COUNT(*) AS n FROM trips').get().n, 0);
