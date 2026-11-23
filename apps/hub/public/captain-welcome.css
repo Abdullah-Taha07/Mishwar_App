@@ -1,0 +1,60 @@
+/* The welcome replaces the anonymous landing, not a signed-in captain's route. */
+body.captain-welcome{background:#f3f7f8;color:#102d38}
+body.captain-welcome .page{display:block;min-height:100dvh;max-width:1220px;margin:auto}
+body.captain-welcome .brand-panel{display:none}
+body.captain-welcome .main-panel{padding:24px 38px}
+body.captain-welcome .topbar{max-width:none;margin:0 0 22px;min-height:44px;padding-inline-end:52px;gap:10px}
+body.captain-welcome #background-notifications-button{display:none}
+body.captain-welcome .mobile-brand{display:block;font-size:25px;text-decoration:none;font-weight:700}
+body.captain-welcome #app{max-width:none;padding:0!important;margin:0}
+body.captain-welcome .main-panel>footer{margin:18px 0 0;text-align:center;font-size:11px;color:#70838c}
+.captain-welcome-hero{display:grid;grid-template-columns:1fr 1fr;align-items:stretch;gap:28px;min-height:560px;background:white;border:1px solid #e1eaee;border-radius:28px;padding:18px;box-shadow:0 12px 40px #143c4808;overflow:hidden}
+.captain-welcome-copy{align-self:center;padding:28px 20px}
+.captain-welcome-copy .kicker{display:inline-flex;align-items:center;gap:7px;margin-bottom:16px;color:#177b88;font-size:12px;font-weight:700}
+.captain-welcome-copy .kicker::before{content:"";width:7px;height:7px;border-radius:50%;background:#14b2bd}
+#app .captain-welcome-copy h2{font-size:clamp(30px,3.4vw,46px)!important;line-height:1.4;letter-spacing:-1px;margin:0 0 22px;font-weight:700!important;color:#102d38}
+.captain-welcome-income{display:block;font-size:clamp(58px,7vw,88px);line-height:1.1;letter-spacing:-3px;font-weight:800!important;color:#0799aa;margin-bottom:6px;font-variant-numeric:tabular-nums}
+.captain-welcome-income bdi{font:inherit;font-weight:inherit!important}
+.captain-welcome-unit{display:block;font-size:20px;font-weight:500;letter-spacing:0;color:#102d38;margin-block:8px}
+.captain-welcome-hero .captain-income-caveat{font-size:11px;line-height:1.8;color:#69818a;margin:12px 0 24px;max-width:360px}
+.captain-welcome-actions{display:grid;gap:10px;max-width:380px}
+.captain-welcome-actions .primary{width:100%;min-height:52px!important;background:#102d38;color:#fff;border:1px solid #102d38;border-radius:15px;box-shadow:0 5px 14px #102d3810;font-weight:700!important;transition:background-color .18s,transform .15s}
+.captain-welcome-login{width:100%;min-height:48px;border:1px solid #dbe7eb;border-radius:15px;background:#fff;color:#254b59;font-size:13px;font-weight:600!important;cursor:pointer;transition:background-color .18s,transform .15s}
+.captain-welcome-actions :is(button,a):focus-visible{outline:3px solid #29b7c8;outline-offset:3px}
+.captain-welcome-actions button:not(:disabled):active{transform:scale(.985)}
+.captain-welcome-install{display:block;justify-self:center;margin-top:4px;color:#60808b;font-size:11px;text-decoration:underline;text-underline-offset:4px}
+.captain-welcome-visual{margin:0;position:relative;border-radius:20px;overflow:hidden;background:#dcebed;min-height:460px}
+.captain-welcome-visual img{display:block;width:100%;height:100%;object-fit:cover;object-position:58% 48%;position:absolute;inset:0}
+.captain-welcome-visual::after{content:"";position:absolute;inset:55% 0 0;background:linear-gradient(transparent,#0b263548);pointer-events:none}
+.captain-welcome-visual figcaption{position:absolute;inset-inline:20px;bottom:20px;z-index:1;display:inline-flex;align-items:center;gap:8px;width:fit-content;padding:9px 13px;border:1px solid #ffffff60;border-radius:30px;background:#fffffff0;color:#173b48;font-size:12px;font-weight:600;box-shadow:0 4px 15px #102d3815}
+.captain-welcome-visual figcaption::before{content:"";width:7px;height:7px;background:#1ba7a5;border-radius:50%}
+@media(hover:hover) and (pointer:fine){.captain-welcome-actions .primary:hover{background:#1a4655}.captain-welcome-login:hover{background:#f1f8f9}}
+@media(max-width:720px){
+ body.captain-welcome .main-panel{padding:14px 16px 18px}
+ body.captain-welcome .topbar{margin-bottom:14px;gap:10px}
+ body.captain-welcome .mobile-brand{font-size:22px}
+ .captain-welcome-hero{grid-template-columns:1fr;gap:0;padding:0;min-height:0;border-radius:24px}
+ .captain-welcome-visual{grid-row:1;height:clamp(170px,27dvh,242px);min-height:0;border-radius:0}
+ .captain-welcome-visual img{object-position:center 45%}
+ .captain-welcome-visual figcaption{bottom:12px;inset-inline-start:14px;padding:7px 11px;font-size:10px}
+ .captain-welcome-copy{padding:21px 22px 22px;text-align:center}
+ .captain-welcome-copy .kicker{margin-bottom:8px;font-size:11px}
+ #app .captain-welcome-copy h2{font-size:27px!important;line-height:1.45;margin-bottom:12px;letter-spacing:-.6px}
+ .captain-welcome-income{font-size:65px;letter-spacing:-2px;line-height:1}
+ .captain-welcome-unit{font-size:17px;margin-top:8px}
+ .captain-welcome-hero .captain-income-caveat{margin:10px auto 17px;font-size:10px;line-height:1.7}
+ .captain-welcome-actions{max-width:none;gap:8px}
+ body.captain-welcome .main-panel>footer{margin-top:13px;font-size:10px}
+}
+@media(max-width:350px),(max-height:670px) and (max-width:720px){
+ .captain-welcome-visual{height:155px}
+ .captain-welcome-copy{padding:16px}
+ #app .captain-welcome-copy h2{font-size:24px!important;margin-bottom:8px}
+ .captain-welcome-income{font-size:54px}
+ .captain-welcome-hero .captain-income-caveat{margin-bottom:12px}
+ .captain-welcome-actions .primary{min-height:48px!important}
+ .captain-welcome-login{min-height:44px}
+}
+@media(prefers-reduced-motion:reduce){.captain-welcome-actions button{transition:none!important}.captain-welcome-actions button:active{transform:none!important}}
+body.no-animation .captain-welcome-actions button{transition:none!important}
+body.no-animation .captain-welcome-actions button:active{transform:none!important}

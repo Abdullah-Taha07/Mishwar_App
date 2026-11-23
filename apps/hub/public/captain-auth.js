@@ -37,6 +37,7 @@
     }
 
     function form(register) {
+        document.body.classList.remove('captain-welcome');
         register = register || false;
         // A previously used device must still allow a different captain to register.
         
@@ -110,6 +111,7 @@
         },6000);
     }
     function pending(d) {
+        document.body.classList.remove('captain-welcome');
         const sms = d.smsConfigured === true;
         let html = '<button type="button" class="text-link" id="captain-pending-back">→ رجوع</button>';
         html += '<h2>توثيق رقم الجوال</h2><p class="intro">مرحبًا ' + esc(d.profile.name) + '، وثّق رقمك لاستكمال التسجيل.</p>';
@@ -162,8 +164,10 @@
     }
 
     window.showCaptainWelcome = function () {
-        root().innerHTML = '<span class="kicker">كابتن مشوار</span><h2>كل طريق، فرصة جديدة</h2><p class="intro">أهلًا بك في مشوار. تابع حسابك وطلباتك من مكان واحد.</p><p class="captain-income-headline">استثمر وقتك معنا لتربح ما يصل إلى 10,000 ريال شهريًا</p><small class="captain-income-caveat">الأرباح المحتملة غير مضمونة وتعتمد على عدد الرحلات والطلب الفعلي.</small><button class="primary" id="captain-enter">متابعة حسابي</button><a class="text-link" href="/launch?login=1#login">تسجيل الدخول</a><a class="text-link" href="/install.html">تنزيل وتثبيت التطبيق</a>';
-        document.querySelector('#captain-enter').onclick = function () { form(false); };
+        document.body.classList.add('captain-welcome');
+        root().innerHTML = '<section class="captain-welcome-hero" aria-labelledby="captain-welcome-title"><div class="captain-welcome-copy"><span class="kicker">كابتن مشوار</span><h2 id="captain-welcome-title">اربح معنا حتى</h2><div class="captain-welcome-income"><bdi>10,000</bdi><span class="captain-welcome-unit">ريال شهريًا</span></div><small class="captain-income-caveat">الأرباح المحتملة غير مضمونة، والدخل تقديري ويختلف حسب عدد الرحلات والطلب وساعات العمل.</small><div class="captain-welcome-actions"><button type="button" class="primary" id="captain-enter">ابدأ مع مشوار</button><button type="button" class="captain-welcome-login" id="captain-welcome-login">عندي حساب، تسجيل الدخول</button><a class="captain-welcome-install" href="/install.html">تنزيل وتثبيت التطبيق</a></div></div><figure class="captain-welcome-visual"><img src="/images/captain-welcome.jpg" alt="قائد مشوار يجلس داخل سيارة" width="1254" height="1254" decoding="async" fetchpriority="high"><figcaption>كل طريق، فرصة جديدة</figcaption></figure></section>';
+        document.querySelector('#captain-enter').onclick = function () { form(true); };
+        document.querySelector('#captain-welcome-login').onclick = function () { form(false); };
     };
 
     window.ensureCaptainAccount = async function () {
@@ -172,7 +176,7 @@
             if (params.get('login') === '1' || location.hash === '#login') { form(false); return false; }
             if (location.hash === '#register') { form(true); return false; }
             const d = await api('session');
-            if (!d.authenticated) { form(); return false; }
+            if (!d.authenticated) { window.showCaptainWelcome(); return false; }
             if (!d.phoneVerified) { pending(d); return false; }
             if (d.application) {
                 localStorage.setItem('mishwar-captain-registered', 'yes');

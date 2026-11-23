@@ -12,7 +12,7 @@ test('SMS send handler survives currentTarget becoming null after await', async 
   const back={};const refresh={};const logout={};
   const elements={'#captain-send-otp':sendButton,'#captain-otp-status':status,'#captain-otp-form':otpForm,'#captain-pending-back':back,'#refresh-account':refresh,'#logout-account':logout};
   const app={set innerHTML(v){html=v},get innerHTML(){return html}};
-  const document={hidden:true,querySelector(q){return q==='#app'?app:elements[q]||null}};
+  const document={hidden:true,body:{classList:{add(){},remove(){},toggle(){}}},querySelector(q){return q==='#app'?app:elements[q]||null}};
   const window={};
   const fetch=async(url)=>Response.json({authenticated:true,phoneVerified:false,smsConfigured:true,profile:{name:'QA',phone:'+966500000000'}});
   const requests=[];
