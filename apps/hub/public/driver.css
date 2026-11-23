@@ -10,3 +10,76 @@
 @media(max-width:799px){body[data-driver-tab=requests]:has(.live-offer) #driver-panel{position:absolute;top:auto;bottom:calc(59px + env(safe-area-inset-bottom));height:var(--driver-offer-height,86%);max-height:calc(100% - 125px);left:0;right:0;z-index:500;box-shadow:0 -10px 35px #08334420;padding:0 20px 18px;transition:height .15s}body[data-driver-tab=requests]:has(.live-offer) .driver-map{height:calc(var(--vh) - 121px);max-height:none}.driver-fullpage .driver-shell header{min-height:62px}.driver-fullpage #driver-panel{padding-top:20px}.driver-fullpage #driver-panel>.panel-title{top:-20px}}
 html[dir=ltr] .driver-route>div{flex-direction:row}html[dir=ltr] #driver-panel{text-align:left}
 .driver-fullpage .driver-nav{display:none!important}.driver-page-back{border:0;background:#edf8fa;color:#17576b;font:inherit;font-size:22px;border-radius:50%;width:36px;height:36px;flex-shrink:0}.driver-navigation{display:block;text-align:center;text-decoration:none;padding:13px;background:#e7f7fb;border:1px solid #b8e2ed;border-radius:12px;color:#13778f;margin:14px 0;font-size:13px;font-weight:500}.movement-debit{color:#b45c58}.movement-credit{color:#20846d}.history-trip summary strong small{font-weight:400;font-size:10px;margin-top:6px}.driver-shell h1{font-size:20px!important;font-weight:600!important}.driver-shell h2,.driver-shell h3,.driver-shell strong,.driver-shell b{font-weight:500!important}.driver-fullpage #driver-panel .arrival-note{font-size:13px;line-height:1.9;padding:14px}.summary strong{font-size:30px!important}.driver-shell button,.driver-shell a{touch-action:manipulation;-webkit-tap-highlight-color:transparent}.driver-nav button{font-weight:400;font-size:11px}.driver-nav button.active{font-weight:600}.driver-shell button:active{background-color:#dbf5f8}.map-caption{display:none}.driver-shell #driver-panel .panel-title{gap:10px}.panel-title h1{flex:1}
+
+/* MISHWAR_SCREEN_FIX_20261123: contain the payment dialog in every mobile viewport. */
+#driver-services-dialog.driver-service-modal {
+  position: fixed !important;
+  inset: 0 !important;
+  margin: auto !important;
+  box-sizing: border-box;
+  width: min(500px, calc(100vw - 24px)) !important;
+  max-width: calc(100vw - 24px) !important;
+  max-height: calc(100dvh - 24px) !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  overscroll-behavior: contain;
+  transform: none !important;
+  padding: clamp(14px, 3vw, 24px) !important;
+  text-align: start;
+}
+#driver-services-dialog, #driver-services-dialog * { box-sizing: border-box; }
+#driver-services-dialog > h2 {
+  display: flex !important;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 14px !important;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+#driver-services-dialog #close-driver-service {
+  display: inline-grid !important;
+  place-items: center;
+  flex: 0 0 40px;
+  width: 40px !important;
+  max-width: 40px !important;
+  height: 40px !important;
+  min-height: 40px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border-radius: 50%;
+}
+#driver-services-dialog .funding-form,
+#driver-services-dialog .funding-form fieldset,
+#driver-services-dialog .funding-form [data-recharge-fields],
+#driver-services-dialog .funding-form [data-funding-amount] {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+#driver-services-dialog .funding-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+#driver-services-dialog .funding-options label {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+#driver-services-dialog input:not([type=radio]),
+#driver-services-dialog select,
+#driver-services-dialog .primary { width: 100%; min-width: 0; max-width: 100%; }
+@media (max-width: 370px) {
+  #driver-services-dialog .funding-options { grid-template-columns: 1fr; }
+}
+@media (max-width: 799px) {
+  body[data-driver-tab="profile"] .profile-notifications {
+    min-height: 46px;
+    margin: 7px 0 !important;
+    padding: 10px 14px !important;
+    text-align: start;
+  }
+  body[data-driver-tab="profile"] .captain-account-accordion { margin: 10px 0; }
+}
