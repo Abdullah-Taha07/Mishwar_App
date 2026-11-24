@@ -1,0 +1,10 @@
+{
+  "d1_databases": [
+    {
+      "binding": "PREVIEW_DB",
+      "database_name": "mishwar-db-staging",
+      "database_id": "9f88415f-4e4c-4fe8-8f79-f19b51165263",
+      "migrations_dir": "drizzle"
+    }
+  ]
+}

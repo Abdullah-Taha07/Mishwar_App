@@ -19,6 +19,9 @@ crons = ["* * * * *"]
 CAPTAIN_ADMIN_EMAIL = "Abduuallah3@gmail.com"
 
 [previews]
+[previews.vars]
+# Preview does not inherit production vars.
+CAPTAIN_ADMIN_EMAIL = "Abduuallah3@gmail.com"
 [[previews.d1_databases]]
 binding = "DB"
 database_name = "mishwar-db-staging"
