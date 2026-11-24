@@ -40,3 +40,8 @@ test('rider Trips page formats a real live balance and opens dedicated wallet',(
  callbacks.get('button:click')();assert.equal(win.openedSection,'profile');
  callbacks.get('nav:click')({target:{closest:()=>({dataset:{},hasAttribute:k=>k==='data-open-menu'})},preventDefault(){},stopPropagation(){}});assert.equal(win.moreOpened,true);
 });
+
+test('rider modal and drawer hide floating navigation',()=>{
+ assert.match(css,/body:has\(#modal\[open\]\) \.mobile-nav/);
+ assert.match(css,/body:has\(#drawer\[open\]\) \.mobile-nav/);
+});

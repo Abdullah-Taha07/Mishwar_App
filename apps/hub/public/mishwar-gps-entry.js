@@ -15,7 +15,8 @@
     if (document.hidden || !navigator.geolocation || window.isSecureContext === false) return;
     const now = Date.now(); if (now - lastRequest < 20000) return;
     let permission;
-    try { permission = await navigator.permissions?.query?.({name:'geolocation'}); } catch {return;}
+    try { permission = await navigator.permissions?.query?.({name:'geolocation'}); } catch {}
+    if (!permission) status.textContent = 'استخدم زر تحديد موقعي لتحديث الموقع على هذا المتصفح';
     if (permission?.state !== 'granted' || document.hidden) return; // No surprise permission dialogs.
     lastRequest = now; const generation = ++requestNumber;
     status.textContent = 'جارٍ تحديث موقعك…';

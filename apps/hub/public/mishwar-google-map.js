@@ -69,6 +69,7 @@
   function sync() {
     if (!enabled || document.hidden || !googleMap) return;
     const trip = !rider && typeof data !== 'undefined' ? data?.current : null;
+    if (!rider) routeGeometry = trip?.route?.geometry || null;
     const candidate = rider ? [typeof pickupPoint !== 'undefined' ? pickupPoint : null,typeof state !== 'undefined' ? state?.destination : null,routeGeometry] : [globalThis.captainGPS || null,trip?.destination || null,routeGeometry];
     const shape = JSON.stringify(candidate);
     if (shape !== previousShape) {previousShape = shape;markers();}

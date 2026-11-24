@@ -57,3 +57,8 @@ test('GPS entry acquires a fresh permission-granted foreground sample',async()=>
  assert.equal(h.emitted.length,1);
  assert.equal(h.emitted[0].lat,24.71);
 });
+
+test('captain Google Maps renders actual trip route geometry',()=>{
+ assert.match(google,/routeGeometry = trip\?\.route\?\.geometry \|\| null/);
+ assert.match(google,/const coordinates = routeGeometry\?\.type === 'LineString'/);
+});

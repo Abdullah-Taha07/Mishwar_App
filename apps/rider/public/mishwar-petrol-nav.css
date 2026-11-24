@@ -119,3 +119,7 @@ body:not(.address-editing) .mobile-nav button.active{
 }
 @media(max-width:350px){.mobile-nav{gap:2px!important;padding-inline:8px!important}.mobile-nav button{font-size:11px!important}}
 @media(prefers-reduced-motion:reduce){.mobile-nav button{transition:none!important}}
+
+/* Modal dialogs own focus; the floating tab bar must not cover them. */
+body:has(#modal[open]) .mobile-nav,
+body:has(#drawer[open]) .mobile-nav { display: none !important; }
