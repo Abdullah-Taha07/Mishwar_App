@@ -192,7 +192,7 @@ const worker = {
                 return url.pathname === '/internal/services' ? json({features:providerReadiness(env)}) : sharedTrip(env,url.searchParams.get('token'));
             }
             if(url.pathname.startsWith('/internal/places/'))return commercialPlaces(request,env);
-            if(url.pathname==='/api/map-config')return json({provider:env.TOMTOM_MAPS_BROWSER_KEY?'TomTom':'OpenStreetMap',browserKey:env.TOMTOM_MAPS_BROWSER_KEY||null});
+            if(url.pathname==='/api/map-config')return json({provider:env.TOMTOM_MAPS_BROWSER_KEY?'TomTom':'OpenStreetMap',browserKey:env.TOMTOM_MAPS_BROWSER_KEY||null,googleMapsBrowserKey:env.GOOGLE_MAPS_BROWSER_KEY||null});
             if(url.pathname==='/api/documents/renew')return renewDocument(request,env);
             if(url.pathname==='/internal/route-estimate')return await routeEstimate(request,env);
             if(url.pathname==='/internal/rider-auth')return await handleRiderAuth(request,env);

@@ -76,7 +76,7 @@ export async function commercialPlaces(request, env) {
   if (!await secretMatches(request.headers.get('x-mishwar-key'), env.RIDER_SERVICE_KEY)) return json({error: 'غير مسموح'}, 403);
   const incoming = new URL(request.url);
   if (incoming.pathname.endsWith('/config')) return json({
-    provider: env.TOMTOM_MAPS_BROWSER_KEY ? 'TomTom' : 'OpenStreetMap', browserKey: env.TOMTOM_MAPS_BROWSER_KEY || null,
+    provider: env.TOMTOM_MAPS_BROWSER_KEY ? 'TomTom' : 'OpenStreetMap', browserKey: env.TOMTOM_MAPS_BROWSER_KEY || null, googleMapsBrowserKey: env.GOOGLE_MAPS_BROWSER_KEY || null,
     searchConfigured: configured(env), searchProvider: configured(env) ? 'TomTom' : 'Photon',
   });
   if (!configured(env)) return json({error: 'خدمة الأماكن التجارية بانتظار التفعيل'}, 503);

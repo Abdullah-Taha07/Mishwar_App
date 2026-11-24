@@ -1,0 +1,12 @@
+/* Google map opt-in leaves Leaflet in place; safe-area and RTL friendly. */
+#map,.driver-map{position:relative}
+.mishwar-google-map-layer{position:absolute;inset:0;z-index:12;background:#edf4f6}
+.mishwar-google-map-layer[hidden]{display:none!important}
+.mishwar-map-provider-controls{position:absolute;inset-inline-start:12px;top:65px;z-index:35;display:flex;flex-direction:column;gap:5px;align-items:flex-start;pointer-events:none;max-width:50%}
+.mishwar-map-provider{pointer-events:auto;border:1px solid #e1edf0;background:#083344;color:#fff;border-radius:14px;font:600 12px/1.3 Arial,sans-serif;min-height:44px;padding:8px 14px;box-shadow:0 4px 14px #08334422;cursor:pointer}
+.mishwar-map-provider[hidden]{display:none!important}
+.mishwar-map-provider:focus-visible{outline:3px solid #06b6d4;outline-offset:2px}
+.mishwar-map-provider-status{font:500 11px/1.4 Arial,sans-serif;max-width:160px;color:#083344;background:#ffffffd9;border-radius:8px;padding:3px 6px}
+@media(max-width:430px){.mishwar-map-provider-controls{top:72px;inset-inline-start:6px}}
+
+.mishwar-map-provider-status:empty{display:none}

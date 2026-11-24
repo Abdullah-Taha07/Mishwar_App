@@ -1,0 +1,121 @@
+/* Scoped visual layer: Mishwar petrol navigation, rider and verified balance UI. */
+:root{--mw-petrol:#083344;--mw-petrol-deep:#102d38;--mw-turquoise:#06b6d4;--mw-page:#f4f8f9;--mw-nav-height:64px}
+#drawer .drawer-links [data-section="profile"],#drawer .drawer-links [data-section="wallet"],#drawer .drawer-links [data-section="trips"]{display:none!important}
+#mishwar-rider-account-shortcut{display:grid;place-items:center;flex:0 0 44px;width:44px;height:44px;border-radius:15px;border:1px solid #cce2e8;background:#eaf4f6;color:var(--mw-petrol);cursor:pointer;order:10}
+#mishwar-rider-account-shortcut svg{width:23px;height:23px}
+#mishwar-rider-account-shortcut:focus-visible,.mw-rider-wallet-card:focus-visible{outline:3px solid var(--mw-turquoise);outline-offset:2px}
+.mobile-nav{display:flex!important;position:fixed!important;inset:auto 0 0!important;min-height:calc(var(--mw-nav-height) + env(safe-area-inset-bottom))!important;height:calc(var(--mw-nav-height) + env(safe-area-inset-bottom))!important;padding:5px max(10px,env(safe-area-inset-left)) calc(5px + env(safe-area-inset-bottom)) max(10px,env(safe-area-inset-right))!important;background:#fff!important;border-top:1px solid #dce9ed!important;box-shadow:0 -8px 25px #0833440c!important;z-index:900!important;align-items:center;justify-content:space-around}
+.mobile-nav button{flex:1;min-width:0;max-width:240px;min-height:48px;border-radius:15px!important;display:flex;align-items:center;justify-content:center;gap:3px;color:#617b85!important}
+.mobile-nav button.active{background:#e3f6fa!important;color:var(--mw-petrol)!important;font-weight:700!important}
+.mobile-nav button svg{width:22px;height:22px}
+.app{padding-bottom:calc(var(--mw-nav-height) + env(safe-area-inset-bottom))!important;background:var(--mw-page)}
+.workspace{position:relative;min-width:0}
+.rail{display:none!important}
+.workspace{width:min(100%,1500px);margin-inline:auto}
+#mishwar-rider-trips-page[hidden]{display:none!important}
+#mishwar-rider-trips-page{position:fixed;inset:calc(70px + env(safe-area-inset-top)) 0 calc(var(--mw-nav-height) + env(safe-area-inset-bottom)) 0;z-index:600;background:var(--mw-page);padding:16px clamp(14px,4vw,28px) 34px;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;scrollbar-width:thin}
+#mishwar-rider-trips-page>.mw-trips-title,#mishwar-rider-trips-page>.mw-rider-wallet-card,#mishwar-rider-trips-page>.mw-trip-list{max-width:720px;margin-inline:auto}
+.mw-trips-title h1{font-size:clamp(22px,4vw,29px);margin:0 0 17px;color:var(--mw-petrol-deep)}
+.mw-rider-wallet-card{display:grid;gap:9px;width:100%;padding:23px 21px;min-height:150px;text-align:start;border:1px solid #075568;background:linear-gradient(120deg,#083344,#0b5767);border-radius:21px;box-shadow:0 10px 26px #08334420;color:white;cursor:pointer;touch-action:manipulation}
+.mw-rider-wallet-card .mw-label{color:#bbdce4;font-size:13px}
+.mw-rider-wallet-card strong{font-size:clamp(25px,5vw,36px);color:white;justify-self:start;font-variant-numeric:tabular-nums}
+.mw-wallet-caption{display:flex;align-items:center;justify-content:space-between;color:#d1e9ed;font-size:12px}
+.mw-trip-list{margin-top:25px!important;background:white;padding:22px;border:1px solid #dce9ed;border-radius:19px}
+.mw-trip-list h2{font-size:18px;margin:0 0 14px;color:var(--mw-petrol-deep)}
+.mw-trip-list p{font-size:13px;color:#62808b;line-height:1.7}
+.mw-open-history,.mw-action{width:100%;min-height:50px;display:flex;justify-content:space-between;align-items:center;gap:10px;border:1px solid #d4e7eb;border-radius:12px;background:#f2fafb;color:var(--mw-petrol-deep);padding:12px 15px;text-align:start;font:inherit;font-size:14px;cursor:pointer;margin-top:13px}
+.mw-action{justify-content:center;background:var(--mw-petrol);color:white}
+/* The booking sheet still slides over the map, but never overlaps the fixed tab bar. */
+@media(max-width:700px){.workspace{padding-bottom:calc(var(--mw-nav-height) + env(safe-area-inset-bottom))!important}.rider-select .booking{bottom:calc(var(--mw-nav-height) + env(safe-area-inset-bottom))!important;max-height:calc(100% - var(--mw-nav-height) - env(safe-area-inset-bottom))!important}.rider-select .ride-layout{height:calc(var(--visible-height,100dvh) - 58px)!important}.rider-select .booking .ride-scroll{padding-bottom:14px}.address-editing .mobile-nav{display:none!important}#mishwar-rider-trips-page{inset-block-start:58px;padding-block-start:18px}}
+@media(max-width:360px){.mobile-nav button{font-size:11px!important}#mishwar-rider-trips-page{padding-inline:11px}.mw-rider-wallet-card{padding:19px 16px}}
+@media(prefers-reduced-motion:reduce){.mobile-nav *,#mishwar-rider-trips-page *{scroll-behavior:auto!important;transition:none!important}}
+
+/* MISHWAR_NAV_REFINEMENT_20261124 — UI-only, account and trip handlers unchanged. */
+:root{--mw-nav-refined-height:72px}
+.mobile-nav{
+  box-sizing:border-box!important;
+  display:flex!important;
+  position:fixed!important;
+  z-index:900!important;
+  inset:auto auto 12px 50%!important;
+  transform:translateX(-50%)!important;
+  width:min(520px,calc(100vw - 28px))!important;
+  max-width:none!important;
+  min-height:72px!important;
+  height:72px!important;
+  margin:0!important;
+  padding:8px 12px!important;
+  gap:6px!important;
+  align-items:stretch!important;
+  justify-content:space-evenly!important;
+  background:#083344!important;
+  border:1px solid #165364!important;
+  border-radius:20px!important;
+  box-shadow:0 11px 34px rgba(8,51,68,.23)!important;
+  isolation:isolate;
+}
+.mobile-nav button,
+body:not(.address-editing) .mobile-nav button{
+  box-sizing:border-box!important;
+  display:flex!important;
+  flex:1 1 0!important;
+  flex-direction:column!important;
+  align-items:center!important;
+  justify-content:center!important;
+  min-width:0!important;
+  max-width:none!important;
+  min-height:48px!important;
+  height:auto!important;
+  width:auto!important;
+  padding:5px 4px!important;
+  gap:4px!important;
+  margin:0!important;
+  border:0!important;
+  border-radius:12px!important;
+  background:transparent!important;
+  color:#d3e7eb!important;
+  font-size:12px!important;
+  font-weight:600!important;
+  line-height:1.25!important;
+  text-align:center!important;
+  white-space:nowrap;
+  cursor:pointer;
+  touch-action:manipulation;
+}
+.mobile-nav button svg{
+  width:22px!important;
+  height:22px!important;
+  min-width:22px!important;
+  flex-shrink:0!important;
+  color:inherit!important;
+}
+.mobile-nav button.active,
+body:not(.address-editing) .mobile-nav button.active{
+  background:rgba(6,182,212,.17)!important;
+  color:#67e8f9!important;
+  box-shadow:inset 0 0 0 1px rgba(103,232,249,.22)!important;
+  font-weight:700!important;
+}
+.mobile-nav button:focus-visible{outline:2px solid #67e8f9!important;outline-offset:1px!important}
+.mobile-nav[hidden],.address-editing .mobile-nav{display:none!important}
+.app{padding-bottom:calc(102px + env(safe-area-inset-bottom))!important}
+#mishwar-rider-trips-page{bottom:calc(94px + env(safe-area-inset-bottom))!important}
+@media(max-width:700px){
+  .mobile-nav{
+    inset:auto 0 0 0!important;
+    transform:none!important;
+    width:100%!important;
+    min-height:calc(var(--mw-nav-refined-height) + env(safe-area-inset-bottom))!important;
+    height:calc(var(--mw-nav-refined-height) + env(safe-area-inset-bottom))!important;
+    padding:6px max(12px,env(safe-area-inset-right)) calc(7px + env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left))!important;
+    gap:8px!important;
+    border-radius:18px 18px 0 0!important;
+    border-bottom:0!important;
+  }
+  .app{padding-bottom:calc(var(--mw-nav-refined-height) + env(safe-area-inset-bottom))!important}
+  #mishwar-rider-trips-page{bottom:calc(var(--mw-nav-refined-height) + env(safe-area-inset-bottom))!important}
+  .rider-select .booking{bottom:calc(var(--mw-nav-refined-height) + env(safe-area-inset-bottom))!important;max-height:calc(100% - var(--mw-nav-refined-height) - env(safe-area-inset-bottom))!important}
+  .workspace{padding-bottom:calc(var(--mw-nav-refined-height) + env(safe-area-inset-bottom))!important}
+}
+@media(max-width:350px){.mobile-nav{gap:2px!important;padding-inline:8px!important}.mobile-nav button{font-size:11px!important}}
+@media(prefers-reduced-motion:reduce){.mobile-nav button{transition:none!important}}
