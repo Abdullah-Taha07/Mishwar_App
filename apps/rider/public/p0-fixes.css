@@ -1,0 +1,12 @@
+/* Mishwar P0 mobile fixes. Old header status duplicates the notification bell. */
+#background-notifications-button{display:none!important}
+@media (max-width:700px){
+  /* The map-pick bar was underneath the persistent bottom nav (z-index:100). */
+  body.map-picking .mobile-nav{display:none!important}
+  body.map-picking .map-wrap{z-index:650!important;inset:0!important;min-height:100dvh!important}
+  body.map-picking #map-pick-bar{position:absolute!important;bottom:calc(18px + env(safe-area-inset-bottom))!important;left:14px!important;right:14px!important;z-index:1100!important;max-height:45dvh!important;overflow-y:auto!important;overscroll-behavior:contain;padding-bottom:14px!important}
+  body.map-picking #map-pick-bar .pick-actions{display:flex;flex-wrap:wrap;gap:8px}
+  body.map-picking #map-pick-bar [data-geo="confirm-pick"]{min-width:125px;min-height:48px!important;touch-action:manipulation}
+  .rider-account-card.pending-phone .rider-account-disclosure{display:none!important}
+}
+.rider-account-card.pending-phone .rider-account-disclosure{display:none!important}

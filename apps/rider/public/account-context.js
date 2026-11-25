@@ -27,7 +27,7 @@
       if(!api.isAuthReadCurrent(ticket))return false;
       const authenticated=data?.authenticated===true;
       if(authenticated&&!validKey(data.accountKey))throw Error('تعذر التحقق من هوية الحساب. أعد المحاولة.');
-      const previous=snapshot(),accountKey=authenticated?data.accountKey:null,verified=authenticated&&data.phoneVerified!==false;
+      const previous=snapshot(),accountKey=authenticated?data.accountKey:null,verified=authenticated&&data.phoneVerified===true;
       const ownerChanged=previous.status!=='ready'||previous.accountKey!==accountKey||previous.authenticated!==authenticated;
       const verificationChanged=previous.verified!==verified;
       if(ownerChanged||verificationChanged)advance();

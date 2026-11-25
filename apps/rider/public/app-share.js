@@ -1,5 +1,6 @@
 /* Share the verified install URL only. Native APK sharing is disabled until a signed release is audited. */
 (()=>{'use strict';
+  const native=/\bMishwarAndroid\/\d+/.test(navigator.userAgent);
   const installUrl=()=>new URL('/install.html',location.origin).href;
   document.addEventListener('click',event=>{
     if(!event.target.closest('[data-share-application]'))return;
@@ -14,6 +15,7 @@
       catch{say('انسخ الرابط لإرساله: '+installUrl());return false}
     };
     document.querySelector('#share-app-link').onclick=async()=>{
+      if(native){location.href='mishwar-app://share-link';return}
       if(typeof navigator.share==='function'){
         try{await navigator.share({title:'مشوار الراكب',text:'ثبّت مشوار على هاتفك',url:installUrl()});say('تمت مشاركة رابط التثبيت');return}
         catch(error){if(error?.name==='AbortError'){say('أُلغيت المشاركة. يمكنك نسخ الرابط بدلًا منها.');return}}

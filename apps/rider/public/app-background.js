@@ -5,14 +5,15 @@
   const button=document.createElement('button');
   button.id='background-notifications-button';button.type='button';button.className='background-notifications-button';
   button.textContent='تفعيل الإشعارات';button.title='تفعيل إشعارات الخلفية';button.setAttribute('aria-label','تفعيل إشعارات الخلفية');button.setAttribute('aria-pressed','false');
-  button.style.cssText='font:inherit;font-size:11px;border:1px solid #cce5ec;border-radius:12px;background:#f0fafc;color:#26788b;padding:8px 10px;cursor:pointer;max-width:112px;min-height:38px;flex-shrink:0;line-height:1.3';
-  if(role==='rider')button.style.marginInlineEnd='44px';
+  button.style.cssText='font:inherit;font-size:16px;border:1px solid #cce5ec;border-radius:50%;background:#f0fafc;color:#26788b;padding:0;cursor:pointer;width:32px;height:32px;min-width:32px;min-height:32px;flex-shrink:0;display:grid;place-items:center';
+  if(role==='rider')button.style.marginInlineEnd='4px';
   // Captain account already exposes its notification settings entry on small screens.
   if(role==='rider')header.insertBefore(button,header.querySelector('#notifications-button'));
   else if(!document.querySelector('.driver-shell'))header.append(button);
   let configured=false,epoch=0,active=null;
   function label(){
-    button.textContent=configured?'الإشعارات مفعّلة':'تفعيل الإشعارات';
+    button.textContent='+';
+    button.hidden=configured; // Successful activation belongs in settings, not a big permanent header pill.
     button.title=configured?'إعدادات إشعارات الخلفية':'تفعيل إشعارات الخلفية';
     button.setAttribute('aria-label',button.title);button.setAttribute('aria-pressed',String(configured));
   }
